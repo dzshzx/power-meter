@@ -4,7 +4,7 @@
 # dependencies = ["cairosvg", "pillow"]
 #
 # [tool.uv]
-# exclude-newer = "3 days"
+# exclude-newer = "1 day"
 # ///
 """Render the Lucide battery-medium artwork with CairoSVG and Pillow.
 
