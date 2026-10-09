@@ -8,7 +8,7 @@
 和托盘的“语言 / Language”菜单可以即时切换，选择保存在当前用户设置中。
 GitHub 仓库为 `dzshzx/power-meter`（2026-09-28 由 `battery-charge-meter` 改名，旧地址自动跳转）。
 
-> 功率术语、供电状态与测量类型在 `CONTEXT.md`；本页提供产品行为与发布说明，Agent 入口为 `AGENTS.md`。
+> 功率术语、供电状态与测量类型在 `GLOSSARY.md`；本页提供产品行为与发布说明，Agent 入口为 `AGENTS.md`。
 
 ## 功能
 
@@ -332,7 +332,7 @@ pwsh -NoProfile -File .\scripts\verify-release.ps1 -Version X.Y.Z
 ├── third_party/ # 内嵌模块、许可证、通知与对应源码
 ├── LICENSE      # 本项目代码的 MIT 许可证（第三方组件见 third_party/）
 ├── AGENTS.md    # 修改与验证时必须保持的项目约束
-├── CONTEXT.md   # 功率口径的统一术语
+├── GLOSSARY.md  # 功率口径的统一术语
 └── dist/        # 本地构建输出（不纳入版本控制）
 ```
 

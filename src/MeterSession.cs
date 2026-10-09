@@ -314,7 +314,7 @@ namespace BatteryChargeMeter
                 Strings.Diagnostic(sample.Source));
         }
 
-        // Estimated figures always carry the ≈ prefix (CONTEXT.md).
+        // Estimated figures always carry the ≈ prefix (GLOSSARY.md).
         private static string Watts(PowerSample sample)
         {
             if (sample == null || !sample.Available)
