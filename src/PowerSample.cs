@@ -5,7 +5,7 @@ namespace BatteryChargeMeter
     /// <summary>
     /// The electrical boundary a power figure is measured across. Every value
     /// shown to the user must carry its boundary, because sensors on different
-    /// boundaries are not interchangeable. See CONTEXT.md for the definitions.
+    /// boundaries are not interchangeable. See GLOSSARY.md for the definitions.
     /// </summary>
     internal enum PowerBoundary
     {
@@ -70,7 +70,7 @@ namespace BatteryChargeMeter
             return sample;
         }
 
-        /// <summary>Chinese UI label for the boundary, per CONTEXT.md.</summary>
+        /// <summary>Chinese UI label for the boundary, per GLOSSARY.md.</summary>
         public static string LabelFor(PowerBoundary boundary)
         {
             switch (boundary)
