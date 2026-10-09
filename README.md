@@ -196,12 +196,9 @@ EXE manifest 继续使用 `asInvoker`，由界面启动流程主动请求提权�
 
 ## 配置文件
 
-当前版本不需要 `PowerMeter.exe.config`。旧版 `BatteryChargeMeter.exe.config` 不是用户设置，
-只用于声明 CLR/.NET Framework 4.7 启动目标、兼容旧 CLR 2 激活策略，以及 WinForms
-的 Per-Monitor V2 DPI 行为。本项目没有 CLR 2 或混合模式依赖；目标框架信息现已写入
-程序集，DPI awareness 由 EXE 内嵌 manifest 声明，跨屏缩放由程序直接处理
-`WM_DPICHANGED`。因此程序不依赖 `.exe.config` 旁置文件；便携 EXE 与安装包使用
-同一个应用程序集。
+程序不需要旁置 `.exe.config`：目标框架写入程序集，DPI awareness 由 EXE 内嵌 manifest
+声明，跨屏缩放由程序处理 `WM_DPICHANGED`；便携 EXE 与安装包使用同一个应用程序集。
+升级后残留的 `BatteryChargeMeter.exe.config` 不含用户设置。
 
 ## 系统要求
 
