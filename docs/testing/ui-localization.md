@@ -1,9 +1,9 @@
-# Compact UI, localization and product rename
+# Compact UI, localization and upgrade compatibility
 
 Power Meter is displayed as 功率计 in Simplified Chinese. The executable and
-release assets use `PowerMeter`; the repository URL, settings key, installer
-AppId and logon-task ownership identity retain their existing values for
-compatibility.
+release assets use `PowerMeter`; the repository is `dzshzx/power-meter`.
+The settings key, installer AppId and logon-task ownership identity retain
+their pre-rename values for compatibility.
 
 The normal client area is 384 × 468 logical pixels. A centered 44-point reading
 leads, with the boundary caption above, followed by the supply state and battery
@@ -126,9 +126,12 @@ A fresh installation contains `PowerMeter.exe`. When an old
 `BatteryChargeMeter.exe` exists in the same installation directory, setup
 replaces it with the small forwarding launcher. The launcher accepts GUI,
 ordinary GUI, logon startup and startup cleanup entry points; diagnostic CLI
-commands use `PowerMeter.exe`. Existing elevated task actions and ACLs need no
-rewrite during a per-user upgrade. Uninstall removes the matching legacy task
-through the new executable before deleting either executable.
+commands use `PowerMeter.exe`. Setup refreshes protected startup copies and
+migrates tasks that target user-writable legacy launchers. When synchronization
+needs elevation, setup requests UAC; declining keeps a stale protected copy
+running or removes an unprotected task. Uninstall removes the matching logon
+task and requests elevation to delete its protected copy before deleting the
+installed executables.
 
 Portable files that are moved or renamed need startup enabled again from the
 new location, with the existing replacement confirmation. Keeping the old

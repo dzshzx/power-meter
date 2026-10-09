@@ -20,7 +20,7 @@ file would then start elevated at the next sign-in without a UAC prompt.
   is declined; an elevated launch of the new version also migrates it.
 - A confirmation to replace another installation's startup covers the task
   definition and the copy's recorded owner.
-- The task ACL is unchanged: the ordinary token may read, run and delete it,
+- The task ACL allows the ordinary token to read, run and delete it,
   but not rewrite its action.
 - A same-name task in a shape this program never registers (edited by the
   user or another program) is never modified or adopted. Removal treats it as
