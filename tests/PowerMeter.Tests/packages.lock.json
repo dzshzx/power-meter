@@ -22,8 +22,8 @@
       },
       "AntdUI": {
         "type": "Transitive",
-        "resolved": "2.4.11",
-        "contentHash": "CWUpAARVP6+hVygOPnhAAnkrLPn28rCBhLungpnF4yxud7Ivxzgp4EPTQ3KQ+9PQIGIkSWAWPGJbFNmO49HFqg=="
+        "resolved": "2.4.12",
+        "contentHash": "QW7CQe0XMb2u3UCOgFaE8JX1+46yL9dBQWhMvLZxPmw7Dsarw7RIUCcnooTswaARdhTQFBJ1WLI23MyKUuOlYA=="
       },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
@@ -238,7 +238,7 @@
       "powermeter": {
         "type": "Project",
         "dependencies": {
-          "AntdUI": "[2.4.11, )",
+          "AntdUI": "[2.4.12, )",
           "System.CommandLine": "[2.0.12, )",
           "TaskScheduler": "[2.12.2, )"
         }

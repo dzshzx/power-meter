@@ -109,7 +109,7 @@ height, and estimates retain a neutral muted color and the approximation mark.
 [Krypton Toolkit](https://github.com/Krypton-Suite/Standard-Toolkit) were checked
 for existing .NET Framework support. AntdUI supplies the specific buttons,
 popover, panel and settings controls without replacing the WinForms lifecycle.
-Its pinned 2.4.11 net46 package has no additional NuGet runtime dependencies.
+Its pinned 2.4.12 net46 package has no additional NuGet runtime dependencies.
 The assembly is embedded and resolved before the GUI entry point is JIT-compiled;
 the existing isolated-EXE CLI/preview tests verify that no DLL sidecar is needed.
 The restore script checks the archive hash and re-extracts the assembly on each

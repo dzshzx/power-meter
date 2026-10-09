@@ -232,7 +232,7 @@ Pester 5（需装在 Windows PowerShell 与 PowerShell 7 都能加载的
 `src/PowerMeter.csproj`（SDK 风格项目，目标 .NET Framework 4.7.1，引用程序集来自 NuGet），
 将应用 EXE 写入 `dist/`。依赖由 NuGet 按 `packages.lock.json` 锁定还原并校验内容哈希；
 升级依赖时改 csproj 后运行 `dotnet restore --force-evaluate` 刷新锁文件。
-AntdUI 2.4.11、TaskScheduler 2.12.2（登录自启任务）、System.CommandLine 2.0.12（命令行解析）
+AntdUI 2.4.12、TaskScheduler 2.12.2（登录自启任务）、System.CommandLine 2.0.12（命令行解析）
 及其依赖程序集都内嵌在 EXE 中，运行时无需旁置 DLL 或安装额外运行时。各库许可一并内嵌并随发布通知分发。
 主程序为 `PowerMeter.exe`。`dist/compat/BatteryChargeMeter.exe` 仅用于安装升级：
 覆盖旧版时保留一个转发入口，已有快捷方式继续启动 Power Meter。旧版自启任务运行的
