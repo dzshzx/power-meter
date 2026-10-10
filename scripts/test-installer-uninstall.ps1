@@ -50,10 +50,15 @@ $activeUninstaller = $null
 $uninstallProcessIds = @()
 
 function Get-Sha256([string]$Path) { (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash }
+function Assert-ShortcutTarget([string]$Name, [string]$TargetPath = $installedExe) {
+    $shortcutPath = Join-Path $shortcutDir "$Name.lnk"
+    Should -ActualValue (Test-Path -LiteralPath $shortcutPath) -BeTrue -Because "Start Menu retains '$Name'"
+    Should -ActualValue ($shell.CreateShortcut($shortcutPath).TargetPath -eq $TargetPath) -BeTrue -Because "Start Menu '$Name' launches its installed executable"
+}
 function Assert-Shortcut([string]$Name) {
     $links = @(Get-ChildItem -LiteralPath $shortcutDir -Filter '*.lnk')
     Should -ActualValue ($links.Count -eq 1 -and $links[0].BaseName -eq $Name) -BeTrue -Because "Start Menu must contain only '$Name'; found: $($links.BaseName -join ', ')"
-    Should -ActualValue ($shell.CreateShortcut($links[0].FullName).TargetPath -eq $installedExe) -BeTrue -Because 'Start Menu shortcut launches the current executable'
+    Assert-ShortcutTarget $Name
 }
 function Copy-Replacing([string]$Source, [string]$Destination) {
     # A freshly written executable can briefly be held open by on-access
@@ -266,6 +271,30 @@ class InstallerCleanupFixture {
     $legacyShortcut = $shell.CreateShortcut((Join-Path $shortcutDir 'Battery Charge Meter.lnk'))
     $legacyShortcut.TargetPath = $legacyExe
     $legacyShortcut.Save()
+
+    # A locked file fails the upgrade before a replacement [Icons] entry
+    # exists. Lock the working current executable; the old legacy executable and
+    # both existing Start Menu entries must survive the failed upgrade.
+    Assert-ShortcutTarget 'Battery Charge Meter' $legacyExe
+    $legacyProbe = Start-Process -FilePath $legacyShortcut.TargetPath -ArgumentList '--sync-autostart' -Wait -PassThru
+    Should -ActualValue ($legacyProbe.ExitCode -eq 0) -BeTrue -Because 'the old Start Menu entry targets a working executable before upgrade'
+    $oldExeHash = Get-Sha256 $installedExe
+    $oldLegacyHash = Get-Sha256 $legacyExe
+    $syncBeforeFailure = Get-Content -LiteralPath $syncReceipt -Raw
+    $lockedExe = [IO.File]::Open($installedExe, 'Open', 'Read', 'None')
+    try {
+        $failedUpgrade = Start-Process (Join-Path $root 'fixture-upgrade-setup.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOCLOSEAPPLICATIONS', '/LANG=zhCN', ('/LOG="{0}"' -f (Join-Path $root 'upgrade-failure.log')), ('/DIR="{0}"' -f $installDir)) -Wait -PassThru
+    } finally { $lockedExe.Dispose() }
+    Should -ActualValue ($failedUpgrade.ExitCode -eq 5) -BeTrue -Because 'the real Chinese upgrade fails while copying the locked executable'
+    Should -ActualValue ((Get-Sha256 $installedExe) -eq $oldExeHash -and (Get-Sha256 $legacyExe) -eq $oldLegacyHash) -BeTrue -Because 'failed upgrade preserves both working installed executables'
+    Should -ActualValue (-not (Test-Path -LiteralPath (Join-Path $shortcutDir '功率计.lnk'))) -BeTrue -Because 'failed upgrade does not create the replacement Start Menu entry'
+    Assert-ShortcutTarget 'Battery Charge Meter' $legacyExe
+    Assert-ShortcutTarget 'Power Meter'
+    Should -ActualValue ((Get-Content -LiteralPath $syncReceipt -Raw) -eq $syncBeforeFailure) -BeTrue -Because 'failed upgrade never reaches post-install startup synchronization'
+    $preservedLegacyShortcut = $shell.CreateShortcut((Join-Path $shortcutDir 'Battery Charge Meter.lnk'))
+    $legacyProbe = Start-Process -FilePath $preservedLegacyShortcut.TargetPath -ArgumentList '--sync-autostart' -Wait -PassThru
+    Should -ActualValue ($legacyProbe.ExitCode -eq 0 -and (Get-Content -LiteralPath $syncReceipt)[-1] -eq '1') -BeTrue -Because 'the preserved old Start Menu entry still targets the functioning previous executable'
+
     $app = [Reflection.Assembly]::LoadFile($ExecutablePath)
     $null = $app.GetType('BatteryChargeMeter.EmbeddedLibraries', $true).GetMethod('Initialize', [Reflection.BindingFlags]'Static,NonPublic').Invoke($null, @())
     $type = $app.GetType('BatteryChargeMeter.AutostartManager', $true)
@@ -336,6 +365,10 @@ class InstallerCleanupFixture {
     Should -ActualValue (@(Get-ChildItem -LiteralPath $shortcutDir -Filter '*.lnk' -ErrorAction SilentlyContinue).Count -eq 0) -BeTrue -Because 'uninstall removes the localized shortcut without leaving previous names'
     $installed = $false
 
+    # Seed a foreign shortcut after a complete uninstall, so no earlier
+    # uninstall log owns its name. This covers obsolete-name cleanup during
+    # install, not preservation of a repointed shortcut logged by an older
+    # real installation.
     # A same-name task that fails the ownership check (edited by the user or
     # another program) must neither be modified nor block uninstall. Enable
     # startup for a fresh install through the shipping manager, then change
@@ -350,7 +383,7 @@ class InstallerCleanupFixture {
     $reinstall = Start-Process (Join-Path $root 'fixture-setup.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LANG=en', ('/DIR="{0}"' -f $installDir)) -Wait -PassThru
     Should -ActualValue ($reinstall.ExitCode -eq 0) -BeTrue -Because 'reinstall for the foreign-task case completes'
     $installed = $true
-    Should -ActualValue ((Test-Path -LiteralPath $foreignShortcutPath) -and (Get-Sha256 $foreignShortcutPath) -eq $foreignShortcutHash) -BeTrue -Because 'shortcut cleanup preserves a same-name link to another copy'
+    Should -ActualValue ((Test-Path -LiteralPath $foreignShortcutPath) -and (Get-Sha256 $foreignShortcutPath) -eq $foreignShortcutHash) -BeTrue -Because 'obsolete-name cleanup preserves an unlogged link to another copy'
     $flags = [Reflection.BindingFlags]'Instance,NonPublic'
     $manager = $type.GetConstructor($flags, $null, [type[]]@([string], [string], [string], [string]), $null).Invoke([object[]]@([string]$installedExe, [string]$sid, [string]$taskName, [string]$protectedRoot))
     try {
@@ -368,9 +401,9 @@ class InstallerCleanupFixture {
     Should -ActualValue ((Get-TaskXml) -eq $foreignXml) -BeTrue -Because 'uninstall leaves the foreign same-name task unchanged'
     Should -ActualValue (-not (Test-Path -LiteralPath $protectedParent)) -BeTrue -Because 'uninstall still removes this installation''s protected copy and empty folders'
     Should -ActualValue (-not (Test-Path -LiteralPath $installedExe) -and -not (Test-Path -LiteralPath $uninstaller)) -BeTrue -Because 'uninstall with a foreign task removes application and uninstaller'
-    Should -ActualValue ((Test-Path -LiteralPath $foreignShortcutPath) -and (Get-Sha256 $foreignShortcutPath) -eq $foreignShortcutHash) -BeTrue -Because 'uninstall preserves the shortcut to another copy'
+    Should -ActualValue ((Test-Path -LiteralPath $foreignShortcutPath) -and (Get-Sha256 $foreignShortcutPath) -eq $foreignShortcutHash) -BeTrue -Because 'this uninstall leaves the foreign shortcut absent from its uninstall log'
     $installed = $false
-    Write-Host 'Real Inno migration/refresh, cancel/failure/accept and foreign-task lifecycle passed.'
+    Write-Host 'Real Inno upgrade-failure-preserves-old-entry, migration/refresh, cancel/failure/accept and foreign-task lifecycle passed.'
 }
 finally {
     if ($activeUninstaller -and -not $activeUninstaller.HasExited) {

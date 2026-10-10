@@ -66,8 +66,12 @@ On 2026-09-23, verification included:
 
 The installer regression also retains the actual Start Menu names inside an
 isolated folder: English install, legacy-name migration during Chinese upgrade,
-Chinese-to-English upgrade, and removal on uninstall. A same-name shortcut
-targeting a different copy is preserved.
+Chinese-to-English upgrade, and removal on uninstall. A locked executable makes
+a real Chinese upgrade fail; the regression checks that the previous executables
+and Start Menu entries survive, the legacy entry still targets a working
+executable, and no Chinese entry appears. A manually seeded obsolete-name
+shortcut targeting a different copy survives cleanup. That shortcut is created
+after a complete uninstall, so no older uninstall log owns its name.
 
 `scripts/test-ui.ps1` also runs separately and saves PNGs plus layout metadata
 under `dist/ui-preview/`. These use deterministic fixture measurements, not
@@ -127,10 +131,20 @@ scaling inside the popover is disabled to avoid applying DPI twice.
 
 ## Upgrade compatibility
 
-Setup removes obsolete `Battery Charge Meter`, `Power Meter` and `功率计`
-Start Menu shortcuts when their target is this installation's current or
-legacy executable, retaining the name selected by the installer language.
-Shortcuts to other copies and unreadable shortcuts are left in place.
+After the new files and the Start Menu entry selected by the installer language
+are installed, setup removes obsolete `Battery Charge Meter`, `Power Meter` and
+`功率计` shortcuts whose target is this installation's current or legacy
+executable. If the replacement entry is absent or does not target the installed
+`PowerMeter.exe`, setup retains the old entries. In particular, an upgrade that
+fails while copying the executable keeps the previous functioning entry.
+
+This ownership check applies to obsolete-name cleanup during installation.
+That cleanup leaves shortcuts to other copies and unreadable shortcuts in place.
+The normal `[Icons]` entry can overwrite an existing shortcut with the selected
+language's name. Uninstall can also remove a repointed shortcut whose name was
+recorded by an earlier real installation: Inno Setup
+[appends upgrades to the existing uninstall log](https://jrsoftware.org/ishelp/topic_appendnotes.htm),
+including those earlier shortcut records.
 Changing the running application's language only updates its window and tray;
 Start Menu names follow the most recent installation language.
 
