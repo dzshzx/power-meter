@@ -31,8 +31,9 @@ $failureFlag = Join-Path $root 'force-cleanup-failure'
 $fixtureErrors = Join-Path $root 'fixture-errors.txt'
 $taskName = "BatteryChargeMeter.InstallerTest.$id"
 $appId = "PowerMeterTest.$id"
-$shortcutName = "Battery Charge Meter Installer Test $id"
-$shortcut = Join-Path ([Environment]::GetFolderPath('Programs')) "$shortcutName.lnk"
+$shortcutFolderName = "Power Meter Installer Test $id"
+$shortcutDir = Join-Path ([Environment]::GetFolderPath('Programs')) $shortcutFolderName
+$shell = New-Object -ComObject WScript.Shell
 $registryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\${appId}_is1"
 $sid = $identity.User.Value
 # A unique application folder below Program Files stands in for
@@ -49,6 +50,11 @@ $activeUninstaller = $null
 $uninstallProcessIds = @()
 
 function Get-Sha256([string]$Path) { (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash }
+function Assert-Shortcut([string]$Name) {
+    $links = @(Get-ChildItem -LiteralPath $shortcutDir -Filter '*.lnk')
+    Should -ActualValue ($links.Count -eq 1 -and $links[0].BaseName -eq $Name) -BeTrue -Because "Start Menu must contain only '$Name'; found: $($links.BaseName -join ', ')"
+    Should -ActualValue ($shell.CreateShortcut($links[0].FullName).TargetPath -eq $installedExe) -BeTrue -Because 'Start Menu shortcut launches the current executable'
+}
 function Copy-Replacing([string]$Source, [string]$Destination) {
     # A freshly written executable can briefly be held open by on-access
     # malware scanning; retry sharing violations instead of failing.
@@ -181,8 +187,9 @@ try {
     # compiled verbatim. Never install with the real AppId or Start Menu name.
     $iss = Get-Content (Join-Path $repo 'installer\BatteryChargeMeter.iss') -Raw -Encoding UTF8
     $iss = $iss.Replace('AppId={{FDDC9FC9-109E-4B41-AE4A-BA30420295D0}', "AppId=$appId")
-    $iss = $iss.Replace('Name: "{autoprograms}\{cm:ApplicationName}";', ('Name: "{{autoprograms}}\{0}";' -f $shortcutName))
-    Should -ActualValue ($iss.Contains("AppId=$appId") -and $iss.Contains($shortcutName)) -BeTrue -Because 'fixture has isolated installer identities'
+    # Preserve real shortcut names and migration logic inside a unique folder.
+    $iss = $iss.Replace('{autoprograms}', ('{{autoprograms}}\{0}' -f $shortcutFolderName))
+    Should -ActualValue ($iss.Contains("AppId=$appId") -and $iss.Contains($shortcutFolderName)) -BeTrue -Because 'fixture has isolated installer identities'
     $issPath = Join-Path $root 'fixture.iss'
     $iss = '#define ChineseMessages "' + $repo + '\installer\Languages\ChineseSimplified.isl"' + [Environment]::NewLine + $iss
     Set-Content -LiteralPath $issPath -Value $iss -Encoding UTF8
@@ -249,12 +256,16 @@ class InstallerCleanupFixture {
     Should -ActualValue (-not (Test-Path -LiteralPath $legacyExe)) -BeTrue -Because 'fresh install uses only the new executable name'
     $installedName = (Get-ItemProperty $registryPath).DisplayName
     Should -ActualValue ($installedName -eq 'Power Meter') -BeTrue -Because "English installer uses Power Meter branding: $installedName"
+    Assert-Shortcut 'Power Meter'
     Should -ActualValue ((Test-Path -LiteralPath $syncReceipt) -and -not (Get-TaskXml) -and -not (Test-Path -LiteralPath $protectedParent)) -BeTrue -Because 'install checks startup but creates no task or protected copy while startup is off'
 
     # Simulate an upgrade in the same AppId and directory over an older
     # version whose logon task still runs the user-writable old executable.
     # Setup must migrate it to the admin-only protected copy.
     Copy-Item -LiteralPath $fixtureExe -Destination $legacyExe
+    $legacyShortcut = $shell.CreateShortcut((Join-Path $shortcutDir 'Battery Charge Meter.lnk'))
+    $legacyShortcut.TargetPath = $legacyExe
+    $legacyShortcut.Save()
     $app = [Reflection.Assembly]::LoadFile($ExecutablePath)
     $null = $app.GetType('BatteryChargeMeter.EmbeddedLibraries', $true).GetMethod('Initialize', [Reflection.BindingFlags]'Static,NonPublic').Invoke($null, @())
     $type = $app.GetType('BatteryChargeMeter.AutostartManager', $true)
@@ -267,6 +278,7 @@ class InstallerCleanupFixture {
     $upgrade = Start-Process (Join-Path $root 'fixture-setup.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LANG=zhCN', ('/DIR="{0}"' -f $installDir)) -Wait -PassThru
     Should -ActualValue ($upgrade.ExitCode -eq 0) -BeTrue -Because 'Chinese upgrade completes in the existing installation'
     Should -ActualValue ((Get-ItemProperty $registryPath).DisplayName -eq '功率计') -BeTrue -Because 'Chinese installer uses localized branding'
+    Assert-Shortcut '功率计'
     Should -ActualValue ([Diagnostics.FileVersionInfo]::GetVersionInfo($legacyExe).FileDescription -eq 'Power Meter legacy launcher') -BeTrue -Because 'upgrade replaces the old executable with the compatibility launcher'
     [xml]$migrated = Get-TaskXml
     Should -ActualValue ($migrated.Task.Actions.Exec.Command -eq $protectedExe -and $migrated.Task.Actions.Exec.WorkingDirectory -eq $protectedDir) -BeTrue -Because 'upgrade repoints the legacy logon task from the user-writable launcher to the protected copy'
@@ -296,6 +308,7 @@ class InstallerCleanupFixture {
     Should -ActualValue ($refresh.ExitCode -eq 0 -and (Get-Content -LiteralPath $syncReceipt -Raw).Trim() -eq '2') -BeTrue -Because 'new version upgrade runs its own startup synchronization'
     Should -ActualValue ((Get-Sha256 $installedExe) -eq (Get-Sha256 $upgradeExe) -and (Get-Sha256 $protectedExe) -eq (Get-Sha256 $upgradeExe)) -BeTrue -Because 'upgrade refreshes the protected copy to the new executable'
     Should -ActualValue ((Get-TaskXml) -eq $migratedXml) -BeTrue -Because 'refreshing the protected copy leaves the task definition unchanged'
+    Assert-Shortcut 'Power Meter'
     $before = Get-TaskXml
     Set-Content -LiteralPath $failureFlag -Value 'injected nonzero cleanup result'
     $legacyCleanup = Start-Process $legacyExe -ArgumentList '--remove-autostart' -Wait -PassThru
@@ -320,6 +333,7 @@ class InstallerCleanupFixture {
     Should -ActualValue (-not $exists) -BeTrue -Because 'affirmative uninstall deletes only the isolated task through shipping cleanup code'
     Should -ActualValue (-not (Test-Path -LiteralPath $protectedParent)) -BeTrue -Because 'affirmative uninstall removes the protected copy and its now-empty folders'
     Should -ActualValue (-not (Test-Path -LiteralPath $installedExe) -and -not (Test-Path -LiteralPath $uninstaller)) -BeTrue -Because 'affirmative uninstall removes application and uninstaller'
+    Should -ActualValue (@(Get-ChildItem -LiteralPath $shortcutDir -Filter '*.lnk' -ErrorAction SilentlyContinue).Count -eq 0) -BeTrue -Because 'uninstall removes the localized shortcut without leaving previous names'
     $installed = $false
 
     # A same-name task that fails the ownership check (edited by the user or
@@ -327,9 +341,16 @@ class InstallerCleanupFixture {
     # startup for a fresh install through the shipping manager, then change
     # the task's action arguments; it is registered disabled and
     # least-privilege so it can never run.
+    New-Item -ItemType Directory -Path $shortcutDir -Force | Out-Null
+    $foreignShortcutPath = Join-Path $shortcutDir 'Battery Charge Meter.lnk'
+    $foreignShortcut = $shell.CreateShortcut($foreignShortcutPath)
+    $foreignShortcut.TargetPath = $ExecutablePath
+    $foreignShortcut.Save()
+    $foreignShortcutHash = Get-Sha256 $foreignShortcutPath
     $reinstall = Start-Process (Join-Path $root 'fixture-setup.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LANG=en', ('/DIR="{0}"' -f $installDir)) -Wait -PassThru
     Should -ActualValue ($reinstall.ExitCode -eq 0) -BeTrue -Because 'reinstall for the foreign-task case completes'
     $installed = $true
+    Should -ActualValue ((Test-Path -LiteralPath $foreignShortcutPath) -and (Get-Sha256 $foreignShortcutPath) -eq $foreignShortcutHash) -BeTrue -Because 'shortcut cleanup preserves a same-name link to another copy'
     $flags = [Reflection.BindingFlags]'Instance,NonPublic'
     $manager = $type.GetConstructor($flags, $null, [type[]]@([string], [string], [string], [string]), $null).Invoke([object[]]@([string]$installedExe, [string]$sid, [string]$taskName, [string]$protectedRoot))
     try {
@@ -347,6 +368,7 @@ class InstallerCleanupFixture {
     Should -ActualValue ((Get-TaskXml) -eq $foreignXml) -BeTrue -Because 'uninstall leaves the foreign same-name task unchanged'
     Should -ActualValue (-not (Test-Path -LiteralPath $protectedParent)) -BeTrue -Because 'uninstall still removes this installation''s protected copy and empty folders'
     Should -ActualValue (-not (Test-Path -LiteralPath $installedExe) -and -not (Test-Path -LiteralPath $uninstaller)) -BeTrue -Because 'uninstall with a foreign task removes application and uninstaller'
+    Should -ActualValue ((Test-Path -LiteralPath $foreignShortcutPath) -and (Get-Sha256 $foreignShortcutPath) -eq $foreignShortcutHash) -BeTrue -Because 'uninstall preserves the shortcut to another copy'
     $installed = $false
     Write-Host 'Real Inno migration/refresh, cancel/failure/accept and foreign-task lifecycle passed.'
 }
@@ -376,7 +398,7 @@ finally {
         if ($cause.HResult -ne -2147024894) { throw }
     }
     if (Test-Path -LiteralPath $protectedParent) { Remove-Item -LiteralPath $protectedParent -Recurse -Force }
-    if (Test-Path -LiteralPath $shortcut) { Remove-Item -LiteralPath $shortcut -Force }
+    if (Test-Path -LiteralPath $shortcutDir) { Remove-Item -LiteralPath $shortcutDir -Recurse -Force }
     if (Test-Path -LiteralPath $registryPath) { Remove-Item -LiteralPath $registryPath -Recurse -Force }
     if (Test-Path -LiteralPath $fixtureErrors) { Write-Warning ("Cleanup fixture exceptions:`n" + (Get-Content -LiteralPath $fixtureErrors -Raw)) }
     if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }

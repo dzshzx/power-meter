@@ -64,6 +64,11 @@ On 2026-09-23, verification included:
   tests use unique installer/task identities and temporary directories.
 - All 11 Python version-plan tests.
 
+The installer regression also retains the actual Start Menu names inside an
+isolated folder: English install, legacy-name migration during Chinese upgrade,
+Chinese-to-English upgrade, and removal on uninstall. A same-name shortcut
+targeting a different copy is preserved.
+
 `scripts/test-ui.ps1` also runs separately and saves PNGs plus layout metadata
 under `dist/ui-preview/`. These use deterministic fixture measurements, not
 live laptop readings. The 175% Chinese and English idle previews were visually
@@ -121,6 +126,13 @@ Settings bounds are already scaled by the application, so automatic content
 scaling inside the popover is disabled to avoid applying DPI twice.
 
 ## Upgrade compatibility
+
+Setup removes obsolete `Battery Charge Meter`, `Power Meter` and `功率计`
+Start Menu shortcuts when their target is this installation's current or
+legacy executable, retaining the name selected by the installer language.
+Shortcuts to other copies and unreadable shortcuts are left in place.
+Changing the running application's language only updates its window and tray;
+Start Menu names follow the most recent installation language.
 
 A fresh installation contains `PowerMeter.exe`. When an old
 `BatteryChargeMeter.exe` exists in the same installation directory, setup

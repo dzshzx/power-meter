@@ -76,6 +76,11 @@ Source: "{#LegacyLauncher}"; DestDir: "{app}"; DestName: "BatteryChargeMeter.exe
 Source: "{#NoticePath}"; DestDir: "{app}"; DestName: "THIRD-PARTY-NOTICES.txt"; Flags: ignoreversion
 Source: "{#LicensePath}"; DestDir: "{app}"; DestName: "LICENSE.LGPL-2.1.txt"; Flags: ignoreversion
 
+[InstallDelete]
+Type: files; Name: "{autoprograms}\Battery Charge Meter.lnk"; Check: IsObsoleteShortcut('Battery Charge Meter')
+Type: files; Name: "{autoprograms}\Power Meter.lnk"; Check: IsObsoleteShortcut('Power Meter')
+Type: files; Name: "{autoprograms}\功率计.lnk"; Check: IsObsoleteShortcut('功率计')
+
 [Icons]
 Name: "{autoprograms}\{cm:ApplicationName}"; Filename: "{app}\PowerMeter.exe"
 
@@ -89,6 +94,30 @@ const
   StartupUnprotected = 4;
   StartupCopyNeedsElevation = 3;
   StartupForeignTaskKept = 6;
+
+{ Renaming an [Icons] entry leaves its old .lnk behind on upgrade. Remove
+  only a previous product/language name that still targets this installation. }
+function IsObsoleteShortcut(const Name: String): Boolean;
+var
+  ShortcutPath, TargetPath: String;
+  Shell, Shortcut: Variant;
+begin
+  Result := False;
+  if CompareText(Name, CustomMessage('ApplicationName')) = 0 then
+    Exit;
+  ShortcutPath := ExpandConstant('{autoprograms}\') + Name + '.lnk';
+  if not FileExists(ShortcutPath) then
+    Exit;
+  try
+    Shell := CreateOleObject('WScript.Shell');
+    Shortcut := Shell.CreateShortcut(ShortcutPath);
+    TargetPath := ExpandFileName(Shortcut.TargetPath);
+    Result := (CompareText(TargetPath, ExpandConstant('{app}\PowerMeter.exe')) = 0)
+      or (CompareText(TargetPath, ExpandConstant('{app}\BatteryChargeMeter.exe')) = 0);
+  except
+    Log('Unable to inspect obsolete shortcut; keeping ' + ShortcutPath);
+  end;
+end;
 
 function HasLegacyExecutable(): Boolean;
 begin
