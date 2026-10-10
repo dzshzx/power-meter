@@ -124,12 +124,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create '${{ steps.version.outputs.tag }}' `
-            '${{ steps.package.outputs.binary }}#Portable Windows executable' `
-            '${{ steps.package.outputs.checksum }}#SHA-256 checksum' `
-            '${{ steps.package.outputs.installer }}#Windows installer' `
-            '${{ steps.package.outputs.installer_checksum }}#Installer SHA-256 checksum' `
-            '${{ steps.package.outputs.notices }}#Third-party notices and licenses' `
-            '${{ steps.package.outputs.source_bundle }}#Corresponding PawnIO.Modules source' `
+            '${{ steps.package.outputs.binary }}' `
+            '${{ steps.package.outputs.checksum }}' `
+            '${{ steps.package.outputs.installer }}' `
+            '${{ steps.package.outputs.installer_checksum }}' `
+            '${{ steps.package.outputs.notices }}' `
+            '${{ steps.package.outputs.source_bundle }}' `
             --repo $env:GITHUB_REPOSITORY `
             --verify-tag `
             --generate-notes `

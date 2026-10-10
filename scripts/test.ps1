@@ -74,8 +74,8 @@ foreach ($requiredFragment in @(
     "-Formats 'Portable', 'Installer'",
     'installer=$($package.InstallerPath)',
     'installer_checksum=$($package.InstallerChecksumPath)',
-    '${{ steps.package.outputs.installer }}#Windows installer',
-    '${{ steps.package.outputs.installer_checksum }}#Installer SHA-256 checksum'
+    '${{ steps.package.outputs.installer }}',
+    '${{ steps.package.outputs.installer_checksum }}'
 )) {
     if (-not $releaseWorkflow.Contains($requiredFragment)) {
         throw "Release workflow does not publish the selectable installer format: $requiredFragment"
