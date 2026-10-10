@@ -73,6 +73,14 @@ executable, and no Chinese entry appears. A manually seeded obsolete-name
 shortcut targeting a different copy survives cleanup. That shortcut is created
 after a complete uninstall, so no older uninstall log owns its name.
 
+Run this installer lifecycle on Windows hosts with legacy code pages and UTF-8.
+The Chinese shortcut name exercises target lookup outside an English process's
+ANSI code page; a UTF-8 host can hide failures in that lookup. On 2026-10-10,
+separate COM probes used process-specific `activeCodePage` manifests to select
+ACP 1252 and ACP 65001 without changing the machine locale. The Unicode Shell
+reader preserved Chinese and Devanagari shortcut names, parent directories and
+executable targets in all 12 reads across 32-bit and 64-bit processes.
+
 `scripts/test-ui.ps1` also runs separately and saves PNGs plus layout metadata
 under `dist/ui-preview/`. These use deterministic fixture measurements, not
 live laptop readings. The 175% Chinese and English idle previews were visually
@@ -137,6 +145,12 @@ are installed, setup removes obsolete `Battery Charge Meter`, `Power Meter` and
 executable. If the replacement entry is absent or does not target the installed
 `PowerMeter.exe`, setup retains the old entries. In particular, an upgrade that
 fails while copying the executable keeps the previous functioning entry.
+
+Target inspection uses the Windows Shell's Unicode
+[ShellLinkObject interface](https://learn.microsoft.com/en-us/windows/win32/shell/folderitem-getlink).
+This keeps localized shortcut filenames readable when they contain characters
+outside the process's ANSI code page. The installer lifecycle's target
+assertions use that Unicode interface too.
 
 This ownership check applies to obsolete-name cleanup during installation.
 That cleanup leaves shortcuts to other copies and unreadable shortcuts in place.
