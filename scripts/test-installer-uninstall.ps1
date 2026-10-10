@@ -304,7 +304,9 @@ class InstallerCleanupFixture {
     # action arguments still identify this installation's legacy task.
     $xml = $xml.Replace('HighestAvailable', 'LeastPrivilege').Replace('<Enabled>true</Enabled>', '<Enabled>false</Enabled>')
     $folder.RegisterTask($taskName, $xml, 2, $sid, $null, 3, $null) | Out-Null
-    $upgrade = Start-Process (Join-Path $root 'fixture-setup.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LANG=zhCN', ('/DIR="{0}"' -f $installDir)) -Wait -PassThru
+    $upgradeLog = Join-Path $root 'upgrade-chinese.log'
+    $upgrade = Start-Process (Join-Path $root 'fixture-setup.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LANG=zhCN', ('/LOG="{0}"' -f $upgradeLog), ('/DIR="{0}"' -f $installDir)) -Wait -PassThru
+    Get-Content -LiteralPath $upgradeLog | Select-String -SimpleMatch '[DEBUG-shortcut-ci]' | ForEach-Object { Write-Host $_.Line }
     Should -ActualValue ($upgrade.ExitCode -eq 0) -BeTrue -Because 'Chinese upgrade completes in the existing installation'
     Should -ActualValue ((Get-ItemProperty $registryPath).DisplayName -eq '功率计') -BeTrue -Because 'Chinese installer uses localized branding'
     Assert-Shortcut '功率计'

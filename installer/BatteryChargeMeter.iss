@@ -96,12 +96,17 @@ var
 begin
   Result := '';
   if not FileExists(ShortcutPath) then
+  begin
+    Log('[DEBUG-shortcut-ci] Missing shortcut: ' + ShortcutPath);
     Exit;
+  end;
   try
     Shell := CreateOleObject('WScript.Shell');
     Shortcut := Shell.CreateShortcut(ShortcutPath);
     Result := ExpandFileName(Shortcut.TargetPath);
+    Log('[DEBUG-shortcut-ci] Shortcut=' + ShortcutPath + '; Target=' + Result);
   except
+    Log('[DEBUG-shortcut-ci] Read exception: ' + GetExceptionMessage);
     Log('Unable to inspect shortcut; keeping ' + ShortcutPath);
   end;
 end;
@@ -117,6 +122,7 @@ begin
     Exit;
   ShortcutPath := ExpandConstant('{autoprograms}\') + Name + '.lnk';
   TargetPath := ReadShortcutTarget(ShortcutPath);
+  Log('[DEBUG-shortcut-ci] Obsolete current=' + ExpandConstant('{app}\PowerMeter.exe') + '; legacy=' + ExpandConstant('{app}\BatteryChargeMeter.exe'));
   if (CompareText(TargetPath, ExpandConstant('{app}\PowerMeter.exe')) = 0)
     or (CompareText(TargetPath, ExpandConstant('{app}\BatteryChargeMeter.exe')) = 0) then
     if not DeleteFile(ShortcutPath) then
@@ -128,6 +134,7 @@ var
   ReplacementPath: String;
 begin
   ReplacementPath := ExpandConstant('{autoprograms}\') + CustomMessage('ApplicationName') + '.lnk';
+  Log('[DEBUG-shortcut-ci] Replacement expected=' + ExpandConstant('{app}\PowerMeter.exe'));
   if CompareText(ReadShortcutTarget(ReplacementPath), ExpandConstant('{app}\PowerMeter.exe')) <> 0 then
   begin
     Log('Replacement shortcut is unavailable; keeping obsolete shortcuts.');
