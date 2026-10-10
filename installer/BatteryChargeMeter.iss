@@ -92,7 +92,7 @@ const
 
 function ReadShortcutTarget(const ShortcutPath: String): String;
 var
-  Shell, Shortcut: Variant;
+  Shell, Folder, Item, Shortcut: Variant;
 begin
   Result := '';
   if not FileExists(ShortcutPath) then
@@ -101,9 +101,13 @@ begin
     Exit;
   end;
   try
-    Shell := CreateOleObject('WScript.Shell');
-    Shortcut := Shell.CreateShortcut(ShortcutPath);
-    Result := ExpandFileName(Shortcut.TargetPath);
+    { WScript.Shell loads shortcut filenames through the active ANSI code
+      page. Shell.Application preserves localized names on every locale. }
+    Shell := CreateOleObject('Shell.Application');
+    Folder := Shell.NameSpace(ExtractFileDir(ShortcutPath));
+    Item := Folder.ParseName(ExtractFileName(ShortcutPath));
+    Shortcut := Item.GetLink;
+    Result := ExpandFileName(Shortcut.Path);
     Log('[DEBUG-shortcut-ci] Shortcut=' + ShortcutPath + '; Target=' + Result);
   except
     Log('[DEBUG-shortcut-ci] Read exception: ' + GetExceptionMessage);

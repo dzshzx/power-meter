@@ -34,6 +34,7 @@ $appId = "PowerMeterTest.$id"
 $shortcutFolderName = "Power Meter Installer Test $id"
 $shortcutDir = Join-Path ([Environment]::GetFolderPath('Programs')) $shortcutFolderName
 $shell = New-Object -ComObject WScript.Shell
+$shortcutShell = New-Object -ComObject Shell.Application
 $registryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\${appId}_is1"
 $sid = $identity.User.Value
 # A unique application folder below Program Files stands in for
@@ -53,7 +54,10 @@ function Get-Sha256([string]$Path) { (Get-FileHash -Algorithm SHA256 -LiteralPat
 function Assert-ShortcutTarget([string]$Name, [string]$TargetPath = $installedExe) {
     $shortcutPath = Join-Path $shortcutDir "$Name.lnk"
     Should -ActualValue (Test-Path -LiteralPath $shortcutPath) -BeTrue -Because "Start Menu retains '$Name'"
-    Should -ActualValue ($shell.CreateShortcut($shortcutPath).TargetPath -eq $TargetPath) -BeTrue -Because "Start Menu '$Name' launches its installed executable"
+    # WScript's reader cannot load a localized filename outside the active
+    # ANSI code page. Inspect the actual link through the Unicode Shell API.
+    $shortcutItem = $shortcutShell.NameSpace($shortcutDir).ParseName("$Name.lnk")
+    Should -ActualValue ($shortcutItem.GetLink.Path -eq $TargetPath) -BeTrue -Because "Start Menu '$Name' launches its installed executable"
 }
 function Assert-Shortcut([string]$Name) {
     $links = @(Get-ChildItem -LiteralPath $shortcutDir -Filter '*.lnk')
