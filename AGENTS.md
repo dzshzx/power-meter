@@ -33,9 +33,5 @@ commands are in `README.md`, and PawnIO obligations in `third_party/NOTICE.md`.
   the Release workflow. An authorized annotated `vX.Y.Z` tag must match manifest
   `X.Y.Z.0`; master synchronization itself does not publish. Published tags
   are immutable; fixes use a new patch version.
-- Release levels follow the README release section: patch by default; a
-  minor (user-visible new capability) or a major (including 0.x to 1.0)
-  needs the user's confirmation first.
 - `dist/` is generated; binaries belong in GitHub Releases.
-- 提交前运行 `scripts/format.sh`；门禁以 `scripts/format.sh --check` 把关
-  （ruff format、prettier、shfmt；C# 与 PowerShell 不在范围内）。
+- `scripts/format.sh` 覆盖 ruff format、prettier、shfmt；C# 与 PowerShell 不在范围内。
