@@ -3,10 +3,10 @@
 ## AntdUI
 
 The application embeds the unmodified .NET Framework 4.6 assembly from
-AntdUI 2.4.12, Copyright (c) Tom 2024-2030, licensed under Apache-2.0.
+AntdUI 2.4.13, Copyright (c) Tom 2024-2030, licensed under Apache-2.0.
 Upstream: https://github.com/AntdUI/AntdUI. Package:
-https://www.nuget.org/packages/AntdUI/2.4.12. The NuGet package SHA-256 is
-`2534b00f5aa64f021d132c3591f514660251030ce19602b627624361c742b431`.
+https://www.nuget.org/packages/AntdUI/2.4.13. The NuGet package SHA-256 is
+`1ba9672420ae3d83b5e05db0d2e9f53c308c134608cab4150e6fc39b5969fc2f`.
 NuGet restores it in locked mode against the content hash in
 `src/packages.lock.json`; binaries are not committed. The GUI uses its buttons, panel, checkbox,
 language selector and popover. No separate UI runtime installation is needed.
@@ -28,7 +28,7 @@ logon task. The license text is `LICENSE.TaskScheduler.txt`.
 ## System.CommandLine and .NET libraries
 
 The application embeds the unmodified .NET Standard 2.0 assembly from
-System.CommandLine 2.0.12 (https://www.nuget.org/packages/System.CommandLine/2.0.12),
+System.CommandLine 2.0.13 (https://www.nuget.org/packages/System.CommandLine/2.0.13),
 and its dependencies System.Memory 4.5.5, System.Buffers 4.5.1,
 System.Numerics.Vectors 4.5.0 and System.Runtime.CompilerServices.Unsafe 4.5.3.
 The .NET Framework 4.7.1+ runtime supplies .NET Standard support itself. All are Copyright (c) .NET Foundation and
