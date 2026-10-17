@@ -162,12 +162,14 @@ namespace BatteryChargeMeter
         /// consulted after a failure, so a machine whose administrator has
         /// widened that descriptor still works without a special case here.
         /// </summary>
+        internal const string ElevationRequired = "需要以管理员身份运行才能读取平台功率";
+
         private static string DescribeOpenFailure(int result)
         {
             const int AccessDenied = unchecked((int)0x80070005);
 
             if (result == AccessDenied && !IsElevated())
-                return "需要以管理员身份运行才能读取平台功率";
+                return ElevationRequired;
 
             return "pawnio_open 失败: 0x" + result.ToString("X8", CultureInfo.InvariantCulture);
         }

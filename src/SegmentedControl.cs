@@ -22,7 +22,7 @@ namespace BatteryChargeMeter
         {
             items = new string[] { first, second };
             DoubleBuffered = true;
-            BackColor = UiTheme.FooterBand;
+            BackColor = UiTheme.Canvas;
             Cursor = Cursors.Hand;
             SetStyle(ControlStyles.Selectable, true);
             TabStop = true;
@@ -103,44 +103,44 @@ namespace BatteryChargeMeter
             base.OnPaint(e);
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            float scale = Height / 28f;
-            int radius = Math.Max(2, (int)Math.Round(5 * scale));
-            using (GraphicsPath track = WidgetPath.Rounded(
-                new Rectangle(0, 0, Width - 1, Height - 1), radius))
-            using (SolidBrush trackBrush = new SolidBrush(UiTheme.Chip))
+            float scale = Height / 26f;
+            using (SolidBrush back = new SolidBrush(UiTheme.Canvas))
+                g.FillRectangle(back, ClientRectangle);
+            using (GraphicsPath track = WidgetPath.Rounded(new RectangleF(0, 0, Width, Height), 5 * scale))
+            using (SolidBrush trackBrush = new SolidBrush(UiTheme.SegmentTrack))
                 g.FillPath(trackBrush, track);
 
-            int pad = Math.Max(2, (int)Math.Round(2 * scale));
-            int pillWidth = Width / 2 - 2 * pad;
+            int pad = Math.Max(1, (int)Math.Round(2 * scale));
+            int pillWidth = Width / 2 - pad;
             if (hoveredIndex >= 0 && hoveredIndex != selectedIndex)
             {
                 int hoverX = hoveredIndex == 0 ? pad : Width - pad - pillWidth;
-                using (GraphicsPath hover = WidgetPath.Rounded(new Rectangle(hoverX, pad, pillWidth, Height - 2 * pad), radius))
-                using (SolidBrush hoverBrush = new SolidBrush(UiTheme.Track))
+                using (GraphicsPath hover = WidgetPath.Rounded(new RectangleF(hoverX, pad, pillWidth, Height - 2 * pad), 3 * scale))
+                using (SolidBrush hoverBrush = new SolidBrush(UiTheme.SegmentHover))
                     g.FillPath(hoverBrush, hover);
             }
             int pillX = selectedIndex == 0 ? pad : Width - pad - pillWidth;
             Rectangle segment = new Rectangle(pillX, pad, pillWidth, Height - 2 * pad);
-            using (GraphicsPath pill = WidgetPath.Rounded(segment, radius))
-            using (SolidBrush pillBrush = new SolidBrush(UiTheme.Surface))
-            using (Pen pillBorder = new Pen(UiTheme.FooterRule))
-            {
+            using (GraphicsPath pill = WidgetPath.Rounded(new RectangleF(segment.X, segment.Y, segment.Width, segment.Height), 3 * scale))
+            using (SolidBrush pillBrush = new SolidBrush(UiTheme.SegmentOn))
                 g.FillPath(pillBrush, pill);
-                g.DrawPath(pillBorder, pill);
-            }
             if (Focused && ShowFocusCues)
-                ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(segment, -pad, -pad));
+                ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(segment, -pad, -pad), UiTheme.Muted, Color.Transparent);
 
-            for (int i = 0; i < items.Length; i++)
+            using (Font strong = new Font(Font, FontStyle.Bold))
             {
-                TextRenderer.DrawText(
-                    g,
-                    Strings.Get(items[i]),
-                    Font,
-                    new Rectangle(i * (Width / 2), 0, Width / 2, Height),
-                    i == selectedIndex || i == hoveredIndex ? UiTheme.Ink : UiTheme.Muted,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
-                        | TextFormatFlags.NoPadding);
+                for (int i = 0; i < items.Length; i++)
+                {
+                    Rectangle cell = i == 0 ? new Rectangle(pad, 0, pillWidth, Height) : new Rectangle(Width - pad - pillWidth, 0, pillWidth, Height);
+                    TextRenderer.DrawText(
+                        g,
+                        Strings.Get(items[i]),
+                        i == selectedIndex ? strong : Font,
+                        cell,
+                        i == selectedIndex || i == hoveredIndex ? UiTheme.Ink : UiTheme.Muted,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
+                            | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                }
             }
         }
     }

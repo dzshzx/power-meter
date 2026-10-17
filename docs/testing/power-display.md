@@ -13,7 +13,7 @@ system load remains available without PawnIO.
 ## Automated coverage
 
 - Power/supply-state derivation, sign, missing sources and nonfinite values.
-- Real elapsed-time weighting, 30-second average, 60-second peak, sample expiry,
+- Real elapsed-time weighting, 10-minute average, 5-minute peak, sample expiry,
   missing intervals and reset after a supply/mode change or long sampling gap.
 - Startup routing with injected elevation success, cancellation and failure;
   already-elevated and opt-out launches; malformed CLI arguments exit with code 2.

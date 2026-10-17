@@ -6,7 +6,8 @@ namespace BatteryChargeMeter
 {
     internal sealed partial class MainForm
     {
-        private AntdUI.Checkbox autostartCheckBox;
+        private ToggleSwitch autostartSwitch;
+        private Label autostartStateLabel;
         private ToolStripMenuItem autostartMenuItem;
         private bool updatingAutostart;
         private string autostartMessage;
@@ -40,13 +41,15 @@ namespace BatteryChargeMeter
             bool known = status.Switch != AutostartSwitch.Unknown;
             bool enabled = status.Switch == AutostartSwitch.On;
             updatingAutostart = true;
-            if (autostartCheckBox != null && !autostartCheckBox.IsDisposed)
+            if (autostartSwitch != null && !autostartSwitch.IsDisposed)
             {
                 if (status.Tooltip != null)
-                    sourceTip.SetToolTip(autostartCheckBox, status.Tooltip);
-                autostartCheckBox.CheckState = known
+                    sourceTip.SetToolTip(autostartSwitch, status.Tooltip);
+                autostartSwitch.CheckState = known
                     ? (enabled ? CheckState.Checked : CheckState.Unchecked)
                     : CheckState.Indeterminate;
+                if (autostartStateLabel != null && !autostartStateLabel.IsDisposed)
+                    autostartStateLabel.Text = known ? Strings.Get(enabled ? "开" : "关") : "?";
             }
             autostartMenuItem.Checked = enabled;
             autostartMenuItem.ToolTipText = known ? "" : Strings.Get("状态读取失败，请查看主窗口中的原因。");

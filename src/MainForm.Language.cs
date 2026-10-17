@@ -43,8 +43,11 @@ namespace BatteryChargeMeter
             Text = Strings.AppName;
             TranslateControls(this);
             TranslateMenu(trayMenu.Items);
-            pinButton.AccessibleName = Strings.Get("置顶");
-            sourceTip.SetToolTip(pinButton, Strings.Get("置顶"));
+            foreach (GlyphButton button in new GlyphButton[] { pinButton, minimizeButton, closeButton, settingsButton })
+            {
+                button.AccessibleName = Strings.Get((string)button.Tag);
+                sourceTip.SetToolTip(button, Strings.Get((string)button.Tag));
+            }
             sourceTip.SetToolTip(updatedLabel, Strings.Get("更新时间"));
             modeSegments.AccessibleName = Strings.Get("功率显示口径");
             modeSegments.Invalidate();

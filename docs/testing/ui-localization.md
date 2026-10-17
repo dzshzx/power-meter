@@ -5,16 +5,38 @@ release assets use `PowerMeter`; the repository is `dzshzx/power-meter`.
 The settings key, installer AppId and logon-task ownership identity retain
 their pre-rename values for compatibility.
 
-The normal client area is 384 × 468 logical pixels. A centered 44-point reading
-leads, with the boundary caption above, followed by the supply state and battery
-electrical details below.
-Mean and peak form a balanced pair. A soft tonal group holds the battery level
-and the three other power boundaries, so all four remain available without
-duplicating the headline. A diagnostic expands the client height to 528;
-clearing it removes both its space and scrollbar. Display mode is at the top;
-the footer holds the timestamp, a pin toggle and Settings. Startup,
-language and elevation controls live in the settings popover. The icon uses
-Lucide battery-medium geometry; pin and settings-2 are used inside the window.
+The window uses one dark instrument theme (it does not follow the system
+light/dark setting). The normal client area is 388 × 568 logical pixels; a
+diagnostic expands it to 660, and clearing it removes both its space and the
+restart action. The system caption is replaced by a drawn title bar holding
+the application tile (Lucide zap), the display-mode segments, pin, minimize
+and close. The window keeps the native caption, system-menu and minimize
+styles while `WM_NCCALCSIZE` removes the frame, so dragging uses the system
+move loop, Alt+Space opens the system menu, the taskbar and minimize animation
+behave normally, and DWM supplies the shadow and rounded corners. Without a
+maximize style a caption double-click does nothing and maximize commands are
+ignored. Windows 11 is the only supported target; Windows 10 is not tested.
+
+Below the boundary caption and supply state (with its Lucide glyph) the
+reading uses Bahnschrift Light SemiCondensed at 84 px; other figures use
+Bahnschrift named instances and fall back to Segoe UI; interface text uses
+Microsoft YaHei UI. Display figures use the typographic minus (U+2212); CLI
+reports and logs keep ASCII. Battery voltage and current follow, then the
+30-minute trend, the 10-minute mean, 5-minute peak and a ten-segment battery
+level, and the three other boundaries joined to their values by dotted
+leaders. Estimates keep `≈` and a quieter colour.
+
+The trend records both display boundaries from the first reading, one point
+per second for 30 minutes, in memory only; switching mode keeps both. Until
+30 minutes are recorded the axis counts minutes from the first reading
+(0 … 30 分) and states the recorded time; the curve fills from the left and is
+never stretched. Afterwards the axis reads −30 分 … 现在. Each pixel column
+keeps the min, max and mean of its readings: the mean is the line, the
+min–max range a faint band, and three translucent wider strokes approximate a
+glow. The peak marker is the reading with the largest magnitude in the window,
+sign kept — the same rule as the 5-minute peak, so a discharge peak is the
+most negative reading. N/A readings, failed captures and timing gaps break
+the line instead of drawing zero. The current value has a cursor ring.
 
 Language defaults to the Windows UI language (Chinese locales use Simplified
 Chinese, other locales use English). The window and tray language menus offer
@@ -37,14 +59,23 @@ On 2026-09-23, verification included:
 - Power derivation, signed battery supplementation, measured/estimated display,
   per-monitor DPI transitions, CLI routing and embedded third-party notices.
 - Chinese → English → Chinese switching at 96, 144, 168, 192, 288 and back to
-  96 DPI. Each pass covers idle, charging, battery discharge, external-power
-  supplementation and unavailable platform power. Actual WinForms controls
-  are checked for overlapping bounds and clipped labels. Diagnostic expansion
-  and collapse are exercised repeatedly at each scale.
-- Startup with one sample and a three-second warm-up window are rendered too.
-  Full statistics use concise captions; partial windows retain their actual
-  coverage. Each mode exposes exactly three supporting rows. The tests exercise
-  mode changes, error-area expansion and DPI changes with this row layout.
+  96 DPI. Each pass covers idle, charging and battery discharge with a full
+  30-minute trend (including a peak and an N/A spell that must stay a gap),
+  external-power supplementation, unavailable platform power, startup, a
+  two-minute warm-up and a four-minute partial trend. Actual WinForms
+  controls are checked for overlapping bounds and clipped content (labels,
+  readouts with their affixes and captions, the status glyph). Diagnostic
+  expansion and collapse are exercised repeatedly at each scale.
+- Full statistics use concise captions; partial windows average and peak the
+  readings so far and show their coverage («均值 · 2分/10分», «Avg · 2m/10m»:
+  whole seconds under a minute, then whole minutes). The fixtures keep the
+  charging spike at −10 min and the discharge spike at −12 min outside the
+  5-minute peak window. Each mode exposes exactly three supporting rows.
+- The drawn title bar: the window keeps caption, system-menu and minimize
+  styles and no maximize style; the title area hit-tests as caption and the
+  body as client; without scroll bars the client area equals the window; pin,
+  minimize and close fill the title height, render their glyphs and carry
+  localized names; minimize minimizes and a maximize command is ignored.
 - The unselected mode segment gains a quiet hover fill and text emphasis.
   Bitmap comparisons verify the feedback appears, disappears on mouse leave,
   and never changes the selected mode by itself.
@@ -52,6 +83,9 @@ On 2026-09-23, verification included:
   glyph must render in both states. The settings popover opens in each language
   and scale, and its content is checked for clipping, overlap and double scaling.
   A DPI transition disposes the popover before replacing the fonts.
+- The unavailable-platform notice shows the boundary in bold, at least the
+  lines it needs up to two, the full text as tooltip, and the restart action
+  in an ordinary session.
 - Real English install, Chinese upgrade, localized uninstall names, and
   upgrade replacement of the old executable with the compatibility launcher.
   An isolated legacy logon task is recognized by the new executable and, since
@@ -82,7 +116,9 @@ reader preserved Chinese and Devanagari shortcut names, parent directories and
 executable targets in all 12 reads across 32-bit and 64-bit processes.
 
 `scripts/test-ui.ps1` also runs separately and saves PNGs plus layout metadata
-under `dist/ui-preview/`. These use deterministic fixture measurements, not
+under `dist/ui-preview/`; `-ShowcaseDirectory <dir>` adds the review set,
+including the settings popover composed over the window from the controls'
+own renderings (nothing is read from the screen). These use deterministic fixture measurements, not
 live laptop readings. The 175% Chinese and English idle previews were visually
 reviewed, along with unavailable-source and small-icon renders.
 
@@ -91,15 +127,18 @@ regression fixture uses a short unique AppId: Inno Setup shortens
 long IDs in uninstall registry keys, so a test must not infer an unshortened
 key from an oversized ID.
 
-Text alignment is checked from rendered glyphs: the two statistic values must
-agree within one physical pixel. The large numeric readout and smaller W unit
-use font ascent metrics and are checked for a common rendered baseline. The
-settings controls use AntdUI's button, checkbox and selector rendering.
+Text alignment is checked from rendered glyphs: the three statistic values must
+agree within one physical pixel. Readouts align the smaller `≈` and unit to the
+number by GDI ascent (GDI+ family metrics differ for Bahnschrift's named
+instances) and the headline is checked for a common rendered baseline. The
+settings popover uses AntdUI's popover and selector in AntdUI dark mode; the
+switch and buttons are drawn by the application.
 
 The fixture host adopts the application's Per-Monitor V2 thread context before
 creating controls. Screenshots use the visible DWM frame, excluding invisible
-resize margins that PrintWindow otherwise leaves black. This keeps the native
-title bar and control rendering faithful at the host monitor's actual DPI.
+resize margins that PrintWindow otherwise leaves black. Windows 11 captures
+apply DWM's 8-pixel (scaled) corner rounding, since PrintWindow returns the
+square bitmap.
 
 ## Visual references and toolkit choice
 
@@ -118,9 +157,9 @@ small surface on one state and value; EnergyStarX keeps Windows-native controls
 and a clear central focus. The resulting meter centers the watts reading,
 reduces repeated data and uses one quiet supporting group. No normalization ring
 is used for watts because the app has no measured maximum input capacity.
-On Windows 11 the headline uses Segoe UI Variable Display; other systems fall
-back to Segoe UI. The watt unit is aligned by font ascent rather than line-box
-height, and estimates retain a neutral muted color and the approximation mark.
+The headline uses Bahnschrift (Segoe UI where absent). The watt unit is aligned
+by font ascent rather than line-box height, and estimates retain a neutral
+muted color and the approximation mark.
 
 [AntdUI](https://github.com/AntdUI/AntdUI) and
 [Krypton Toolkit](https://github.com/Krypton-Suite/Standard-Toolkit) were checked

@@ -58,6 +58,10 @@ namespace BatteryChargeMeter
     internal sealed class PowerHistory
     {
         internal const double MaximumGap = 5.0;
+        // The single definition of both statistics' windows.
+        internal const double AverageWindow = 600;
+        internal const double PeakWindow = 300;
+        private const double Retention = AverageWindow > PeakWindow ? AverageWindow : PeakWindow;
         private readonly List<TimedPower> points = new List<TimedPower>();
         private DisplayMode mode;
         private BatterySupplyState supply;
@@ -85,7 +89,7 @@ namespace BatteryChargeMeter
                 Watts = sample != null && sample.Available ? (double?)sample.Watts : null
             });
             // Retain one predecessor for clipping the first weighted interval.
-            while (points.Count > 1 && points[1].Seconds <= seconds - 60)
+            while (points.Count > 1 && points[1].Seconds <= seconds - Retention)
                 points.RemoveAt(0);
         }
 
@@ -99,7 +103,7 @@ namespace BatteryChargeMeter
             coverage = 0;
             if (points.Count < 2 || !points[points.Count - 1].Watts.HasValue)
                 return null;
-            double cutoff = points[points.Count - 1].Seconds - 30;
+            double cutoff = points[points.Count - 1].Seconds - AverageWindow;
             double energy = 0;
             // Left-held observations; an interval touching a missing reading is
             // excluded rather than claiming a value throughout an unknown gap.
@@ -120,7 +124,7 @@ namespace BatteryChargeMeter
         {
             if (points.Count == 0 || !points[points.Count - 1].Watts.HasValue)
                 return null;
-            double cutoff = points[points.Count - 1].Seconds - 60;
+            double cutoff = points[points.Count - 1].Seconds - PeakWindow;
             double? peak = null;
             foreach (TimedPower point in points)
             {

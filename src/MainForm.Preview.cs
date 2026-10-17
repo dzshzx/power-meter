@@ -80,6 +80,10 @@ namespace BatteryChargeMeter
 
         private void CapturePreview(string path, string dpiMetadata)
         {
+            // Paint every control first: a section that has just expanded is
+            // otherwise still unpainted (black) in the redirection surface.
+            Refresh();
+            Application.DoEvents();
             NativeMethods.Rect rectangle;
             NativeMethods.GetWindowRect(Handle, out rectangle);
             int captureWidth = Math.Max(1, rectangle.Right - rectangle.Left);
@@ -114,7 +118,8 @@ namespace BatteryChargeMeter
                     if (bounds.Width > 0 && bounds.Height > 0 && visible.Contains(bounds)) visible = bounds;
                 }
                 using (Bitmap framed = bitmap.Clone(visible, PixelFormat.Format32bppArgb))
-                    framed.Save(path, ImageFormat.Png);
+                using (Bitmap shaped = RoundCorners(framed))
+                    shaped.Save(path, ImageFormat.Png);
             }
 
             bool positionMatched = rectangle.Left == lastSuggestedPosition.X
@@ -145,9 +150,86 @@ namespace BatteryChargeMeter
                     errorLabel.Height));
         }
 
+        // PrintWindow returns the square client bitmap; on Windows 11 DWM
+        // shows it with 8-pixel (scaled) rounded corners, so captures match.
+        private Bitmap RoundCorners(Bitmap source)
+        {
+            Bitmap result = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb);
+            using (Graphics graphics = Graphics.FromImage(result))
+            {
+                if (!roundedCorners)
+                {
+                    graphics.DrawImageUnscaled(source, 0, 0);
+                    return result;
+                }
+                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                float radius = 8f * LayoutScale;
+                using (System.Drawing.Drawing2D.GraphicsPath path = WidgetPath.Rounded(
+                    new RectangleF(0, 0, source.Width, source.Height), radius))
+                using (TextureBrush brush = new TextureBrush(source))
+                    graphics.FillPath(brush, path);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// The window with the open settings popover drawn over it where it
+        /// appears, composed from the two controls' own renderings. Nothing is
+        /// read from the screen, so other windows never enter the image.
+        /// </summary>
+        internal void CaptureWithSettings(string path)
+        {
+            Refresh();
+            Application.DoEvents();
+            NativeMethods.Rect window;
+            NativeMethods.GetWindowRect(Handle, out window);
+            using (Bitmap frame = new Bitmap(Math.Max(1, window.Right - window.Left), Math.Max(1, window.Bottom - window.Top)))
+            {
+                using (Graphics graphics = Graphics.FromImage(frame))
+                {
+                    IntPtr deviceContext = graphics.GetHdc();
+                    try { NativeMethods.PrintWindow(Handle, deviceContext, 2); }
+                    finally { graphics.ReleaseHdc(deviceContext); }
+                }
+                using (Bitmap shaped = RoundCorners(frame))
+                {
+                    Panel content = settingsContent;
+                    if (content != null && !content.IsDisposed)
+                    {
+                        float s = LayoutScale;
+                        Point button = settingsButton.PointToScreen(Point.Empty);
+                        Point origin = new Point(button.X + settingsButton.Width - content.Width - window.Left,
+                            button.Y - DpiLayout.ScaleValue(6, s) - content.Height - window.Top);
+                        using (Bitmap panel = new Bitmap(content.Width, content.Height))
+                        using (Graphics graphics = Graphics.FromImage(shaped))
+                        {
+                            content.DrawToBitmap(panel, new Rectangle(Point.Empty, panel.Size));
+                            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                            for (int ring = 6; ring >= 1; ring--)
+                                using (System.Drawing.Drawing2D.GraphicsPath shadow = WidgetPath.Rounded(new RectangleF(
+                                    origin.X - ring * s, origin.Y - ring * s + 4 * s, content.Width + 2 * ring * s, content.Height + 2 * ring * s), (8 + ring) * s))
+                                using (SolidBrush brush = new SolidBrush(Color.FromArgb(18, 0, 0, 0)))
+                                    graphics.FillPath(brush, shadow);
+                            using (System.Drawing.Drawing2D.GraphicsPath outline = WidgetPath.Rounded(
+                                new RectangleF(origin.X, origin.Y, content.Width, content.Height), 8 * s))
+                            using (TextureBrush brush = new TextureBrush(panel))
+                            using (Pen border = new Pen(Color.FromArgb(58, 62, 64), Math.Max(1f, s)))
+                            {
+                                brush.TranslateTransform(origin.X, origin.Y);
+                                graphics.FillPath(brush, outline);
+                                graphics.DrawPath(border, outline);
+                            }
+                        }
+                    }
+                    shaped.Save(path, ImageFormat.Png);
+                }
+            }
+        }
+
         public void RenderTrayIconPreview(string path, string glyph, bool discharging)
         {
-            Color color = discharging ? UiTheme.Discharging : UiTheme.Charging;
+            Color color = discharging ? UiTheme.TrayDischarging : UiTheme.TrayCharging;
             using (Icon icon = CreateTextIcon(glyph, color))
             using (Bitmap bitmap = icon.ToBitmap())
                 bitmap.Save(path, ImageFormat.Png);

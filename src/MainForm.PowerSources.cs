@@ -13,9 +13,8 @@ namespace BatteryChargeMeter
         private readonly PowerSources powerSources = new PowerSources();
         private readonly ToolTip sourceTip = new ToolTip();
 
-        private AntdUI.Panel sourcesPanel;
         private readonly Label[] sourceNames = new Label[4];
-        private readonly Label[] sourceValues = new Label[4];
+        private readonly ReadoutLabel[] sourceValues = new ReadoutLabel[4];
 
         /// <summary>
         /// Builds the source rows. Called from the constructor before
@@ -36,17 +35,16 @@ namespace BatteryChargeMeter
 
         private void AddSourceRow(int index, string caption)
         {
-            int y = 44 + index * 22;
+            int y = RowsTop + index * RowHeight;
 
-            Label nameLabel = NewLabel(caption, 14, y, 184, 22, 9f, FontStyle.Regular);
+            Label nameLabel = NewLabel(caption, 18, y, 200, RowHeight, 9.75f, FontStyle.Regular);
             nameLabel.ForeColor = UiTheme.Muted;
-            sourcesPanel.Controls.Add(nameLabel);
+            Controls.Add(nameLabel);
 
-            Label value = NewLabel("--", 210, y, 120, 22, 9.5f, FontStyle.Regular);
-            value.Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Regular, GraphicsUnit.Point);
+            ReadoutLabel value = Readout(222, y, 148, RowHeight, "Bahnschrift", 11.25f, true);
+            value.Text = "--";
+            value.UnitScale = 12f / 15f;
             value.TextAlign = ContentAlignment.MiddleRight;
-            value.ForeColor = UiTheme.Ink;
-            sourcesPanel.Controls.Add(value);
             sourceNames[index] = nameLabel;
             sourceValues[index] = value;
         }
@@ -54,7 +52,7 @@ namespace BatteryChargeMeter
         private void LayoutSourceRows()
         {
             if (sourceNames[3] == null) return;
-            float scale = dpiLayout != null && dpiLayout.CurrentDpi > 0 ? dpiLayout.CurrentDpi / 96f : 1f;
+            float scale = LayoutScale;
             int selected = session.Mode == DisplayMode.Battery ? MeterView.BatteryRow : MeterView.WholeSystemRow;
             int row = 0;
             for (int index = 0; index < sourceNames.Length; index++)
@@ -63,9 +61,14 @@ namespace BatteryChargeMeter
                 sourceNames[index].Visible = visible;
                 sourceValues[index].Visible = visible;
                 if (!visible) continue;
-                int y = 44 + row++ * 22;
-                sourceNames[index].Bounds = DpiLayout.ScaleBounds(new Rectangle(14, y, 184, 22), scale);
-                sourceValues[index].Bounds = DpiLayout.ScaleBounds(new Rectangle(210, y, 120, 22), scale);
+                int y = RowsTop + row++ * RowHeight;
+                Point offset = AutoScrollPosition;
+                Rectangle name = DpiLayout.ScaleBounds(new Rectangle(18, y, 200, RowHeight), scale);
+                Rectangle value = DpiLayout.ScaleBounds(new Rectangle(222, y, 148, RowHeight), scale);
+                name.Offset(offset);
+                value.Offset(offset);
+                sourceNames[index].Bounds = name;
+                sourceValues[index].Bounds = value;
             }
         }
 
@@ -97,12 +100,14 @@ namespace BatteryChargeMeter
             foreach (string line in view.Diagnostics)
                 reasons.AppendLine(line);
             errorLabel.Text = reasons.ToString().TrimEnd();
+            UpdateElevateAction();
         }
 
-        private void Apply(Label target, ReadoutText row, BatteryAccentKind accent)
+        private void Apply(ReadoutLabel target, ReadoutText row, BatteryAccentKind accent)
         {
             target.Text = row.Text;
-            target.ForeColor = UiTheme.Tone(row.Tone, accent);
+            target.ForeColor = row.Tone == ReadoutTone.Muted && row.Text.StartsWith("≈", StringComparison.Ordinal)
+                ? UiTheme.Muted : UiTheme.Tone(row.Tone, accent);
             sourceTip.SetToolTip(target, row.Tooltip);
         }
 

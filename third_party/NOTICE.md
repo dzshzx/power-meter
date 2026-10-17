@@ -51,8 +51,10 @@ Setup's built-in copyright and website notices.
 The application icon uses the unmodified `battery-medium` paths from
 https://github.com/lucide-icons/lucide/blob/main/icons/battery-medium.svg,
 placed on a rounded green background in `src/BatteryChargeMeter.svg`.
-The interface also uses Lucide `pin` and `settings-2` paths with a neutral
-stroke. The complete Lucide/Feather license text is retained in
+The interface also uses Lucide `zap`, `pin`, `minus`, `x`, `plug`, `plug-zap`,
+`battery-medium`, `triangle-alert`, `shield` and `settings` paths from
+lucide-static 1.59.0, stroked in the interface colours; compact SVG arc flags
+are written out in full without changing the geometry. The complete Lucide/Feather license text is retained in
 `LICENSE.Lucide.txt` and included in the same notice export.
 
 ISC License

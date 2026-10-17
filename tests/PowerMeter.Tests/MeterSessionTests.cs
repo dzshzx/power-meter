@@ -36,14 +36,14 @@ namespace BatteryChargeMeter.Tests
                 session.Mode == DisplayMode.Battery && view.Headline.Text == "39.08 W"
                 && view.Headline.Tone == ReadoutTone.Accent && view.TrayGlyph == "39"
                 && view.TrayTooltip == Strings.Get("电池端净功率") + ": 39.08 W"
-                && view.AverageValue == "-- W" && view.AverageCaption == Strings.Format("均值 · {0:0.#}/30s", 0.0));
+                && view.AverageValue == "-- W" && view.AverageCaption == Strings.Format("均值 · {0}/10分", Strings.Format("{0}秒", "0")));
             view = session.Observe(PowerSnapshot.Compose(time, 2, charging, cpuPackage, platform));
             Check("mode change seeds statistics with the current reading",
-                view.AverageValue == "39.08 W" && view.AverageCaption == Strings.Format("均值 · {0:0.#}/30s", 1.0));
+                view.AverageValue == "39.08 W" && view.AverageCaption == Strings.Format("均值 · {0}/10分", Strings.Format("{0}秒", "1")));
             session.Render();
             view = session.Render();
             Check("re-rendering does not record another reading",
-                view.AverageCaption == Strings.Format("均值 · {0:0.#}/30s", 1.0));
+                view.AverageCaption == Strings.Format("均值 · {0}/10分", Strings.Format("{0}秒", "1")));
 
             session = new MeterSession(DisplayMode.WholeSystem);
             view = session.Observe(PowerSnapshot.Compose(time, 1, charging, cpuPackage, noPlatform));
@@ -126,7 +126,7 @@ namespace BatteryChargeMeter.Tests
             history.Add(4, DisplayMode.Battery, supply, Value(-20));
             double coverage;
             double? average = history.Average(out coverage);
-            Check("irregular observations use elapsed weighting and partial window", average.HasValue && Near(average.Value, -17.5) && Near(coverage, 4) && Near(history.Duration(60), 4));
+            Check("irregular observations use elapsed weighting and partial window", average.HasValue && Near(average.Value, -17.5) && Near(coverage, 4) && Near(history.Duration(PowerHistory.PeakWindow), 4));
             Check("peak retains sign at greatest magnitude", Near(history.Peak().Value, -20));
             history.Add(5, DisplayMode.Battery, supply, PowerSample.Unsupported(PowerBoundary.BatteryTerminal, "gap"));
             Check("missing sample leaves a gap and immediately unavailable statistics", !history.Peak().HasValue && !history.Average(out coverage).HasValue && !history.Points[3].Watts.HasValue);
@@ -140,16 +140,29 @@ namespace BatteryChargeMeter.Tests
             history.Add(22, DisplayMode.WholeSystem, BatterySupplyState.ExternalPowerIdle, Value(30));
             Check("supply state change clears history", history.Points.Count == 1);
             history.Clear();
-            for (int second = 0; second <= 70; second++) history.Add(second, DisplayMode.Battery, supply, Value(second == 20 ? -100 : -10));
+            for (int second = 0; second <= 700; second++) history.Add(second, DisplayMode.Battery, supply, Value(second == 200 ? -100 : -10));
             average = history.Average(out coverage);
-            Check("30 second mean differs from 60 second peak; repeated readings stay fresh", Near(average.Value, -10) && Near(coverage, 30) && Near(history.Peak().Value, -100) && Near(history.Duration(60), 60));
-            for (int second = 71; second <= 81; second++) history.Add(second, DisplayMode.Battery, supply, Value(-10));
-            Check("old peak expires at real 60 second boundary", Near(history.Peak().Value, -10));
+            Check("10 minute mean still holds a reading the 5 minute peak has dropped",
+                Near(average.Value, (-10 * 599 - 100) / 600.0) && Near(coverage, 600) && Near(history.Peak().Value, -10)
+                && Near(history.Duration(PowerHistory.PeakWindow), 300));
+            history.Add(701, DisplayMode.Battery, supply, Value(-100));
+            for (int second = 702; second <= 1001; second++) history.Add(second, DisplayMode.Battery, supply, Value(-10));
+            Check("a peak stays for exactly 5 minutes", Near(history.Peak().Value, -100));
+            history.Add(1002, DisplayMode.Battery, supply, Value(-10));
+            Check("old peak expires at the real 5 minute boundary", Near(history.Peak().Value, -10));
             history.Clear();
-            for (int second = 0; second <= 32; second += 4)
+            for (int second = 0; second <= 600; second += 4)
                 history.Add(second, DisplayMode.Battery, supply, Value(second == 0 ? 40 : 10));
+            history.Add(602, DisplayMode.Battery, supply, Value(10));
             average = history.Average(out coverage);
-            Check("weighted mean clips the first interval at exact 30 second cutoff", Near(average.Value, 12) && Near(coverage, 30));
+            Check("weighted mean clips the first interval at the exact 10 minute cutoff", Near(average.Value, 10.1) && Near(coverage, 600));
+            history.Clear();
+            for (int second = 0; second <= 700; second++)
+                history.Add(second, DisplayMode.Battery, supply, second >= 300 && second < 400
+                    ? PowerSample.Unsupported(PowerBoundary.BatteryTerminal, "gap") : Value(20));
+            average = history.Average(out coverage);
+            Check("an N/A spell inside 10 minutes is excluded, never averaged as zero",
+                Near(average.Value, 20) && Near(coverage, 600 - 101) && Near(history.Peak().Value, 20));
             Check("nonfinite sensor values cannot reach readings or tray", !Value(Double.NaN).Available && !Value(Double.PositiveInfinity).Available);
         }
 

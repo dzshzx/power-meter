@@ -17,48 +17,34 @@ using System.Windows.Forms;
 
 namespace BatteryChargeMeter
 {
-    internal sealed class BatteryBar : Panel
-    {
-        private int percentage = -1;
-        private Color fillColor = UiTheme.Charging;
-
-        public BatteryBar()
-        {
-            DoubleBuffered = true;
-        }
-
-        public void SetValue(int value, Color color)
-        {
-            percentage = value;
-            fillColor = color;
-            Invalidate();
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using (GraphicsPath track = WidgetPath.Rounded(
-                new Rectangle(0, 0, Width - 1, Height - 1), (Height - 1) / 2))
-            using (SolidBrush trackBrush = new SolidBrush(UiTheme.Track))
-                g.FillPath(trackBrush, track);
-
-            if (percentage < 0)
-                return;
-
-            int width = Math.Max(2, (int)((Width - 1) * Math.Min(100, percentage) / 100.0));
-            using (GraphicsPath fill = WidgetPath.Rounded(
-                new Rectangle(0, 0, width, Height - 1), Math.Min((Height - 1) / 2, width / 2)))
-            using (SolidBrush fillBrush = new SolidBrush(fillColor))
-                g.FillPath(fillBrush, fill);
-        }
-    }
-
     internal static class NativeMethods
     {
         internal const int WmDpiChanged = 0x02E0;
+        internal const int WmNcCalcSize = 0x0083;
+        internal const int WmNcHitTest = 0x0084;
+        internal const int WmSysCommand = 0x0112;
+        internal const int WmStyleChanging = 0x007C;
+        internal const int HtClient = 1;
+        internal const int HtCaption = 2;
+        internal const int ScMaximize = 0xF030;
+        internal const int GwlStyle = -16;
+        internal const int WsCaption = 0x00C00000;
+        internal const int WsSysMenu = 0x00080000;
+        internal const int WsMinimizeBox = 0x00020000;
+        internal const int WsMaximizeBox = 0x00010000;
+        internal const int WsVScroll = 0x00200000;
+        internal const int WsHScroll = 0x00100000;
+        internal const int SmCxVScroll = 2;
+        internal const int SmCyHScroll = 3;
+        internal const uint SwpNoSize = 0x0001;
+        internal const uint SwpNoMove = 0x0002;
         internal const uint SwpNoZOrder = 0x0004;
         internal const uint SwpNoActivate = 0x0010;
+        internal const uint SwpFrameChanged = 0x0020;
+        internal const int DwmUseImmersiveDarkMode = 20;
+        internal const int DwmWindowCornerPreference = 33;
+        internal const int DwmBorderColor = 34;
+        internal const int DwmCornerRound = 2;
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct Rect
@@ -93,6 +79,15 @@ namespace BatteryChargeMeter
             int height,
             uint flags);
 
+        [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
+        internal static extern int GetWindowLong(IntPtr windowHandle, int index);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
+        internal static extern int SetWindowLong(IntPtr windowHandle, int index, int value);
+
+        [DllImport("user32.dll")]
+        internal static extern int GetSystemMetricsForDpi(int index, uint dpi);
+
         [DllImport("user32.dll")]
         internal static extern bool PrintWindow(IntPtr windowHandle, IntPtr deviceContext, uint flags);
 
@@ -100,22 +95,44 @@ namespace BatteryChargeMeter
         internal static extern int DwmGetWindowAttribute(IntPtr windowHandle, int attribute,
             out Rect rectangle, int size);
 
+        [DllImport("dwmapi.dll")]
+        internal static extern int DwmSetWindowAttribute(IntPtr windowHandle, int attribute,
+            ref int value, int size);
+
         [DllImport("user32.dll")]
         internal static extern bool DestroyIcon(IntPtr iconHandle);
     }
 
     internal sealed partial class MainForm : Form
     {
-        private readonly Label stateLabel;
-        private readonly Label updatedLabel;
-        private readonly Label powerLabel;
-        private readonly Label detailLabel;
-        private readonly Label percentageLabel;
-        private readonly Label statisticsLabel;
+        // Design geometry in logical pixels at 96 DPI.
+        internal const int DesignWidth = 388;
+        internal const int DesignHeight = 660;
+        internal const int TitleBarHeight = 44;
+        internal const int NoticeTop = 528;
+        internal const int NoticeSectionHeight = 92;
+        private const int TripTop = 340;
+        private const int TripBottom = 420;
+        private const int RowsTop = 428;
+        private const int RowHeight = 30;
+
+        private readonly StatusLabel stateLabel;
+        private readonly ReadoutLabel updatedLabel;
+        private readonly PowerReadout powerLabel;
+        private readonly ReadoutLabel voltageLabel;
+        private readonly ReadoutLabel currentLabel;
+        private readonly ReadoutLabel percentageLabel;
+        private readonly ReadoutLabel statisticsLabel;
         private readonly Label statisticsCaption;
         private readonly Label historyCaption;
-        private readonly TextBox errorLabel;
-        private readonly BatteryBar batteryBar;
+        private readonly Label batteryCaption;
+        private readonly ReadoutLabel historyLabel;
+        private readonly NoticeLabel errorLabel;
+        private readonly ActionButton elevateButton;
+        private readonly BatteryCells batteryCells;
+        private readonly TrendChart trendChart;
+        private readonly GlyphButton minimizeButton;
+        private readonly GlyphButton closeButton;
         private readonly Timer timer;
         private readonly NotifyIcon trayIcon;
         private readonly ContextMenuStrip trayMenu;
@@ -126,8 +143,8 @@ namespace BatteryChargeMeter
         private Color lastTrayColor = Color.Empty;
         private bool lastDpiWindowPositionApplied;
         private Point lastSuggestedPosition;
+        private bool roundedCorners;
         private readonly Label title;
-        private readonly Label historyLabel;
         private MeterSession session = new MeterSession(DisplayPreference.Load());
         private MeterView lastView;
         private SegmentedControl modeSegments;
@@ -153,13 +170,17 @@ namespace BatteryChargeMeter
             Text = Strings.AppName;
             AutoScaleMode = AutoScaleMode.None;
             AutoScroll = true;
-            ClientSize = new Size(384, 528);
-            FormBorderStyle = FormBorderStyle.FixedSingle;
+            // The title bar is drawn by the window; the native caption styles
+            // are restored after the handle exists (see ApplyWindowChrome).
+            FormBorderStyle = FormBorderStyle.None;
+            ClientSize = new Size(DesignWidth, DesignHeight);
             MaximizeBox = false;
+            MinimizeBox = true;
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = UiTheme.Canvas;
             ForeColor = UiTheme.Ink;
-            Font = new Font(UiTheme.TextFont, 9f, FontStyle.Regular, GraphicsUnit.Point);
+            DoubleBuffered = true;
+            Font = UiTheme.Text(9f, FontStyle.Regular);
             TopMost = true;
             try
             {
@@ -170,105 +191,9 @@ namespace BatteryChargeMeter
                 // A build without the embedded icon keeps the stock window icon.
             }
 
-            title = NewLabel("估算整机输入功率", 20, 56, 344, 22, 10f, FontStyle.Regular);
-            title.ForeColor = UiTheme.Muted;
-            title.TextAlign = ContentAlignment.MiddleCenter;
-
-            stateLabel = NewLabel("正在读取", 20, 168, 344, 20, 9f, FontStyle.Regular);
-            stateLabel.TextAlign = ContentAlignment.MiddleCenter;
-
-            powerLabel = new PowerReadout();
-            powerLabel.Text = "--.-- W";
-            powerLabel.Bounds = new Rectangle(20, 80, 344, 84);
-            powerLabel.Font = UiTheme.DisplayFont(44f);
-            powerLabel.TextAlign = ContentAlignment.MiddleCenter;
-            powerLabel.ForeColor = UiTheme.Charging;
-
-            detailLabel = NewLabel("", 20, 192, 344, 20, 9f, FontStyle.Regular);
-            detailLabel.ForeColor = UiTheme.Muted;
-            detailLabel.TextAlign = ContentAlignment.MiddleCenter;
-            updatedLabel = NewLabel("--:--:--", 20, 12, 160, 20, 9f, FontStyle.Regular);
-            updatedLabel.ForeColor = UiTheme.Faint;
-
-            statisticsCaption = NewLabel("", 32, 228, 144, 18, 9f, FontStyle.Regular);
-            statisticsCaption.ForeColor = UiTheme.Faint;
-            statisticsCaption.TextAlign = ContentAlignment.MiddleCenter;
-            historyCaption = NewLabel("", 208, 228, 144, 18, 9f, FontStyle.Regular);
-            historyCaption.ForeColor = UiTheme.Faint;
-            historyCaption.TextAlign = ContentAlignment.MiddleCenter;
-            Controls.Add(statisticsCaption);
-            Controls.Add(historyCaption);
-
-            statisticsLabel = NewLabel("", 32, 252, 144, 26, 14f, FontStyle.Regular);
-            statisticsLabel.Font = new Font("Segoe UI Semibold", 14f, FontStyle.Regular, GraphicsUnit.Point);
-            statisticsLabel.ForeColor = UiTheme.NumericMuted;
-            statisticsLabel.TextAlign = ContentAlignment.MiddleCenter;
-
-            historyLabel = NewLabel("", 208, 252, 144, 26, 14f, FontStyle.Regular);
-            historyLabel.Font = new Font("Segoe UI Semibold", 14f, FontStyle.Regular, GraphicsUnit.Point);
-            historyLabel.ForeColor = UiTheme.NumericMuted;
-            historyLabel.TextAlign = ContentAlignment.MiddleCenter;
-
-            Panel statisticsRule = new Panel();
-            statisticsRule.BackColor = UiTheme.Hairline;
-            statisticsRule.Bounds = new Rectangle(192, 232, 1, 40);
-            Controls.Add(statisticsRule);
-
-            sourcesPanel = new AntdUI.Panel();
-            sourcesPanel.Bounds = new Rectangle(20, 296, 344, 118);
-            sourcesPanel.BackColor = UiTheme.Canvas;
-            sourcesPanel.Back = UiTheme.GroupSurface;
-            sourcesPanel.Radius = 10;
-            sourcesPanel.BorderWidth = 0;
-            sourcesPanel.BorderColor = UiTheme.Hairline;
-            Controls.Add(sourcesPanel);
-
-            Label batterySection = NewLabel("电池电量", 14, 12, 96, 20, 9f, FontStyle.Regular);
-            batterySection.ForeColor = UiTheme.Ink;
-            sourcesPanel.Controls.Add(batterySection);
-
-            percentageLabel = NewLabel("--%", 258, 12, 72, 20, 10f, FontStyle.Regular);
-            percentageLabel.Font = new Font("Segoe UI Semibold", 10f, FontStyle.Regular, GraphicsUnit.Point);
-            percentageLabel.ForeColor = UiTheme.Ink;
-            percentageLabel.TextAlign = ContentAlignment.MiddleRight;
-
-            batteryBar = new BatteryBar();
-            batteryBar.Location = new Point(116, 21);
-            batteryBar.Size = new Size(132, 4);
-            sourcesPanel.Controls.Add(batteryBar);
-
-            Panel divider = new Panel();
-            divider.BackColor = UiTheme.Hairline;
-            divider.Bounds = new Rectangle(14, 40, 316, 1);
-            sourcesPanel.Controls.Add(divider);
-
-            BuildPowerSourceRows();
-
-            errorLabel = new TextBox();
-            errorLabel.Multiline = true;
-            errorLabel.AutoSize = false;
-            errorLabel.Bounds = new Rectangle(20, 424, 344, 48);
-            errorLabel.ReadOnly = true;
-            errorLabel.ScrollBars = ScrollBars.Vertical;
-            errorLabel.BorderStyle = BorderStyle.None;
-            errorLabel.BackColor = UiTheme.Canvas;
-            errorLabel.Font = new Font(UiTheme.TextFont, 8.5f, FontStyle.Regular, GraphicsUnit.Point);
-            errorLabel.ForeColor = UiTheme.ErrorRed;
-            errorLabel.TextChanged += delegate { UpdateDiagnosticLayout(); };
-
-            footerBand = new Panel();
-            footerBand.BackColor = UiTheme.FooterBand;
-            footerBand.Bounds = new Rectangle(0, 484, 384, 44);
-            footerBand.Controls.Add(updatedLabel);
-
-            Panel footerRule = new Panel();
-            footerRule.BackColor = UiTheme.FooterRule;
-            footerRule.Bounds = new Rectangle(0, 0, 384, 1);
-            footerBand.Controls.Add(footerRule);
-
             modeSegments = new SegmentedControl("整机功率", "电池端");
-            modeSegments.Font = new Font(UiTheme.TextFont, 9f, FontStyle.Regular, GraphicsUnit.Point);
-            modeSegments.Bounds = new Rectangle(98, 16, 188, 28);
+            modeSegments.Font = UiTheme.Text(9f, FontStyle.Regular);
+            modeSegments.Bounds = new Rectangle(44, 9, 136, 26);
             modeSegments.SelectedIndex = session.Mode == DisplayMode.Battery ? 1 : 0;
             modeSegments.SelectionChanged += delegate
             {
@@ -276,18 +201,102 @@ namespace BatteryChargeMeter
             };
             Controls.Add(modeSegments);
 
+            minimizeButton = CaptionButton(UiIcons.Minus, "最小化", 304);
+            minimizeButton.Click += delegate { WindowState = FormWindowState.Minimized; };
+            closeButton = CaptionButton(UiIcons.X, "关闭", 346);
+            closeButton.IsClose = true;
+            closeButton.Click += delegate { Close(); };
+
+            title = NewLabel("估算整机输入功率", 18, 50, 168, 20, 9f, FontStyle.Regular);
+            title.ForeColor = UiTheme.Muted;
+
+            stateLabel = new StatusLabel();
+            stateLabel.Text = Strings.Get("正在读取");
+            stateLabel.Bounds = new Rectangle(188, 50, 182, 20);
+            stateLabel.Font = UiTheme.Text(9f, FontStyle.Bold);
+            stateLabel.TextAlign = ContentAlignment.MiddleRight;
+
+            powerLabel = new PowerReadout();
+            powerLabel.Text = "--.-- W";
+            powerLabel.Bounds = new Rectangle(14, 70, 362, 101);
+            powerLabel.Font = UiTheme.Numeric("Bahnschrift Light SemiCondensed", 63f);
+            powerLabel.ForeColor = UiTheme.Charging;
+
+            voltageLabel = Readout(18, 173, 160, 20, "Bahnschrift", 10.5f, false);
+            voltageLabel.CaptionScale = 12f / 14f;
+            currentLabel = Readout(180, 173, 190, 20, "Bahnschrift", 10.5f, false);
+            currentLabel.CaptionScale = 12f / 14f;
+            currentLabel.PrefixColor = UiTheme.Ink;
+
+            trendChart = new TrendChart();
+            trendChart.Bounds = new Rectangle(0, 198, TrendChart.DesignWidth, TrendChart.DesignHeight);
+            trendChart.Font = UiTheme.Numeric("Bahnschrift", 7.5f);
+            Controls.Add(trendChart);
+
+            statisticsCaption = NewLabel("", 18, TripTop + 11, 114, 18, 9f, FontStyle.Regular);
+            statisticsCaption.ForeColor = UiTheme.Muted;
+            historyCaption = NewLabel("", 149, TripTop + 11, 100, 18, 9f, FontStyle.Regular);
+            historyCaption.ForeColor = UiTheme.Muted;
+            batteryCaption = NewLabel("电池电量", 266, TripTop + 11, 104, 18, 9f, FontStyle.Regular);
+            batteryCaption.ForeColor = UiTheme.Muted;
+            Controls.Add(statisticsCaption);
+            Controls.Add(historyCaption);
+            Controls.Add(batteryCaption);
+
+            statisticsLabel = Readout(18, TripTop + 31, 114, 32, "Bahnschrift SemiLight", 16.5f, true);
+            historyLabel = Readout(149, TripTop + 31, 100, 32, "Bahnschrift SemiLight", 16.5f, true);
+            percentageLabel = Readout(266, TripTop + 31, 104, 32, "Bahnschrift SemiLight", 16.5f, true);
+            foreach (ReadoutLabel statistic in new ReadoutLabel[] { statisticsLabel, historyLabel, percentageLabel })
+            {
+                statistic.UnitScale = 13f / 22f;
+                statistic.PrefixScale = 1f;
+            }
+
+            batteryCells = new BatteryCells();
+            batteryCells.Bounds = new Rectangle(266, TripTop + 65, 104, 4);
+            Controls.Add(batteryCells);
+
+            BuildPowerSourceRows();
+
+            errorLabel = new NoticeLabel();
+            errorLabel.Bounds = new Rectangle(18, NoticeTop, 352, NoticeLabel.DesignHeight);
+            errorLabel.Font = UiTheme.Text(9f, FontStyle.Regular);
+            errorLabel.TextChanged += delegate { UpdateDiagnosticLayout(); };
+
+            elevateButton = new ActionButton();
+            elevateButton.Tag = "以管理员身份重新启动";
+            elevateButton.Text = Strings.Get("以管理员身份重新启动");
+            elevateButton.IconBody = UiIcons.Shield;
+            elevateButton.Font = UiTheme.Text(9f, FontStyle.Regular);
+            elevateButton.Bounds = new Rectangle(41, NoticeTop + 54, 200, 28);
+            elevateButton.Click += delegate { RestartElevated(elevateButton); };
+
+            footerBand = new Panel();
+            footerBand.BackColor = UiTheme.FooterBand;
+            footerBand.Bounds = new Rectangle(0, NoticeTop + NoticeSectionHeight, DesignWidth, 40);
+
+            updatedLabel = Readout(18, 1, 200, 39, "Bahnschrift", 9f, false);
+            updatedLabel.Caption = Strings.Get("更新于");
+            updatedLabel.CaptionScale = 1f;
+            updatedLabel.CaptionColor = UiTheme.Faint;
+            updatedLabel.ForeColor = UiTheme.Muted;
+            updatedLabel.Text = "--:--:--";
+            Controls.Remove(updatedLabel);
+            footerBand.Controls.Add(updatedLabel);
+
+            Panel footerRule = new Panel();
+            footerRule.BackColor = UiTheme.Hairline;
+            footerRule.Bounds = new Rectangle(0, 0, DesignWidth, 1);
+            footerBand.Controls.Add(footerRule);
+
             BuildSettingsControls();
 
             Controls.Add(footerBand);
-
             Controls.Add(title);
             Controls.Add(stateLabel);
             Controls.Add(powerLabel);
-            Controls.Add(detailLabel);
-            Controls.Add(statisticsLabel);
-            Controls.Add(historyLabel);
-            sourcesPanel.Controls.Add(percentageLabel);
             Controls.Add(errorLabel);
+            Controls.Add(elevateButton);
 
             timer = new Timer();
             timer.Interval = 1000;
@@ -326,19 +335,139 @@ namespace BatteryChargeMeter
                 StartMonitoring();
             };
 
-            dpiLayout = new DpiLayout(this, ClientSize, errorLabel, 60);
+            dpiLayout = new DpiLayout(this, ClientSize, errorLabel, NoticeSectionHeight);
             UpdateDiagnosticLayout();
+        }
+
+        private GlyphButton CaptionButton(string icon, string name, int x)
+        {
+            GlyphButton button = new GlyphButton();
+            button.IconBody = icon;
+            button.Bounds = new Rectangle(x, 0, 42, TitleBarHeight);
+            button.AccessibleName = Strings.Get(name);
+            button.Tag = name;
+            sourceTip.SetToolTip(button, Strings.Get(name));
+            Controls.Add(button);
+            return button;
+        }
+
+        private ReadoutLabel Readout(int x, int y, int width, int height, string family, float points, bool splitUnit)
+        {
+            ReadoutLabel label = new ReadoutLabel();
+            label.Bounds = new Rectangle(x, y, width, height);
+            label.Font = UiTheme.Numeric(family, points);
+            label.DesignPoints = points;
+            label.SplitUnit = splitUnit;
+            label.ForeColor = UiTheme.Ink;
+            label.Text = "";
+            Controls.Add(label);
+            return label;
+        }
+
+        private float LayoutScale
+        {
+            get { return dpiLayout != null && dpiLayout.CurrentDpi > 0 ? dpiLayout.CurrentDpi / 96f : 1f; }
         }
 
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            ApplyWindowChrome();
             dpiLayout.Apply(ReadWindowDpi());
             LayoutSourceRows();
             if (trayEnabled)
             {
                 restoreMessage = GuiInstance.ListenForRestore(Handle, Startup.Identity);
                 restoreWindow = Handle;
+            }
+        }
+
+        /// <summary>
+        /// Restores the caption, system menu and minimize styles that
+        /// WinForms omits for a borderless form, then removes the non-client
+        /// area in WM_NCCALCSIZE. The window keeps the native move loop,
+        /// Alt+Space menu, minimize animation, taskbar behaviour and DWM
+        /// shadow; Windows 11 also rounds its corners. Without
+        /// WS_MAXIMIZEBOX a caption double-click does nothing.
+        /// </summary>
+        private const int ChromeStyles = NativeMethods.WsCaption | NativeMethods.WsSysMenu | NativeMethods.WsMinimizeBox;
+
+        private void ApplyWindowChrome()
+        {
+            int style = NativeMethods.GetWindowLong(Handle, NativeMethods.GwlStyle);
+            style = (style | ChromeStyles) & ~NativeMethods.WsMaximizeBox;
+            NativeMethods.SetWindowLong(Handle, NativeMethods.GwlStyle, style);
+            try
+            {
+                int dark = 1;
+                NativeMethods.DwmSetWindowAttribute(Handle, NativeMethods.DwmUseImmersiveDarkMode, ref dark, sizeof(int));
+                int corner = NativeMethods.DwmCornerRound;
+                roundedCorners = NativeMethods.DwmSetWindowAttribute(Handle, NativeMethods.DwmWindowCornerPreference,
+                    ref corner, sizeof(int)) == 0;
+                int border = UiTheme.Hairline.R | (UiTheme.Hairline.G << 8) | (UiTheme.Hairline.B << 16);
+                NativeMethods.DwmSetWindowAttribute(Handle, NativeMethods.DwmBorderColor, ref border, sizeof(int));
+            }
+            catch (DllNotFoundException)
+            {
+                roundedCorners = false;
+            }
+            NativeMethods.SetWindowPos(Handle, IntPtr.Zero, 0, 0, 0, 0,
+                NativeMethods.SwpNoMove | NativeMethods.SwpNoSize | NativeMethods.SwpNoZOrder
+                    | NativeMethods.SwpNoActivate | NativeMethods.SwpFrameChanged);
+        }
+
+        /// <summary>True when the drawn title bar should act as the caption.</summary>
+        internal bool IsCaptionPoint(Point client)
+        {
+            Point scrolled = new Point(client.X, client.Y - AutoScrollPosition.Y);
+            return scrolled.Y >= 0 && scrolled.Y < DpiLayout.ScaleValue(TitleBarHeight, LayoutScale)
+                && client.X >= 0 && client.X < ClientSize.Width;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            float s = LayoutScale;
+            g.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
+
+            // Application tile: Lucide zap on the icon's green.
+            RectangleF tile = new RectangleF(14 * s, 14 * s, 16 * s, 16 * s);
+            using (GraphicsPath path = WidgetPath.Rounded(tile, 4 * s))
+            using (SolidBrush brush = new SolidBrush(UiTheme.AppTile))
+                g.FillPath(brush, path);
+            int glyph = (int)Math.Round(12 * s);
+            UiIcons.Draw(g, UiIcons.Zap, Color.White,
+                new Rectangle((int)Math.Round(tile.X + (tile.Width - glyph) / 2), (int)Math.Round(tile.Y + (tile.Height - glyph) / 2), glyph, glyph), 2.2f);
+
+            g.SmoothingMode = SmoothingMode.None;
+            using (Pen hair = new Pen(UiTheme.Hairline, Math.Max(1, (int)Math.Round(s))))
+            {
+                int left = DpiLayout.ScaleValue(18, s), right = DpiLayout.ScaleValue(370, s);
+                int top = DpiLayout.ScaleValue(TripTop, s), bottom = DpiLayout.ScaleValue(TripBottom, s);
+                g.DrawLine(hair, left, top, right, top);
+                g.DrawLine(hair, left, bottom, right, bottom);
+                foreach (int x in new int[] { 135, 252 })
+                    g.DrawLine(hair, DpiLayout.ScaleValue(x, s), top, DpiLayout.ScaleValue(x, s), bottom);
+            }
+
+            // Dotted leaders join each supporting metric to its value.
+            using (Pen dots = new Pen(Color.FromArgb(70, 74, 75), Math.Max(1f, s)))
+            {
+                dots.DashPattern = new float[] { 1f, 2f };
+                for (int index = 0; index < sourceNames.Length; index++)
+                {
+                    Label name = sourceNames[index];
+                    ReadoutLabel value = sourceValues[index];
+                    if (name == null || !name.Visible) continue;
+                    int from = name.Left + TextRenderer.MeasureText(name.Text, name.Font, Size.Empty, AlignedLabel.Flags).Width
+                        + DpiLayout.ScaleValue(10, s);
+                    int to = value.Right - value.MeasureContent().Width - DpiLayout.ScaleValue(10, s);
+                    int y = name.Top + name.Height / 2 + DpiLayout.ScaleValue(4, s);
+                    if (to > from)
+                        g.DrawLine(dots, from - AutoScrollPosition.X, y - AutoScrollPosition.Y, to - AutoScrollPosition.X, y - AutoScrollPosition.Y);
+                }
             }
         }
 
@@ -356,6 +485,49 @@ namespace BatteryChargeMeter
             {
                 RestoreFromTray();
                 message.Result = IntPtr.Zero;
+                return;
+            }
+            if (message.Msg == NativeMethods.WmNcCalcSize && message.LParam != IntPtr.Zero)
+            {
+                // The whole window is client area except scroll bars (very
+                // high DPI on a small screen); the title bar is drawn.
+                NativeMethods.Rect proposed = (NativeMethods.Rect)Marshal.PtrToStructure(message.LParam, typeof(NativeMethods.Rect));
+                int style = NativeMethods.GetWindowLong(Handle, NativeMethods.GwlStyle);
+                int dpi = ReadWindowDpi();
+                if ((style & NativeMethods.WsVScroll) != 0)
+                    proposed.Right -= ScrollBarSize(NativeMethods.SmCxVScroll, dpi);
+                if ((style & NativeMethods.WsHScroll) != 0)
+                    proposed.Bottom -= ScrollBarSize(NativeMethods.SmCyHScroll, dpi);
+                Marshal.StructureToPtr(proposed, message.LParam, false);
+                message.Result = IntPtr.Zero;
+                return;
+            }
+            if (message.Msg == NativeMethods.WmStyleChanging && message.WParam.ToInt64() == NativeMethods.GwlStyle
+                && message.LParam != IntPtr.Zero)
+            {
+                // WinForms rewrites the style from its borderless CreateParams
+                // on some property changes; keep the caption styles.
+                int[] styles = new int[2];
+                Marshal.Copy(message.LParam, styles, 0, 2);
+                styles[1] = (styles[1] | ChromeStyles) & ~NativeMethods.WsMaximizeBox;
+                Marshal.Copy(styles, 0, message.LParam, 2);
+            }
+            if (message.Msg == NativeMethods.WmSysCommand
+                && (message.WParam.ToInt64() & 0xFFF0) == NativeMethods.ScMaximize)
+            {
+                message.Result = IntPtr.Zero;
+                return;
+            }
+            if (message.Msg == NativeMethods.WmNcHitTest)
+            {
+                base.WndProc(ref message);
+                if (message.Result.ToInt64() == NativeMethods.HtClient)
+                {
+                    long packed = message.LParam.ToInt64();
+                    Point screen = new Point((short)(packed & 0xffff), (short)((packed >> 16) & 0xffff));
+                    if (IsCaptionPoint(PointToClient(screen)))
+                        message.Result = new IntPtr(NativeMethods.HtCaption);
+                }
                 return;
             }
             // WinForms gates its DpiChanged event behind app.config; handle the native
@@ -386,8 +558,7 @@ namespace BatteryChargeMeter
 
                 dpiLayout.Apply(newDpi);
                 LayoutSourceRows();
-                batteryBar.Invalidate();
-                modeSegments.Invalidate();
+                Invalidate(true);
                 message.Result = IntPtr.Zero;
                 return;
             }
@@ -423,6 +594,19 @@ namespace BatteryChargeMeter
                 DisposePowerSources();
             }
             base.Dispose(disposing);
+        }
+
+        private static int ScrollBarSize(int metric, int dpi)
+        {
+            try
+            {
+                return NativeMethods.GetSystemMetricsForDpi(metric, (uint)dpi);
+            }
+            catch (EntryPointNotFoundException)
+            {
+                return metric == NativeMethods.SmCxVScroll
+                    ? SystemInformation.VerticalScrollBarWidth : SystemInformation.HorizontalScrollBarHeight;
+            }
         }
 
         private int ReadWindowDpi()
@@ -495,16 +679,22 @@ namespace BatteryChargeMeter
         {
             lastView = view;
             title.Text = view.Title.Text;
-            title.ForeColor = UiTheme.Tone(view.Title.Tone, view.Accent);
+            title.ForeColor = UiTheme.Muted;
             sourceTip.SetToolTip(title, view.Title.Tooltip);
             stateLabel.Text = view.Supply.Text;
-            stateLabel.ForeColor = UiTheme.Tone(view.Supply.Tone, view.Accent);
+            stateLabel.IconBody = UiIcons.For(view.SupplyIcon);
+            stateLabel.ForeColor = view.Supply.Tone == ReadoutTone.Accent ? UiTheme.Accent(view.Accent) : UiTheme.Muted;
             powerLabel.Text = view.Headline.Text;
-            powerLabel.ForeColor = UiTheme.Tone(view.Headline.Tone, view.Accent);
+            powerLabel.ForeColor = UiTheme.Headline(view.Headline.Tone, view.Accent);
             sourceTip.SetToolTip(powerLabel, view.Headline.Tooltip);
-            detailLabel.Text = view.Detail;
+            voltageLabel.Caption = view.VoltageCaption;
+            voltageLabel.Text = view.Voltage;
+            currentLabel.Caption = view.CurrentCaption;
+            currentLabel.Text = view.Current;
             percentageLabel.Text = view.Percentage;
-            batteryBar.SetValue(view.BatteryLevel, UiTheme.Tone(view.BatteryTone, view.Accent));
+            batteryCells.SetValue(view.BatteryLevel, UiTheme.Accent(view.Accent), view.BatteryTone != ReadoutTone.Accent);
+            trendChart.SetView(view.Trend, UiTheme.Accent(view.Accent));
+            sourceTip.SetToolTip(trendChart, view.Trend.Tooltip);
 
             statisticsCaption.Text = view.AverageCaption;
             historyCaption.Text = view.PeakCaption;
@@ -514,9 +704,13 @@ namespace BatteryChargeMeter
             sourceTip.SetToolTip(historyLabel, view.PeakTooltip);
             statisticsLabel.Text = view.AverageValue;
             historyLabel.Text = view.PeakValue;
+            statisticsLabel.ForeColor = view.AverageValue.StartsWith("--", StringComparison.Ordinal) ? UiTheme.Faint : UiTheme.Ink;
+            historyLabel.ForeColor = view.PeakValue.StartsWith("--", StringComparison.Ordinal) ? UiTheme.Faint : UiTheme.Ink;
 
             UpdatePowerSources(view);
+            updatedLabel.Caption = Strings.Get("更新于");
             updatedLabel.Text = view.Updated;
+            Invalidate(false);
             if (trayEnabled)
             {
                 if (view.TrayGlyph != null)
@@ -608,9 +802,34 @@ namespace BatteryChargeMeter
         {
             bool expanded = !String.IsNullOrWhiteSpace(errorLabel.Text);
             errorLabel.Visible = expanded;
+            sourceTip.SetToolTip(errorLabel, expanded ? errorLabel.Text : null);
+            UpdateElevateAction();
             if (dpiLayout != null)
                 dpiLayout.SetSectionExpanded(expanded);
             LayoutSourceRows();
+        }
+
+        // The notice offers the restart only when elevation fixes a reading
+        // or the startup elevation request was declined.
+        private void UpdateElevateAction()
+        {
+            if (elevateButton == null) return;
+            bool helps = lastView != null && lastView.ElevationHelps || !String.IsNullOrEmpty(elevationMessage);
+            elevateButton.Visible = errorLabel.Visible && helps && !Startup.IsElevated();
+        }
+
+        /// <summary>Shared by the notice and the settings popover.</summary>
+        private void RestartElevated(Control trigger)
+        {
+            trigger.Enabled = false;
+            ElevationResult result = Startup.TryElevate();
+            if (result.Started) Close();
+            else
+            {
+                elevationMessage = result.Message;
+                RefreshDiagnostics();
+                trigger.Enabled = true;
+            }
         }
 
     }

@@ -16,6 +16,37 @@ namespace BatteryChargeMeter
         Accent
     }
 
+    /// <summary>
+    /// Pictogram for the supply state. The window picks the glyph; the
+    /// session decides which state it represents.
+    /// </summary>
+    internal enum SupplyIcon
+    {
+        None,
+        ExternalPower,
+        Charging,
+        Battery,
+        Alert
+    }
+
+    /// <summary>
+    /// The thirty-minute trend of the selected boundary, already labelled.
+    /// The chart only chooses pixel columns and draws.
+    /// </summary>
+    internal sealed class TrendView
+    {
+        public TrendSeries Series;
+        public bool Estimated;
+        // Four labels for the left edge, one third, two thirds and the right edge.
+        public string[] AxisLabels;
+        // Recorded duration while the window is still filling; null once full.
+        public string Recorded;
+        // Largest-magnitude reading in the window, or null without data.
+        public string PeakLabel;
+        public string Empty;
+        public string Tooltip;
+    }
+
     internal sealed class ReadoutText
     {
         public string Text;
@@ -39,7 +70,11 @@ namespace BatteryChargeMeter
         public ReadoutText Title;
         public ReadoutText Headline;
         public ReadoutText Supply;
-        public string Detail;
+        public SupplyIcon SupplyIcon;
+        public string VoltageCaption;
+        public string Voltage;
+        public string CurrentCaption;
+        public string Current;
         public string Percentage;
         public int BatteryLevel;
         public ReadoutTone BatteryTone;
@@ -55,6 +90,9 @@ namespace BatteryChargeMeter
         public string WholeCaptionTooltip;
         // Measurement reasons only; elevation and startup notices are the window's.
         public IList<string> Diagnostics;
+        // Restarting as administrator would make a missing reading available.
+        public bool ElevationHelps;
+        public TrendView Trend;
         // Null until the first reading: the tray keeps the application icon.
         public string TrayGlyph;
         public string TrayTooltip;
@@ -73,6 +111,7 @@ namespace BatteryChargeMeter
             "外电：平台功率 + 带符号的电池端净功率，未含转换损耗。\n电池供电：电池端放电功率。CPU 包已包含在平台功率内。";
 
         private readonly PowerHistory history = new PowerHistory();
+        private readonly PowerTrend trend = new PowerTrend();
         private DisplayMode mode;
         private PowerSnapshot latest;
         private string failure;
@@ -99,24 +138,28 @@ namespace BatteryChargeMeter
             timestamp = snapshot.Timestamp;
             if (snapshot.WholeSystem != null)
                 wholeBoundary = snapshot.WholeSystem.Boundary;
+            trend.Add(snapshot.ElapsedSeconds, snapshot.WholeSystem, snapshot.BatteryTerminal);
             Append();
             return Render();
         }
 
         /// <summary>
         /// Drops the latest reading and the statistics: nothing is known until
-        /// the next successful capture.
+        /// the next successful capture. The trend keeps its history and
+        /// breaks the line here.
         /// </summary>
         internal MeterView Fail(string reason)
         {
             latest = null;
             failure = reason ?? "";
             history.Clear();
+            trend.Break();
             return Render();
         }
 
         /// <summary>
         /// A mode change starts new statistics, seeded with the current reading.
+        /// Both trend boundaries are always recorded, so the trend keeps its history.
         /// </summary>
         internal MeterView SetMode(DisplayMode next)
         {
@@ -159,16 +202,14 @@ namespace BatteryChargeMeter
             MeterView view = new MeterView();
             view.Accent = profile.Accent;
             view.Supply = Text(Strings.Get(SupplyCaptionKey(reading.SupplyState)), ReadoutTone.Accent, null);
+            view.SupplyIcon = SupplyIconFor(reading.SupplyState);
             view.Headline = Text(headline,
-                selected != null && selected.Kind == MeasurementKind.Estimated ? ReadoutTone.NumericMuted : ReadoutTone.Accent,
+                selected == null || !selected.Available ? ReadoutTone.Muted
+                    : selected.Kind == MeasurementKind.Estimated ? ReadoutTone.NumericMuted : ReadoutTone.Accent,
                 selected == null ? null : Strings.Diagnostic(selected.Available ? selected.Source : selected.UnavailableReason));
-            view.Detail = Strings.Format("电池端 {0} · ≈ {1}",
-                reading.VoltageAvailable
-                    ? reading.VoltageVolts.ToString("0.00", CultureInfo.InvariantCulture) + " V"
-                    : "--.-- V",
-                reading.CurrentAvailable
-                    ? reading.CurrentAmps.ToString("0.00", CultureInfo.InvariantCulture) + " A"
-                    : "--.-- A");
+            Electrical(view,
+                reading.VoltageAvailable ? NumberText.Format(reading.VoltageVolts, "0.00") + " V" : "--.-- V",
+                reading.CurrentAvailable ? "≈ " + NumberText.Format(reading.CurrentAmps, "0.00") + " A" : "≈ --.-- A");
             view.Percentage = reading.Percentage >= 0
                 ? reading.Percentage.ToString(CultureInfo.InvariantCulture) + "%"
                 : "--%";
@@ -185,11 +226,14 @@ namespace BatteryChargeMeter
                 ReadoutTone.Muted, TitleTooltip(view.Rows));
             WholeSystemCaption(view);
             view.Diagnostics = Diagnostics(snapshot, selected);
+            view.ElevationHelps = ElevationHelps(snapshot);
             view.TrayGlyph = selected != null && selected.Available ? TrayGlyph(selected.Watts) : "--";
             view.TrayTooltip = Strings.Get(PowerSample.LabelFor(selected == null ? wholeBoundary : selected.Boundary))
                 + ": " + headline;
             view.Updated = UpdatedText();
             Statistics(view, selected != null && selected.Kind == MeasurementKind.Estimated);
+            Trend(view, selected != null ? selected.Kind == MeasurementKind.Estimated
+                : mode == DisplayMode.WholeSystem && wholeBoundary == PowerBoundary.EstimatedSystemInput);
             return view;
         }
 
@@ -199,8 +243,9 @@ namespace BatteryChargeMeter
             MeterView view = new MeterView();
             view.Accent = BatteryAccentKind.Error;
             view.Supply = Text(Strings.Get("传感器异常"), ReadoutTone.Accent, null);
+            view.SupplyIcon = SupplyIcon.Alert;
             view.Headline = Text("N/A", ReadoutTone.Muted, reason);
-            view.Detail = Strings.Format("电池端 {0} · ≈ {1}", "-- V", "-- A");
+            Electrical(view, "-- V", "≈ -- A");
             view.Percentage = "--%";
             view.BatteryLevel = -1;
             view.BatteryTone = ReadoutTone.Accent;
@@ -216,6 +261,7 @@ namespace BatteryChargeMeter
             view.TrayTooltip = Strings.Get(mode == DisplayMode.Battery ? "电池端净功率" : "整机功率") + ": N/A";
             view.Updated = UpdatedText();
             Statistics(view, false);
+            Trend(view, mode == DisplayMode.WholeSystem && wholeBoundary == PowerBoundary.EstimatedSystemInput);
             return view;
         }
 
@@ -226,7 +272,7 @@ namespace BatteryChargeMeter
             view.Accent = BatteryAccentKind.Charging;
             view.Supply = Text(Strings.Get("正在读取"), ReadoutTone.Ink, null);
             view.Headline = Text("--.-- W", ReadoutTone.Accent, null);
-            view.Detail = "";
+            Electrical(view, "--.-- V", "≈ --.-- A");
             view.Percentage = "--%";
             view.BatteryLevel = -1;
             view.BatteryTone = ReadoutTone.Accent;
@@ -241,6 +287,7 @@ namespace BatteryChargeMeter
             view.TrayTooltip = Strings.AppName + ": " + Strings.Get("正在读取");
             view.Updated = UpdatedText();
             Statistics(view, false);
+            Trend(view, false);
             return view;
         }
 
@@ -290,13 +337,74 @@ namespace BatteryChargeMeter
             double? average = history.Average(out coverage);
             double? peak = history.Peak();
             string prefix = estimated ? "≈ " : "";
-            double duration = history.Duration(60);
-            view.AverageTooltip = Strings.Format("30 秒均值 · 有效 {0:0.#}s", coverage);
-            view.PeakTooltip = Strings.Format("60 秒峰值 · 最近 {0}s", duration.ToString("0.#", CultureInfo.InvariantCulture));
-            view.AverageCaption = coverage >= 30 - 0.000001 ? Strings.Get("30 秒均值") : Strings.Format("均值 · {0:0.#}/30s", coverage);
-            view.PeakCaption = duration >= 60 - 0.000001 ? Strings.Get("60 秒峰值") : Strings.Format("峰值 · {0:0.#}/60s", duration);
-            view.AverageValue = (average.HasValue ? prefix + average.Value.ToString("0.00", CultureInfo.InvariantCulture) : "--") + " W";
-            view.PeakValue = (peak.HasValue ? prefix + peak.Value.ToString("0.00", CultureInfo.InvariantCulture) : "--") + " W";
+            double duration = history.Duration(PowerHistory.PeakWindow);
+            view.AverageTooltip = Strings.Format("10 分钟均值 · 有效 {0}", Elapsed(coverage));
+            view.PeakTooltip = Strings.Format("5 分钟峰值 · 最近 {0}", Elapsed(duration));
+            // A partial window shows how much of it is covered; its value uses
+            // the readings so far.
+            view.AverageCaption = coverage >= PowerHistory.AverageWindow - 0.000001 ? Strings.Get("10 分钟均值")
+                : Strings.Format("均值 · {0}/10分", Covered(coverage));
+            view.PeakCaption = duration >= PowerHistory.PeakWindow - 0.000001 ? Strings.Get("5 分钟峰值")
+                : Strings.Format("峰值 · {0}/5分", Covered(duration));
+            view.AverageValue = (average.HasValue ? prefix + NumberText.Format(average.Value, "0.00") : "--") + " W";
+            view.PeakValue = (peak.HasValue ? prefix + NumberText.Format(peak.Value, "0.00") : "--") + " W";
+        }
+
+        // Whole seconds under a minute, then whole minutes: "3秒", "2分".
+        private static string Covered(double seconds)
+        {
+            return seconds < 60
+                ? Strings.Format("{0}秒", Math.Floor(seconds).ToString("0", CultureInfo.InvariantCulture))
+                : Strings.Format("{0}分", Math.Floor(seconds / 60).ToString("0", CultureInfo.InvariantCulture));
+        }
+
+        private static string Elapsed(double seconds)
+        {
+            int total = (int)Math.Floor(seconds);
+            return Strings.Format("{0} 分 {1} 秒", (total / 60).ToString(CultureInfo.InvariantCulture),
+                (total % 60).ToString(CultureInfo.InvariantCulture));
+        }
+
+        private static void Electrical(MeterView view, string voltage, string current)
+        {
+            view.VoltageCaption = Strings.Get("电池端电压");
+            view.Voltage = voltage;
+            view.CurrentCaption = Strings.Get("电流");
+            view.Current = current;
+        }
+
+        // Only the elevation-gated platform counter is fixed by restarting.
+        private static bool ElevationHelps(PowerSnapshot snapshot)
+        {
+            PowerSample platform = snapshot.Platform;
+            return platform != null && !platform.Available
+                && platform.UnavailableReason == PawnIoSensor.ElevationRequired;
+        }
+
+        private void Trend(MeterView view, bool estimated)
+        {
+            TrendSeries series = trend.Series(mode);
+            TrendView chart = new TrendView();
+            chart.Series = series;
+            chart.Estimated = estimated;
+            chart.AxisLabels = series.Full || series.Count == 0
+                ? new string[] { Strings.Get("−30 分"), NumberText.Format(-20, "0"), NumberText.Format(-10, "0"), Strings.Get("现在") }
+                : new string[] { "0", "10", "20", Strings.Get("30 分") };
+            if (series.Count > 0 && !series.Full)
+            {
+                double recorded = Math.Floor(series.Recorded);
+                chart.Recorded = recorded < 60
+                    ? Strings.Format("已记录 {0} 秒", recorded.ToString("0", CultureInfo.InvariantCulture))
+                    : Strings.Format("已记录 {0} 分钟", Math.Floor(recorded / 60).ToString("0", CultureInfo.InvariantCulture));
+            }
+            double at, watts;
+            if (series.Peak(out at, out watts))
+                chart.PeakLabel = Strings.Format("峰值 {0}", (estimated ? "≈ " : "") + NumberText.Format(watts, "0.00") + " W");
+            chart.Empty = series.Count == 0 && latest == null && failure == null
+                ? Strings.Get("等待第一次读数")
+                : Strings.Get(mode == DisplayMode.Battery ? "电池端功率不可用，暂无走势" : "整机功率不可用，暂无走势");
+            chart.Tooltip = Strings.Get("最近 30 分钟，每秒一个读数；峰值是绝对值最大的读数，与 5 分钟峰值规则相同。");
+            view.Trend = chart;
         }
 
         /// <summary>
@@ -320,7 +428,7 @@ namespace BatteryChargeMeter
             if (sample == null || !sample.Available)
                 return "N/A";
             return (sample.Kind == MeasurementKind.Estimated ? "≈ " : "")
-                + sample.Watts.ToString("0.00", CultureInfo.InvariantCulture) + " W";
+                + NumberText.Format(sample.Watts, "0.00") + " W";
         }
 
         private static string TrayGlyph(double powerWatts)
@@ -344,6 +452,24 @@ namespace BatteryChargeMeter
                 case BatterySupplyState.BatteryDirectionUnknown: return "电池供电 · 速率未知";
                 case BatterySupplyState.Inconsistent: return "电池状态异常";
                 default: return "电池不可用";
+            }
+        }
+
+        private static SupplyIcon SupplyIconFor(BatterySupplyState state)
+        {
+            switch (state)
+            {
+                case BatterySupplyState.ExternalPowerIdle:
+                case BatterySupplyState.ExternalPowerSupplemented:
+                case BatterySupplyState.ExternalPowerDirectionUnknown:
+                    return SupplyIcon.ExternalPower;
+                case BatterySupplyState.ExternalPowerCharging:
+                    return SupplyIcon.Charging;
+                case BatterySupplyState.BatteryDischarging:
+                case BatterySupplyState.BatteryDirectionUnknown:
+                    return SupplyIcon.Battery;
+                default:
+                    return SupplyIcon.Alert;
             }
         }
 

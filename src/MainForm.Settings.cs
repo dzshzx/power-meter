@@ -6,57 +6,32 @@ namespace BatteryChargeMeter
 {
     internal sealed partial class MainForm
     {
-        private AntdUI.Button pinButton;
-        private AntdUI.Button settingsButton;
+        internal const int SettingsWidth = 296;
+        private GlyphButton pinButton;
+        private GlyphButton settingsButton;
         private Form settingsPopup;
         private Panel settingsContent;
 
-        private AntdUI.Button UtilityButton(string text, string icon)
-        {
-            AntdUI.Button button = new AntdUI.Button();
-            button.Text = text;
-            button.IconSvg = icon;
-            button.Font = Font;
-            button.ForeColor = UiTheme.Ink;
-            button.BackColor = UiTheme.FooterBand;
-            button.DefaultBack = UiTheme.FooterBand;
-            button.BackHover = UiTheme.Track;
-            button.BackActive = UiTheme.Chip;
-            button.ForeHover = UiTheme.Ink;
-            button.ForeActive = UiTheme.Ink;
-            button.Radius = 6;
-            button.WaveSize = 0;
-            button.BorderWidth = 0;
-            return button;
-        }
-
         private void BuildSettingsControls()
         {
-            AntdUI.Style.SetPrimary(UiTheme.Ink);
+            AntdUI.Config.Mode = AntdUI.TMode.Dark;
+            AntdUI.Style.SetPrimary(UiTheme.Charging);
             AntdUI.Config.Animation = SystemInformation.IsMenuAnimationEnabled;
-            pinButton = UtilityButton("", UiIcons.Pin);
-            pinButton.ToggleIconSvg = UiIcons.Pin;
-            pinButton.IconToggleAnimation = 0;
-            pinButton.IconSize = new Size(16, 16);
-            pinButton.Bounds = new Rectangle(232, 6, 36, 32);
+
+            pinButton = CaptionButton(UiIcons.Pin, "置顶", 262);
             pinButton.AutoToggle = true;
             pinButton.Toggle = TopMost;
-            pinButton.ToggleBack = UiTheme.Chip;
-            pinButton.ToggleFore = UiTheme.Ink;
-            pinButton.DefaultBack = UiTheme.Chip;
-            pinButton.ToggleChanged += delegate
-            {
-                TopMost = pinButton.Toggle;
-                pinButton.DefaultBack = TopMost ? UiTheme.Chip : UiTheme.FooterBand;
-            };
-            pinButton.AccessibleName = Strings.Get("置顶");
-            sourceTip.SetToolTip(pinButton, Strings.Get("置顶"));
-            footerBand.Controls.Add(pinButton);
+            pinButton.ToggleChanged += delegate { TopMost = pinButton.Toggle; };
 
-            settingsButton = UtilityButton(Strings.Get("设置"), UiIcons.Settings);
-            settingsButton.IconSize = new Size(16, 16);
+            settingsButton = new GlyphButton();
+            settingsButton.IconBody = UiIcons.Settings;
+            settingsButton.IconLogical = 16f;
+            settingsButton.DesignHeight = 30;
+            settingsButton.RadiusLogical = 4;
+            settingsButton.Bounds = new Rectangle(348, 5, 34, 30);
             settingsButton.Tag = "设置";
-            settingsButton.Bounds = new Rectangle(280, 6, 84, 32);
+            settingsButton.AccessibleName = Strings.Get("设置");
+            sourceTip.SetToolTip(settingsButton, Strings.Get("设置"));
             settingsButton.Click += delegate { OpenSettings(); };
             footerBand.Controls.Add(settingsButton);
         }
@@ -66,50 +41,71 @@ namespace BatteryChargeMeter
             Form popup = settingsPopup;
             settingsPopup = null;
             if (popup != null && !popup.IsDisposed) { popup.Close(); popup.Dispose(); }
-            autostartCheckBox = null;
+            autostartSwitch = null;
+            autostartStateLabel = null;
+            if (settingsButton != null) settingsButton.Active = false;
         }
 
         private Rectangle SettingsBounds(int x, int y, int width, int height)
         {
-            float scale = dpiLayout.CurrentDpi / 96f;
-            return new Rectangle(DpiLayout.ScaleValue(x, scale), DpiLayout.ScaleValue(y, scale),
-                DpiLayout.ScaleValue(width, scale), DpiLayout.ScaleValue(height, scale));
+            // Scale edges, not sizes, so adjacent rows never overlap after rounding.
+            return DpiLayout.ScaleBounds(new Rectangle(x, y, width, height), dpiLayout.CurrentDpi / 96f);
         }
+
+        private AlignedLabel SettingsLabel(Panel content, string text, Color color, Rectangle bounds, ContentAlignment align)
+        {
+            AlignedLabel label = new AlignedLabel();
+            label.Text = text;
+            label.Font = settingsFont;
+            label.ForeColor = color;
+            label.BackColor = Color.Transparent;
+            label.TextAlign = align;
+            label.Bounds = bounds;
+            content.Controls.Add(label);
+            return label;
+        }
+
+        private Font settingsFont;
 
         private void OpenSettings()
         {
             if (settingsPopup != null && !settingsPopup.IsDisposed) { CloseSettings(); return; }
             bool elevated = Startup.IsElevated();
+            float scale = dpiLayout.CurrentDpi / 96f;
+            if (settingsFont != null) settingsFont.Dispose();
+            settingsFont = new Font(UiTheme.TextFont, 13f * scale, FontStyle.Regular, GraphicsUnit.Pixel);
             Panel content = new Panel();
             settingsContent = content;
-            content.Size = SettingsBounds(0, 0, 316, elevated ? 134 : 174).Size;
-            content.BackColor = UiTheme.Surface;
-            content.Font = Font;
+            content.Size = SettingsBounds(0, 0, SettingsWidth, elevated ? 150 : 194).Size;
+            content.BackColor = UiTheme.Popover;
+            content.ForeColor = UiTheme.Ink;
+            content.Font = settingsFont;
 
-            autostartCheckBox = new AntdUI.Checkbox();
-            autostartCheckBox.Text = Strings.Get("开机自启");
-            autostartCheckBox.Font = Font;
-            autostartCheckBox.Bounds = SettingsBounds(0, 0, 316, 32);
-            autostartCheckBox.Fill = UiTheme.Ink;
-            autostartCheckBox.ForeColor = UiTheme.Ink;
-            autostartCheckBox.CheckedChanged += delegate
+            SettingsLabel(content, Strings.Get("开机自启"), UiTheme.Ink, SettingsBounds(16, 6, 150, 46), ContentAlignment.MiddleLeft);
+            autostartStateLabel = SettingsLabel(content, "", UiTheme.Muted, SettingsBounds(170, 6, 60, 46), ContentAlignment.MiddleRight);
+            autostartSwitch = new ToggleSwitch();
+            autostartSwitch.Bounds = SettingsBounds(240, 19, 40, 20);
+            autostartSwitch.AccessibleName = Strings.Get("开机自启");
+            autostartSwitch.Toggled += delegate
             {
-                if (!updatingAutostart) ChangeAutostart(autostartCheckBox.Checked);
+                if (!updatingAutostart) ChangeAutostart(!autostartSwitch.Checked);
             };
-            content.Controls.Add(autostartCheckBox);
+            content.Controls.Add(autostartSwitch);
             RefreshAutostart();
 
-            AlignedLabel languageLabel = new AlignedLabel();
-            languageLabel.Text = Strings.Get("语言");
-            languageLabel.Font = Font;
-            languageLabel.ForeColor = UiTheme.Ink;
-            languageLabel.Bounds = SettingsBounds(0, 44, 96, 32);
-            content.Controls.Add(languageLabel);
+            SettingsLabel(content, Strings.Get("语言"), UiTheme.Ink, SettingsBounds(16, 52, 120, 46), ContentAlignment.MiddleLeft);
             AntdUI.Select language = new AntdUI.Select();
             language.Name = "Language";
-            language.Font = Font;
+            language.Font = settingsFont;
             language.List = true;
-            language.Bounds = SettingsBounds(120, 44, 196, 32);
+            language.Radius = DpiLayout.ScaleValue(4, scale);
+            language.BackColor = UiTheme.Field;
+            language.ForeColor = UiTheme.Ink;
+            language.BorderColor = UiTheme.FieldBorder;
+            language.BorderHover = UiTheme.Muted;
+            language.BorderActive = UiTheme.Muted;
+            language.WaveSize = 0;
+            language.Bounds = SettingsBounds(148, 60, 132, 30);
             language.Items.AddRange(new object[] { Strings.Get("跟随系统"), "简体中文", "English" });
             language.SelectedIndex = Strings.Preference == "zh-CN" ? 1 : Strings.Preference == "en" ? 2 : 0;
             language.SelectedIndexChanged += delegate
@@ -125,59 +121,56 @@ namespace BatteryChargeMeter
             content.Controls.Add(language);
 
             Panel rule = new Panel();
-            rule.BackColor = UiTheme.Hairline;
-            rule.Bounds = SettingsBounds(0, 90, 316, 1);
+            rule.BackColor = UiTheme.FieldBorder;
+            rule.Bounds = SettingsBounds(16, 104, SettingsWidth - 32, 1);
             content.Controls.Add(rule);
-            AlignedLabel status = new AlignedLabel();
-            status.Text = Strings.Format("当前权限：{0}", Strings.Get(elevated ? "管理员模式" : "普通模式"));
-            status.Font = Font;
-            status.ForeColor = UiTheme.Muted;
-            status.Bounds = SettingsBounds(0, 104, 316, 24);
-            content.Controls.Add(status);
+
+            GlyphButton shield = new GlyphButton();
+            shield.IconBody = UiIcons.Shield;
+            shield.IconLogical = 16f;
+            shield.DesignHeight = 24;
+            shield.TabStop = false;
+            shield.Enabled = false;
+            shield.Bounds = SettingsBounds(14, 112, 20, 24);
+            content.Controls.Add(shield);
+            SettingsLabel(content, Strings.Get("当前权限"), UiTheme.Muted, SettingsBounds(40, 112, 130, 24), ContentAlignment.MiddleLeft);
+            SettingsLabel(content, Strings.Get(elevated ? "管理员模式" : "普通模式"), UiTheme.Ink,
+                SettingsBounds(172, 112, 108, 24), ContentAlignment.MiddleRight);
 
             if (!elevated)
             {
-                AntdUI.Button retry = UtilityButton(Strings.Get("以管理员身份重新启动"), null);
-                retry.Font = Font;
-                retry.BackColor = UiTheme.Surface;
-                retry.DefaultBack = UiTheme.Surface;
-                retry.BorderWidth = 1;
-                retry.DefaultBorderColor = UiTheme.FooterRule;
-                retry.Bounds = SettingsBounds(0, 138, 316, 32);
-                retry.Click += delegate
-                {
-                    retry.Enabled = false;
-                    ElevationResult result = Startup.TryElevate();
-                    if (result.Started) Close();
-                    else
-                    {
-                        elevationMessage = result.Message;
-                        RefreshDiagnostics();
-                        retry.Enabled = true;
-                    }
-                };
+                ActionButton retry = new ActionButton();
+                retry.Text = Strings.Get("以管理员身份重新启动");
+                retry.IconBody = UiIcons.Shield;
+                retry.Font = settingsFont;
+                retry.DesignHeight = 32;
+                retry.Fill = UiTheme.PopoverAction;
+                retry.FillHover = UiTheme.PopoverActionHover;
+                retry.Bounds = SettingsBounds(16, 148, SettingsWidth - 32, 32);
+                retry.Click += delegate { RestartElevated(retry); };
                 content.Controls.Add(retry);
             }
 
             AntdUI.Popover.Config config = new AntdUI.Popover.Config(settingsButton, content);
-            config.Font = Font;
-            config.Back = UiTheme.Surface;
+            config.Font = settingsFont;
+            config.Back = UiTheme.Popover;
             config.Fore = UiTheme.Ink;
             config.Radius = 8;
             config.ArrowSize = 0;
             config.ArrowAlign = AntdUI.TAlign.TR;
+            config.Padding = new Size(0, 0);
             // Bounds and fonts above already use this window's physical DPI.
             config.Dpi = 1f;
-            config.OnClosed = delegate { autostartCheckBox = null; settingsPopup = null; settingsContent = null; };
+            config.OnClosed = delegate
+            {
+                autostartSwitch = null;
+                autostartStateLabel = null;
+                settingsPopup = null;
+                settingsContent = null;
+                settingsButton.Active = false;
+            };
+            settingsButton.Active = true;
             settingsPopup = AntdUI.Popover.open(config);
         }
-    }
-
-    // Unmodified Lucide pin and settings-2 geometry; licenses are embedded.
-    internal static class UiIcons
-    {
-        private const string Start = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\"><g fill=\"none\" stroke=\"#1b1b1b\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
-        internal const string Pin = Start + "<path d=\"M12 17v5\"/><path d=\"M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z\"/></g></svg>";
-        internal const string Settings = Start + "<path d=\"M14 17H5\"/><path d=\"M19 7h-9\"/><circle cx=\"17\" cy=\"17\" r=\"3\"/><circle cx=\"7\" cy=\"7\" r=\"3\"/></g></svg>";
     }
 }
