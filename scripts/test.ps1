@@ -37,6 +37,8 @@ function Complete-Phase([string]$NextPhase) {
     $script:phaseStarted = $script:stopwatch.Elapsed
 }
 try {
+& (Join-Path $PSScriptRoot 'check-screen-capture.ps1')
+
 $manifestPath = Join-Path $repoRoot 'src\BatteryChargeMeter.manifest'
 $releaseWorkflowPath = Join-Path $repoRoot '.github\workflows\release.yml'
 $installerScriptPath = Join-Path $repoRoot 'installer\BatteryChargeMeter.iss'
