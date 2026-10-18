@@ -365,7 +365,10 @@ try {
                 # the client area covers the whole window when no scrollbar is shown.
                 $titleHeight = [Math]::Round(44 * $scale)
                 Should -ActualValue ([FooterTextProbe]::HitTest($form, [int](220 * $scale), [int]($titleHeight / 2)) -eq 2) -BeTrue -Because 'The title bar must act as the caption'
-                Should -ActualValue ([FooterTextProbe]::HitTest($form, [int](220 * $scale), [int](300 * $scale)) -eq 1) -BeTrue -Because 'The body must not drag the window'
+                # A screen smaller than the scaled layout clamps the window and
+                # scrolls its content; probe the body inside the visible client area.
+                $bodyY = [int][Math]::Min(300 * $scale, ($titleHeight + $form.ClientSize.Height) / 2)
+                Should -ActualValue ([FooterTextProbe]::HitTest($form, [int](220 * $scale), $bodyY) -eq 1) -BeTrue -Because 'The body must not drag the window'
                 if (-not $form.VerticalScroll.Visible -and -not $form.HorizontalScroll.Visible) {
                     Should -ActualValue ($form.Size -eq $form.ClientSize) -BeTrue -Because 'The window must have no native non-client frame'
                 }
