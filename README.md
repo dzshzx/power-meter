@@ -250,7 +250,7 @@ PowerShell 中 dot-source 该脚本后运行 `Install-InnoSetup` 即可安装。
 
 `scripts/format.sh` 用 ruff format 重排 Python，用 prettier 重排 Markdown、YAML 与 JSON，
 用 shfmt 重排 Shell；`scripts/format.sh --check` 只检查。工具版本固定在脚本常量里
-（ruff 经 uvx，缺 uv 时用 pipx；prettier 经 npx；shfmt 按固定 sha256 下载）。
+（ruff 经 uvx，缺 uv 时用 pipx；prettier 经 npx；shfmt 优先用本机同版本，否则经 uvx 或 pipx 取 PyPI 包 shfmt-py）。
 C# 与 PowerShell 不在范围内。`third_party/`（上游许可证与哈希钉住的文件）、锁文件与
 `dist/` 保持原字节，不参与重排。
 按需 Windows validation 同时在 Linux runner 上运行 `scripts/format.sh --check`，不一致即失败。
