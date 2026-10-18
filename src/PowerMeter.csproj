@@ -30,7 +30,7 @@
        copy-local items; satellite resource assemblies excluded) is embedded
        as lib/<name>.dll for EmbeddedLibraries to load, and nothing is written
        beside the EXE. The .NET Standard facades the SDK adds are not shipped:
-       the 4.7.1+ runtime provides them. The lock file pins each package's
+       the 4.8.1 runtime provides them. The lock file pins each package's
        content hash. -->
   <Target Name="EmbedCopyLocalAssemblies" AfterTargets="ResolveAssemblyReferences">
     <ItemGroup>

@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Import-Module Pester -MinimumVersion 5.9.1 -MaximumVersion 5.999 -ErrorAction Stop
+Import-Module Pester -MinimumVersion 6.2.0 -MaximumVersion 6.999 -ErrorAction Stop
 if ($PSVersionTable.PSEdition -ne 'Desktop') {
     & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -InstallerCompilerPath $InstallerCompilerPath -ExecutablePath $ExecutablePath
     if ($LASTEXITCODE -ne 0) { throw "Installer lifecycle test failed: $LASTEXITCODE" }
@@ -200,7 +200,6 @@ try {
     $iss = $iss.Replace('{autoprograms}', ('{{autoprograms}}\{0}' -f $shortcutFolderName))
     Should -ActualValue ($iss.Contains("AppId=$appId") -and $iss.Contains($shortcutFolderName)) -BeTrue -Because 'fixture has isolated installer identities'
     $issPath = Join-Path $root 'fixture.iss'
-    $iss = '#define ChineseMessages "' + $repo + '\installer\Languages\ChineseSimplified.isl"' + [Environment]::NewLine + $iss
     Set-Content -LiteralPath $issPath -Value $iss -Encoding UTF8
 
     # The fixture entry point routes cleanup and startup synchronization to

@@ -140,8 +140,8 @@ try {
 finally {
     $env:BATTERY_CHARGE_METER_TEST_ASSEMBLY = $previousAssemblyPath
 }
-if ($targetFrameworkName -ne '.NETFramework,Version=v4.7.1') {
-    throw "Expected .NET Framework 4.7.1 assembly metadata; found: $targetFrameworkName"
+if ($targetFrameworkName -ne '.NETFramework,Version=v4.8.1') {
+    throw "Expected .NET Framework 4.8.1 assembly metadata; found: $targetFrameworkName"
 }
 
 Complete-Phase 'unit-tests'
@@ -355,37 +355,16 @@ $packageDir = Join-Path ([IO.Path]::GetTempPath()) (
 
 try {
     New-Item -ItemType Directory -Path $packageDir | Out-Null
-    $installerCompilerPath = @(
-        (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
-        (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe'),
-        (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1)
-    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
-    $usingRealInstallerCompiler = [bool]$installerCompilerPath
-    $realInstallerCompilerPath = $installerCompilerPath
+    . (Join-Path $PSScriptRoot 'inno-setup.ps1')
+    $installerCompiler = Find-InnoSetupCompiler
+    $usingRealInstallerCompiler = [bool]$installerCompiler
     if ($usingRealInstallerCompiler) {
-        # ISCC.exe's Windows version resource can be 0.0.0.0. Query its own
-        # preprocessor instead, so a Chocolatey shim cannot supply the version.
-        $versionProbePath = Join-Path $packageDir 'compiler-version.iss'
-        @'
-#pragma message "ISCC_VERSION_PACKED=" + Str(Ver)
-[Setup]
-AppName=CompilerVersionProbe
-AppVersion=1
-DefaultDirName={autopf}\CompilerVersionProbe
-'@ | Set-Content -LiteralPath $versionProbePath -Encoding utf8
-        $versionOutput = (& $installerCompilerPath '/O-' $versionProbePath 2>&1 | Out-String)
-        if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch 'ISCC_VERSION_PACKED=(?<version>\d+)') {
-            throw "Inno Setup compiler version probe failed: $versionOutput"
-        }
-        $packedVersion = [long]$Matches.version
-        $installerCompilerVersion = '{0}.{1}.{2}.{3}' -f `
-            (($packedVersion -shr 24) -band 255),
-            (($packedVersion -shr 16) -band 255),
-            (($packedVersion -shr 8) -band 255),
-            ($packedVersion -band 255)
-        Write-Host "Installer verification: real Inno Setup compiler ($installerCompilerPath), including install/uninstall."
+        $installerCompilerPath = $installerCompiler.Path
+        $realInstallerCompilerPath = $installerCompiler.Path
+        $installerCompilerVersion = $installerCompiler.Version
+        Write-Host "Installer verification: real Inno Setup compiler $installerCompilerVersion ($installerCompilerPath), including install/uninstall."
     } else {
-        $installerSkipReason = 'Inno Setup ISCC.exe is unavailable; real installer creation and per-user install/uninstall were not executed.'
+        $installerSkipReason = 'Inno Setup 7 ISCC.exe is unavailable; real installer creation and per-user install/uninstall were not executed.'
         if ($RequireInstaller) { throw $installerSkipReason }
         Write-Warning $installerSkipReason
     }
@@ -597,7 +576,7 @@ finally {
         powershell = $PSVersionTable.PSVersion.ToString()
         dotnet_framework_version = $frameworkVersion
         dotnet_framework_release = $frameworkRelease
-        target_framework = '.NETFramework,Version=v4.7.1'
+        target_framework = '.NETFramework,Version=v4.8.1'
         inno_setup = [ordered]@{ path = $realInstallerCompilerPath; version = $installerCompilerVersion }
         scope = if ($RequireInstaller) { 'strict-real-installer' } else { 'local-optional-installer' }
         result = if ($failure) { 'failed' } elseif ($installerSkipReason) { 'partial-installer-not-run' } else { 'passed' }

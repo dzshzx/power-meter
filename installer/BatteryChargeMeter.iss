@@ -16,9 +16,6 @@
 #ifndef OutputBaseFilename
   #error OutputBaseFilename is required
 #endif
-#ifndef ChineseMessages
-  #define ChineseMessages AddBackslash(SourcePath) + "Languages\ChineseSimplified.isl"
-#endif
 
 [Setup]
 AppId={{FDDC9FC9-109E-4B41-AE4A-BA30420295D0}
@@ -46,7 +43,7 @@ SetupIconFile={#IconPath}
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
-Name: "zhCN"; MessagesFile: "{#ChineseMessages}"
+Name: "zhCN"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
 [CustomMessages]
 en.ApplicationName=Power Meter

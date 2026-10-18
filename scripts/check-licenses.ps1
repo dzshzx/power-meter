@@ -1,8 +1,8 @@
 # SPDX license allowlist guard for the NuGet packages the application ships.
 # nuget-license (pinned in .config/dotnet-tools.json) reads project.assets.json, so
 # run it after a restore or build (scripts/build.ps1 / scripts/test.ps1).
-# Vendored files under third_party/ and installer/Languages/ are not NuGet
-# packages; their licenses are recorded in third_party/NOTICE.md.
+# Vendored files under third_party/ are not NuGet packages; their licenses
+# are recorded in third_party/NOTICE.md.
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
