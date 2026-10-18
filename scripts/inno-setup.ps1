@@ -29,7 +29,7 @@ DefaultDirName={autopf}\CompilerVersionProbe
         $packed = [long]$Matches.version
     }
     finally {
-        Remove-Item -LiteralPath $probeDir -Recurse -Force
+        Remove-Item -LiteralPath $probeDir -Recurse -Force -ErrorAction SilentlyContinue
     }
     [version]('{0}.{1}.{2}.{3}' -f `
         (($packed -shr 24) -band 255),
@@ -57,12 +57,19 @@ function Find-InnoSetupCompiler {
     $null
 }
 
+# Keeps an installed Inno Setup 7 at or above the pinned release; otherwise
+# installs the pinned release for all users.
 function Install-InnoSetup {
     $expectedVersion = "$innoSetupVersion.0"
     $installed = Find-InnoSetupCompiler
-    if ($installed -and $installed.Version -eq $expectedVersion) {
+    if ($installed -and [version]$installed.Version -ge [version]$expectedVersion) {
         Write-Host "Inno Setup $($installed.Version) is already installed: $($installed.Path)"
         return $installed
+    }
+    $elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $elevated) {
+        throw "Installing Inno Setup $innoSetupVersion for all users needs an elevated PowerShell."
     }
 
     $name = "innosetup-$innoSetupVersion-x64.exe"
@@ -84,7 +91,7 @@ function Install-InnoSetup {
         }
     }
     finally {
-        Remove-Item -LiteralPath $downloadDir -Recurse -Force
+        Remove-Item -LiteralPath $downloadDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     $installed = Find-InnoSetupCompiler
