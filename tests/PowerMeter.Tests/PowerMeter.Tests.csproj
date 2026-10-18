@@ -1,9 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Unit tests for the rules behind PowerMeter.exe. xUnit v3 needs
-       .NET Framework 4.7.2; the application itself stays on 4.7.1. The test
+  <!-- Unit tests for the rules behind PowerMeter.exe, on the application's
+       .NET Framework 4.8.1 target (xUnit v3 needs 4.7.2 or later). The test
        project is its own runner: execute the built PowerMeter.Tests.exe. -->
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
     <OutputType>Exe</OutputType>
     <AssemblyName>PowerMeter.Tests</AssemblyName>
     <RootNamespace>BatteryChargeMeter.Tests</RootNamespace>

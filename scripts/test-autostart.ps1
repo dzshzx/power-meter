@@ -6,7 +6,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Import-Module Pester -MinimumVersion 5.9.1 -MaximumVersion 5.999 -ErrorAction Stop
+Import-Module Pester -MinimumVersion 6.2.0 -MaximumVersion 6.999 -ErrorAction Stop
 # Framework reflection and COM use the same runtime as the shipping app.
 if ($PSVersionTable.PSEdition -ne 'Desktop') {
     $forward = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, '-Executable', $Executable)

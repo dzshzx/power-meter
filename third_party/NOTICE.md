@@ -2,7 +2,7 @@
 
 ## AntdUI
 
-The application embeds the unmodified .NET Framework 4.6 assembly from
+The application embeds the unmodified .NET Framework 4.8 assembly from
 AntdUI 2.4.14, Copyright (c) Tom 2024-2030, licensed under Apache-2.0.
 Upstream: https://github.com/AntdUI/AntdUI. Package:
 https://www.nuget.org/packages/AntdUI/2.4.14. The NuGet package SHA-256 is
@@ -18,7 +18,7 @@ third-party-notice export, portable release notice and installed notice.
 
 ## TaskScheduler
 
-The application embeds the unmodified .NET Framework 4.5 assembly
+The application embeds the unmodified .NET Framework 4.8 assembly
 `Microsoft.Win32.TaskScheduler.dll` from TaskScheduler 2.12.2, Copyright (c)
 2003-2010 David Hall, licensed under MIT. Upstream:
 https://github.com/dahall/TaskScheduler. Package:
@@ -31,20 +31,11 @@ The application embeds the unmodified .NET Standard 2.0 assembly from
 System.CommandLine 2.0.13 (https://www.nuget.org/packages/System.CommandLine/2.0.13),
 and its dependencies System.Memory 4.5.5, System.Buffers 4.5.1,
 System.Numerics.Vectors 4.5.0 and System.Runtime.CompilerServices.Unsafe 4.5.3.
-The .NET Framework 4.7.1+ runtime supplies .NET Standard support itself. All are Copyright (c) .NET Foundation and
+The .NET Framework 4.8.1 runtime supplies .NET Standard support itself. All are Copyright (c) .NET Foundation and
 Contributors, licensed under MIT; the license text is `LICENSE.dotnet-MIT.txt`.
 Upstream: https://github.com/dotnet/command-line-api and
 https://github.com/dotnet/runtime. NuGet restores every package in locked mode
 against the content hash in `src/packages.lock.json`.
-
-## Inno Setup Chinese translation
-
-`installer/Languages/ChineseSimplified.isl` is an unmodified copy from
-https://github.com/jrsoftware/issrc at commit
-`6ef32198ef1f7b7b375cd4b6b90896c2a58eb4c2`. It is maintained upstream by
-Zhenghan Yang (Kira). The Inno Setup license and copyright notices are retained
-in `installer/Languages/LICENSE.Inno-Setup.txt`; the installer retains Inno
-Setup's built-in copyright and website notices.
 
 ## Lucide icons
 

@@ -203,7 +203,7 @@ EXE manifest 使用 `asInvoker`，由界面启动流程主动请求提权，因�
 ## 系统要求
 
 - Windows 11（不再兼容 Windows 10）
-- .NET Framework 4.7.1 或更高版本（Windows 11 自带）
+- .NET Framework 4.8.1 或更高版本（Windows 11 22H2 起自带，更早的 Windows 11 可经 Windows 更新安装）
 - 笔记本固件需要通过 ACPI/WMI 暴露电池充放电速率
 
 部分机型只报告充电状态，不报告实时功率；这种情况下界面会显示 `N/A`。
@@ -217,19 +217,19 @@ EXE manifest 使用 `asInvoker`，由界面启动流程主动请求提权，因�
 ```
 
 从 Windows 本地路径运行 `pwsh -NoProfile -File .\scripts\test.ps1` 进行自动验证。
-它先构建并运行 xUnit 单元测试（`tests/PowerMeter.Tests`，.NET Framework 4.7.2），集成脚本的断言用
-Pester 5（需装在 Windows PowerShell 与 PowerShell 7 都能加载的
+它先构建并运行 xUnit 单元测试（`tests/PowerMeter.Tests`，与应用同为 .NET Framework 4.8.1），集成脚本的断言用
+Pester 6（需装在 Windows PowerShell 与 PowerShell 7 都能加载的
 `%ProgramFiles%\WindowsPowerShell\Modules`，例如
-`Save-PSResource -Name Pester -Version 5.9.1 -TrustRepository -Path "$env:ProgramFiles\WindowsPowerShell\Modules"`）。
-若没有 Inno Setup，脚本继续检查便携版与打包输入，并在 `dist/test-report.json`
+`Save-PSResource -Name Pester -Version 6.2.0 -TrustRepository -Path "$env:ProgramFiles\WindowsPowerShell\Modules"`）。
+若没有 Inno Setup 7，脚本继续检查便携版与打包输入，并在 `dist/test-report.json`
 明确记录真实安装包安装/卸载验收未执行；该验收会在 Program Files 下写入并删除隔离的
-受保护副本，因此还需要已提权的终端，普通权限运行同样记为未执行。CI 与 Release 使用
-`-RequireInstaller`，缺少 Inno Setup 或未提权即失败；报告包含 commit、宿主和工具版本、
+受保护副本，因此还需要已提权的终端，普通权限运行同样记为未执行。CI 与 Release 先安装固定版本的 Inno Setup 7，再以
+`-RequireInstaller` 运行，缺少 Inno Setup 7 或未提权即失败；报告包含 commit、宿主和工具版本、
 各项结果与耗时，并作为工作流 artifact 保存。真实电池状态、已安装驱动和管理员
 启动的宿主验收见 `docs/testing/host-acceptance.md`。
 
-构建需要 .NET SDK（8 或更新版本）：脚本以 `dotnet build`（锁定模式还原）构建
-`src/PowerMeter.csproj`（SDK 风格项目，目标 .NET Framework 4.7.1，引用程序集来自 NuGet），
+构建需要 .NET SDK（建议当前 LTS 版本 10，8 及以上均可）：脚本以 `dotnet build`（锁定模式还原）构建
+`src/PowerMeter.csproj`（SDK 风格项目，目标 .NET Framework 4.8.1，引用程序集来自 NuGet），
 将应用 EXE 写入 `dist/`。依赖由 NuGet 按 `packages.lock.json` 锁定还原并校验内容哈希；
 升级依赖时改 csproj 后运行 `dotnet restore --force-evaluate` 刷新锁文件。
 AntdUI 2.4.14、TaskScheduler 2.12.2（登录自启任务）、System.CommandLine 2.0.13（命令行解析）
@@ -239,7 +239,8 @@ AntdUI 2.4.14、TaskScheduler 2.12.2（登录自启任务）、System.CommandLin
 正是这个可写位置的文件，安装器会把它迁移到受保护副本（或在未获管理员授权时删除），
 不再以管理员权限运行此入口。全新安装不放置此入口。
 便携版改名后如移动了文件，请在新程序中重新启用自启。
-安装包构建需要 Inno Setup 6.5 或更新版本；简体中文语言文件随源码提供。
+安装包构建需要 Inno Setup 7，固定版本与安装包 SHA-256 写在 `scripts/inno-setup.ps1`；在已提权的
+PowerShell 中 dot-source 该脚本后运行 `Install-InnoSetup` 即可安装。简体中文使用 Inno Setup 自带的官方翻译。
 应用图标源文件为 `src/BatteryChargeMeter.svg`，使用 Lucide 的电池图形。
 运行 `uv run --script --locked scripts/make-icon.py`（依赖在脚本头部声明，锁定于 `scripts/make-icon.py.lock`）
 生成多尺寸 `src/BatteryChargeMeter.ico`；修改 SVG 后重跑并连同 ICO 一起提交。

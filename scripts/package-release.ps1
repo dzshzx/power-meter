@@ -77,16 +77,12 @@ if ($includeInstaller) {
         $resolvedInstallerCompiler = (Resolve-Path -LiteralPath $InstallerCompilerPath).Path
     }
     else {
-        $compilerCandidates = @(
-            (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1),
-            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
-            (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
-        ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
-        $resolvedInstallerCompiler = $compilerCandidates | Select-Object -First 1
+        . (Join-Path $PSScriptRoot 'inno-setup.ps1')
+        $resolvedInstallerCompiler = (Find-InnoSetupCompiler).Path
     }
 
     if (-not $resolvedInstallerCompiler) {
-        throw 'Inno Setup 6 compiler was not found; pass -InstallerCompilerPath or select Portable only.'
+        throw 'Inno Setup 7 compiler was not found; pass -InstallerCompilerPath or select Portable only.'
     }
 
     $appVersion = $Tag.Substring(1)
