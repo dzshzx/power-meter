@@ -31,9 +31,12 @@ runtime and toolchain decisions (target framework, SDK, Inno Setup) in `docs/adr
 - Daily changes complete the relevant local checks before `land --no-recut`
   synchronizes master. Renovate PRs require local native validation before manual merging.
   Windows build/install acceptance remains available through manual CI and
-  the Release workflow. Manual CI runs on a pushed task branch: finalize and
-  rebase its commits before pushing, then land it with `wt merge --no-squash`
-  so the remote branch stays deletable. An authorized annotated `vX.Y.Z` tag must match manifest
+  the Release workflow. UI layout or `scripts/test-ui.ps1` changes also pass
+  manual Windows validation before landing, because the runner's smaller screen
+  clamps the window at high DPI (until #31 lands). Manual CI runs on a pushed
+  task branch, so finalize its commits before pushing; afterwards integrate it
+  by merging master into it and landing with `git merge --ff-only` from the
+  main checkout. An authorized annotated `vX.Y.Z` tag must match manifest
   `X.Y.Z.0`; master synchronization itself does not publish. Published tags
   are immutable; fixes use a new patch version.
 - `dist/` is generated; binaries belong in GitHub Releases.
