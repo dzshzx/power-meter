@@ -2,7 +2,8 @@
 
 Windows WinForms monitor targeting .NET Framework 4.8.1. Power terminology and
 measurement boundaries are defined in `GLOSSARY.md`; packaging and release
-commands are in `README.md`, and PawnIO obligations in `third_party/NOTICE.md`.
+commands are in `README.md`, PawnIO obligations in `third_party/NOTICE.md`, and
+runtime and toolchain decisions (target framework, SDK, Inno Setup) in `docs/adr/`.
 
 - Battery terminal power is signed: charging positive, discharge negative.
   On external power, estimated System Input Power is Platform Power plus this
@@ -30,7 +31,9 @@ commands are in `README.md`, and PawnIO obligations in `third_party/NOTICE.md`.
 - Daily changes complete the relevant local checks before `land --no-recut`
   synchronizes master. Renovate PRs require local native validation before manual merging.
   Windows build/install acceptance remains available through manual CI and
-  the Release workflow. An authorized annotated `vX.Y.Z` tag must match manifest
+  the Release workflow. Manual CI runs on a pushed task branch: finalize and
+  rebase its commits before pushing, then land it with `wt merge --no-squash`
+  so the remote branch stays deletable. An authorized annotated `vX.Y.Z` tag must match manifest
   `X.Y.Z.0`; master synchronization itself does not publish. Published tags
   are immutable; fixes use a new patch version.
 - `dist/` is generated; binaries belong in GitHub Releases.

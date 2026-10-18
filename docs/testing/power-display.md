@@ -20,12 +20,12 @@ system load remains available without PawnIO.
 - Real CLI execution with timeouts, diagnostic fields, notice extraction,
   screenshots, tray previews and DPI transitions. Error text bounds are checked
   to prevent TextBox AutoSize from breaking scaling.
-- Portable/installer packaging. With ISCC installed, an isolated installer
+- Portable/installer packaging. With the Inno Setup 7 compiler (ISCC) installed, an isolated installer
   identity uses the shipping uninstall hook and task manager. Real confirmation
   dialogs exercise cancellation, cleanup failure and successful removal against
   a disabled test task. Cancellation preserves the task, cleanup failure keeps
   the installation, and successful removal deletes the matching task. Without
-  ISCC, the suite checks packaging inputs with a fake compiler.
+  it, the suite checks packaging inputs with a fake compiler.
 - Task policy and ownership, stale replacement confirmation, and detecting
   changed battery/idle/network/timeout/instance settings. The GUI-only autostart
   integration launches a temporary copy under the existing token, verifies its
