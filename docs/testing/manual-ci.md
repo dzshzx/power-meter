@@ -4,7 +4,7 @@ Windows build and install acceptance is available through the manually
 dispatched `Windows validation` workflow (`.github/workflows/ci.yml`) and the
 Release workflow (`.github/workflows/release.yml`). Both run
 `scripts/test.ps1 -RequireInstaller`, so a missing Inno Setup compiler fails
-the run instead of skipping real-installer acceptance.
+the run.
 
 ## Task-branch flow
 
