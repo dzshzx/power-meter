@@ -37,23 +37,15 @@ namespace BatteryChargeMeter
             if (targetDpi < 96 || targetDpi > 768)
                 throw new ArgumentOutOfRangeException("targetDpi");
 
-            // Suggest one of two fixed spots near the working area's top-left,
-            // whichever the window is not at: the move shows that the window
-            // follows the suggestion, and repeated transitions never drift it
-            // off-screen, where DWM does not compose it for capture.
             NativeMethods.Rect suggested;
             NativeMethods.GetWindowRect(Handle, out suggested);
             float transitionScale = targetDpi / (float)Math.Max(96, dpiLayout.CurrentDpi);
-            Rectangle area = Screen.FromHandle(Handle).WorkingArea;
-            bool atFirst = suggested.Left == area.Left + 17 && suggested.Top == area.Top + 13;
-            int width = DpiLayout.ScaleValue(Width, transitionScale);
-            int height = DpiLayout.ScaleValue(Height, transitionScale);
-            // A window larger than the working area (very high DPI on a small
-            // screen) is clamped to it, so it starts at the area's corner.
-            suggested.Left = Math.Max(area.Left, Math.Min(area.Left + (atFirst ? 34 : 17), area.Right - width));
-            suggested.Top = Math.Max(area.Top, Math.Min(area.Top + (atFirst ? 26 : 13), area.Bottom - height));
-            suggested.Right = suggested.Left + width;
-            suggested.Bottom = suggested.Top + height;
+            Size size = new Size(DpiLayout.ScaleValue(Width, transitionScale), DpiLayout.ScaleValue(Height, transitionScale));
+            Point position = DpiTransitionPosition(Screen.FromHandle(Handle).WorkingArea, size, lastSuggestedPosition);
+            suggested.Left = position.X;
+            suggested.Top = position.Y;
+            suggested.Right = position.X + size.Width;
+            suggested.Bottom = position.Y + size.Height;
 
             IntPtr suggestedPointer = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(NativeMethods.Rect)));
             try
@@ -74,6 +66,26 @@ namespace BatteryChargeMeter
             }
 
             Application.DoEvents();
+        }
+
+        /// <summary>
+        /// Where a simulated DPI change suggests the window: the working
+        /// area's corner, or 8 pixels in when the previous suggestion was the
+        /// corner. Each transition therefore moves the window, showing that it
+        /// follows the suggestion, and repeated ones never drift it. Both spots
+        /// lie within the 16-pixel margin DpiLayout leaves, so a notice that
+        /// later grows the window in place keeps it on-screen, where DWM
+        /// composes it for capture. A window larger than the area is clamped
+        /// to the corner.
+        /// </summary>
+        internal static Point DpiTransitionPosition(Rectangle workingArea, Size window, Point previous)
+        {
+            int inset = previous == workingArea.Location ? 8 : 0;
+            int left = workingArea.Left + inset;
+            int top = workingArea.Top + inset;
+            return new Point(
+                Math.Max(workingArea.Left, Math.Min(left, workingArea.Right - window.Width)),
+                Math.Max(workingArea.Top, Math.Min(top, workingArea.Bottom - window.Height)));
         }
 
         private void ShowPreviewWindow()

@@ -541,7 +541,7 @@ namespace BatteryChargeMeter
             TextFormatFlags flags = AlignedLabel.Flags;
             if (view != null && view.AxisLabels != null)
             {
-                using (Pen tick = new Pen(UiTheme.SegmentOn, 1f))
+                using (Pen tick = new Pen(UiTheme.TrendTick, 1f))
                     for (int minute = 0; minute <= 30; minute++)
                     {
                         float x = (float)Math.Round(plot.Left + plot.Width * minute / 30f) + 0.5f;
@@ -602,7 +602,7 @@ namespace BatteryChargeMeter
             bool fractional = false;
             foreach (double tick in ticks)
                 if (Math.Abs(tick - Math.Round(tick)) > 1e-6) fractional = true;
-            using (Pen grid = new Pen(UiTheme.SegmentTrack, 1f))
+            using (Pen grid = new Pen(UiTheme.TrendGrid, 1f))
                 foreach (double tick in ticks)
                 {
                     float y = (float)Math.Round(Y(tick)) + 0.5f;

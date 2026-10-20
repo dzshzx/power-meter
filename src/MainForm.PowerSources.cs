@@ -66,7 +66,7 @@ namespace BatteryChargeMeter
         {
             if (sourceNames[3] == null) return;
             float scale = LayoutScale;
-            int selected = session.Mode == DisplayMode.Battery ? MeterView.BatteryRow : MeterView.WholeSystemRow;
+            int selected = HeadlineRow;
             int row = 0;
             for (int index = 0; index < sourceNames.Length; index++)
             {
@@ -86,12 +86,19 @@ namespace BatteryChargeMeter
             UpdateLeaders();
         }
 
+        // The selected boundary is the headline, so its row is not repeated.
+        private int HeadlineRow
+        {
+            get { return session.Mode == DisplayMode.Battery ? MeterView.BatteryRow : MeterView.WholeSystemRow; }
+        }
+
         private void UpdateLeaders()
         {
             // Measuring needs a device context; OnHandleCreated lays out again.
             if (!IsHandleCreated) return;
             float scale = LayoutScale;
             Point scroll = AutoScrollPosition;
+            int selected = HeadlineRow;
             using (Graphics g = CreateGraphics())
             {
                 for (int index = 0; index < sourceNames.Length; index++)
@@ -99,7 +106,10 @@ namespace BatteryChargeMeter
                     Label name = sourceNames[index];
                     ReadoutLabel value = sourceValues[index];
                     Leader leader = new Leader();
-                    if (name.Visible)
+                    // The row decision, not Control.Visible: that is false while
+                    // the window is hidden (hidden start, tray), and the leaders
+                    // must be ready for the first frame after restoring.
+                    if (index != selected)
                     {
                         leader.From = name.Left - scroll.X
                             + TextRenderer.MeasureText(name.Text, name.Font, Size.Empty, AlignedLabel.Flags).Width

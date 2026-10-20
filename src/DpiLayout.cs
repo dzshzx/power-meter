@@ -25,7 +25,7 @@ namespace BatteryChargeMeter
         private readonly List<FontBaseline> fontBaselines = new List<FontBaseline>();
         private Dictionary<Control, Font> appliedFonts = new Dictionary<Control, Font>();
         private bool disposed;
-        private const int WorkingAreaMargin = 16;
+        internal const int WorkingAreaMargin = 16;
 
         public DpiLayout(Form form, Size designClientSize, Control optionalSection, int optionalSectionHeight)
         {

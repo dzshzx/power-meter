@@ -39,6 +39,9 @@ namespace BatteryChargeMeter
         internal static readonly Color FieldBorder = Color.FromArgb(66, 70, 71);
         internal static readonly Color GridLine = Color.FromArgb(36, 39, 40);
         internal static readonly Color CellTrack = Color.FromArgb(50, 53, 54);
+        // Trend chart: value grid lines and minute ticks below the axis.
+        internal static readonly Color TrendGrid = Color.FromArgb(38, 41, 42);
+        internal static readonly Color TrendTick = Color.FromArgb(52, 55, 56);
         // Dotted leaders between a supporting metric and its value.
         internal static readonly Color Leader = Color.FromArgb(70, 74, 75);
 
