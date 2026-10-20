@@ -184,19 +184,6 @@ public static class FooterTextProbe {
         if (ink < 4) throw new InvalidOperationException(control.AccessibleName + " icon did not render.");
     }
     public static void Click(Control control) { ((IButtonControl)control).PerformClick(); }
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    static extern bool PrintWindow(IntPtr window, IntPtr deviceContext, uint flags);
-    // The window's own composed frame (never the screen).
-    public static Bitmap PrintedFrame(Form form) {
-        form.Refresh();
-        Application.DoEvents();
-        Bitmap bitmap = new Bitmap(form.Width, form.Height);
-        using (Graphics graphics = Graphics.FromImage(bitmap)) {
-            IntPtr deviceContext = graphics.GetHdc();
-            try { PrintWindow(form.Handle, deviceContext, 2); } finally { graphics.ReleaseHdc(deviceContext); }
-        }
-        return bitmap;
-    }
     public static int DifferingPixels(Bitmap first, Bitmap second) {
         if (first.Size != second.Size) return -1;
         int count = 0;
@@ -459,9 +446,20 @@ try {
     & $rebind
     Invoke-Internal $form 'RestoreFromTray'
     [Windows.Forms.Application]::DoEvents()
-    $restored = [FooterTextProbe]::PrintedFrame($form)
+    # Independent of any capture: every supporting row already has its leader.
+    $headlineRow = if ((Get-Property (Get-Field $form 'session') 'Mode').ToString() -eq 'Battery') { 0 } else { 3 }
+    $leaders = Get-Field $form 'leaders'
+    for ($index = 0; $index -lt $leaders.Length; $index++) {
+        if ($index -eq $headlineRow) { continue }
+        $leader = $leaders[$index]
+        $from = $leader.GetType().GetField('From', $flags).GetValue($leader)
+        $to = $leader.GetType().GetField('To', $flags).GetValue($leader)
+        Should -ActualValue ($to -gt $from) -BeTrue -Because "Row $index has no dotted leader after restoring from the tray ($from..$to)"
+    }
+    # The product's own capture (PrintWindow with its DrawToBitmap fallback).
+    $restored = Invoke-Internal $form 'CaptureWindow' @($null)
     & $rebind
-    $visible = [FooterTextProbe]::PrintedFrame($form)
+    $visible = Invoke-Internal $form 'CaptureWindow' @($null)
     $differing = [FooterTextProbe]::DifferingPixels($restored, $visible)
     $restored.Dispose(); $visible.Dispose()
     Should -ActualValue ($differing -eq 0) -BeTrue -Because "The first frame after restoring from the tray differs from a visible binding in $differing pixels"

@@ -24,8 +24,11 @@ namespace BatteryChargeMeter.Tests
 
             Rectangle secondary = new Rectangle(1920, -200, 1280, 760);
             Point offset = MainForm.DpiTransitionPosition(secondary, new Size(400, 600), Point.Empty);
-            Check("a suggestion on a secondary monitor stays on it",
-                secondary.Contains(new Rectangle(offset, new Size(400, 600 + DpiLayout.WorkingAreaMargin))));
+            Point inset = MainForm.DpiTransitionPosition(secondary, new Size(400, 600), offset);
+            Check("both suggestions on a secondary monitor stay on it and alternate",
+                offset == secondary.Location && inset == new Point(secondary.Left + 8, secondary.Top + 8)
+                && secondary.Contains(new Rectangle(offset, new Size(400, 600 + DpiLayout.WorkingAreaMargin)))
+                && secondary.Contains(new Rectangle(inset, new Size(400, 600 + DpiLayout.WorkingAreaMargin))));
 
             Point oversized = MainForm.DpiTransitionPosition(Area, new Size(2000, 1200), Point.Empty);
             Check("a window larger than the area starts at its corner", oversized == Area.Location);
