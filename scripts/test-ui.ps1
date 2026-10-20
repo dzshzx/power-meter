@@ -44,18 +44,22 @@ public static class UiFixture {
         return sample.GetMethod("Unsupported", All).Invoke(null, new object[] {
             Enum.Parse(assembly.GetType("BatteryChargeMeter.PowerBoundary"), boundary), reason });
     }
+    // The full, warm-up and partial trends all record a charging laptop.
+    static bool Charging(string scenario) {
+        return scenario == "charging" || scenario == "early" || scenario == "warming";
+    }
     // Platform power: a slow drift, a busy spell peaking near tick 1200 and an
     // N/A spell (ticks 520-639) in the full charging trend.
     static double PlatformWatts(string scenario, int tick, int last) {
         if (tick == last) return 19.39;
-        if (scenario == "charging" || scenario == "early" || scenario == "warming")
+        if (Charging(scenario))
             return 18.6 + 1.6 * Math.Sin(tick / 97.0) + 0.9 * Math.Sin(tick / 23.0 + 1) + 0.9 * Noise(tick, 1)
                 + 13.5 * Math.Exp(-Math.Pow((tick - 1200) / 38.0, 2)) + (last - tick < 60 ? 0.6 * Math.Sin(tick * 0.43) : 0);
         return 19.39 + Math.Sin(tick * 0.43) * 2.4;
     }
     static double BatteryWatts(string scenario, int tick, int last) {
+        if (Charging(scenario)) return tick == last ? 39.08 : 40.2 - 1.2 * tick / 1800.0 + 0.25 * Noise(tick, 2);
         switch (scenario) {
-            case "charging": case "early": case "warming": return tick == last ? 39.08 : 40.2 - 1.2 * tick / 1800.0 + 0.25 * Noise(tick, 2);
             case "discharging":
                 if (tick == last) return -17.50;
                 return -(16.4 + 1.1 * Math.Sin(tick / 61.0) + 0.6 * Math.Sin(tick / 13.0) + 0.5 * Noise(tick, 3)
@@ -70,10 +74,12 @@ public static class UiFixture {
         MethodInfo compose = assembly.GetType("BatteryChargeMeter.PowerSnapshot").GetMethod("Compose", All);
         Type readingType = assembly.GetType("BatteryChargeMeter.BatteryReading");
         Type stateType = assembly.GetType("BatteryChargeMeter.BatterySupplyState");
-        string state = scenario == "charging" || scenario == "early" || scenario == "warming" ? "ExternalPowerCharging"
+        string state = Charging(scenario) ? "ExternalPowerCharging"
             : scenario == "discharging" ? "BatteryDischarging" : scenario == "supplemented" ? "ExternalPowerSupplemented" : "ExternalPowerIdle";
         DateTimeOffset end = DateTimeOffset.Parse("2026-09-23T14:38:15+08:00");
         object cpu = Sample(assembly, "CpuPackage", 10.1);
+        // The elevation-gated reason, so the notice offers the restart action.
+        string elevationRequired = (string)assembly.GetType("BatteryChargeMeter.PawnIoSensor").GetField("ElevationRequired", All).GetValue(null);
         for (int tick = 0; tick <= last; tick++) {
             object battery = Activator.CreateInstance(readingType, true);
             double watts = BatteryWatts(scenario, tick, last);
@@ -87,7 +93,7 @@ public static class UiFixture {
             readingType.GetField("CurrentAmps").SetValue(battery, watts / 17.51);
             readingType.GetField("Percentage").SetValue(battery, scenario == "discharging" ? 76 : 98);
             object platform = scenario == "unavailable" || (scenario == "charging" && last >= 1800 && tick >= 520 && tick < 640)
-                ? Missing(assembly, "Platform", "需要以管理员身份运行才能读取平台功率")
+                ? Missing(assembly, "Platform", elevationRequired)
                 : Sample(assembly, "Platform", PlatformWatts(scenario, tick, last));
             object snapshot = compose.Invoke(null, new object[] { end.AddSeconds(tick - last), (double)tick, battery, cpu, platform });
             if (tick < last) observe.Invoke(session, new object[] { snapshot });
@@ -400,10 +406,6 @@ try {
                 Should -ActualValue ($diagnostics.Text -notmatch '[一-鿿]') -BeTrue -Because 'English diagnostics contain untranslated application text'
             }
             $path = Join-Path $OutputDirectory "$language-$scenario-$dpi.png"
-            # Each simulated DPI change nudges the window; parts left off-screen
-            # are not composed by DWM and would capture black.
-            $form.Location = New-Object Drawing.Point(([Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Left + 8), ([Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Top + 8))
-            [Windows.Forms.Application]::DoEvents()
             Invoke-Internal $form 'CapturePreview' @($path, "Fixture=$scenario; Dpi=$dpi")
             if ($scenario -eq 'idle') {
                 $pin = Get-Field $form 'pinButton'
@@ -440,8 +442,6 @@ try {
             Invoke-Internal $form 'SendDpiTransition' @([int]$shot[1])
             $scenario = if ($shot[2] -eq 'settings') { 'charging' } else { $shot[2] }
             $null = Set-Scenario $scenario
-            $form.Location = New-Object Drawing.Point(([Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Left + 8), ([Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Top + 8))
-            [Windows.Forms.Application]::DoEvents()
             $path = Join-Path $ShowcaseDirectory "$($shot[3]).png"
             if ($shot[2] -eq 'settings') {
                 [FooterTextProbe]::Click((Get-Field $form 'settingsButton'))

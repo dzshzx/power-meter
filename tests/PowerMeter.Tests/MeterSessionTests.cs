@@ -27,6 +27,7 @@ namespace BatteryChargeMeter.Tests
                 && view.Rows[MeterView.WholeSystemRow].Tone == ReadoutTone.Muted
                 && view.Rows[MeterView.CpuPackageRow].Text == "14.11 W"
                 && view.Rows[MeterView.CpuPackageRow].Tone == ReadoutTone.Ink
+                && view.Title.Tone == ReadoutTone.Muted && view.Supply.Tone == ReadoutTone.Accent
                 && view.TrayGlyph == "66" && view.Accent == BatteryAccentKind.Charging
                 && view.TrayTooltip == Strings.Get("估算整机输入功率") + ": ≈ 66.08 W"
                 && view.Supply.Text == Strings.Get("已接电源 · 充电中") && view.Updated == "10:20:30");
@@ -36,10 +37,12 @@ namespace BatteryChargeMeter.Tests
                 session.Mode == DisplayMode.Battery && view.Headline.Text == "39.08 W"
                 && view.Headline.Tone == ReadoutTone.Accent && view.TrayGlyph == "39"
                 && view.TrayTooltip == Strings.Get("电池端净功率") + ": 39.08 W"
-                && view.AverageValue == "-- W" && view.AverageCaption == Strings.Format("均值 · {0}/10分", Strings.Format("{0}秒", "0")));
+                && view.AverageValue == "-- W" && view.AverageTone == ReadoutTone.Unavailable
+                && view.AverageCaption == Strings.Format("均值 · {0}/10分", Strings.Format("{0}秒", "0")));
             view = session.Observe(PowerSnapshot.Compose(time, 2, charging, cpuPackage, platform));
             Check("mode change seeds statistics with the current reading",
-                view.AverageValue == "39.08 W" && view.AverageCaption == Strings.Format("均值 · {0}/10分", Strings.Format("{0}秒", "1")));
+                view.AverageValue == "39.08 W" && view.AverageTone == ReadoutTone.Ink && view.PeakTone == ReadoutTone.Ink
+                && view.AverageCaption == Strings.Format("均值 · {0}/10分", Strings.Format("{0}秒", "1")));
             session.Render();
             view = session.Render();
             Check("re-rendering does not record another reading",
@@ -48,7 +51,10 @@ namespace BatteryChargeMeter.Tests
             session = new MeterSession(DisplayMode.WholeSystem);
             view = session.Observe(PowerSnapshot.Compose(time, 1, charging, cpuPackage, noPlatform));
             Check("missing platform clears the total and tray and explains it once",
-                view.Headline.Text == "N/A" && view.Rows[MeterView.WholeSystemRow].Text == "N/A"
+                view.Headline.Text == "N/A" && view.Headline.Tone == ReadoutTone.Unavailable
+                && view.Rows[MeterView.WholeSystemRow].Text == "N/A"
+                && view.Rows[MeterView.WholeSystemRow].Tone == ReadoutTone.Unavailable
+                && view.Rows[MeterView.PlatformRow].Tone == ReadoutTone.Unavailable
                 && view.TrayGlyph == "--" && view.Diagnostics.Count == 1
                 && view.Diagnostics[0] == Strings.Get("平台功率") + ": " + Strings.Diagnostic("需要管理员权限"));
 
@@ -76,7 +82,10 @@ namespace BatteryChargeMeter.Tests
                 && view.TrayTooltip == Strings.Get("整机功率") + ": N/A"
                 && view.Diagnostics.Count == 1 && view.Diagnostics[0] == "sensor failed"
                 && view.AverageValue == "-- W" && view.PeakValue == "-- W" && view.Updated == "10:20:30"
-                && view.Rows[MeterView.PlatformRow].Text == "N/A" && view.BatteryLevel == -1);
+                && view.AverageTone == ReadoutTone.Unavailable && view.PeakTone == ReadoutTone.Unavailable
+                && view.Headline.Tone == ReadoutTone.Unavailable
+                && view.Rows[MeterView.PlatformRow].Text == "N/A" && view.Rows[MeterView.PlatformRow].Tone == ReadoutTone.Unavailable
+                && view.BatteryLevel == -1);
             view = session.Render();
             Check("sensor failure survives re-rendering until the next reading",
                 view.Supply.Text == Strings.Get("传感器异常"));
@@ -86,7 +95,9 @@ namespace BatteryChargeMeter.Tests
 
             view = new MeterSession(DisplayMode.Battery).Render();
             Check("before the first reading the tray keeps the application icon",
-                view.TrayGlyph == null && view.Headline.Text == "--.-- W" && view.Diagnostics.Count == 0);
+                view.TrayGlyph == null && view.Headline.Text == "--.-- W" && view.Diagnostics.Count == 0
+                && view.Supply.Tone == ReadoutTone.Muted && view.AverageTone == ReadoutTone.Unavailable
+                && view.Rows[MeterView.PlatformRow].Tone == ReadoutTone.Ink);
         }
 
         [Fact]
@@ -109,6 +120,10 @@ namespace BatteryChargeMeter.Tests
             Check("whole mode does not fall back to available battery",
                 new MeterSession(DisplayMode.WholeSystem).Observe(missing).Headline.Text == "N/A"
                 && new MeterSession(DisplayMode.Battery).Observe(missing).Headline.Text == "13.00 W");
+            MeterView idle = new MeterSession(DisplayMode.Battery).Observe(Snapshot(Battery(true, false, true, 0), platform, 0));
+            Check("a measured idle headline is ink, not the grey idle accent",
+                idle.Accent == BatteryAccentKind.Idle && idle.Headline.Tone == ReadoutTone.Ink
+                && idle.Supply.Tone == ReadoutTone.Accent);
             Check("preferences default safely for missing malformed or inaccessible storage",
                 DisplayPreference.Load(delegate { return null; }) == DisplayMode.WholeSystem
                 && DisplayPreference.Load(delegate { return "invalid"; }) == DisplayMode.WholeSystem

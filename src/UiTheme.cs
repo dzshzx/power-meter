@@ -26,14 +26,21 @@ namespace BatteryChargeMeter
         internal static readonly Color ButtonHover = Color.FromArgb(44, 48, 49);
         internal static readonly Color ButtonActive = Color.FromArgb(52, 56, 57);
         internal static readonly Color CloseHover = Color.FromArgb(196, 43, 28);
+        internal static readonly Color ClosePressed = Color.FromArgb(160, 36, 24);
         internal static readonly Color ActionFill = Color.FromArgb(45, 48, 49);
         internal static readonly Color ActionFillHover = Color.FromArgb(56, 60, 61);
         internal static readonly Color PopoverAction = Color.FromArgb(58, 62, 63);
         internal static readonly Color PopoverActionHover = Color.FromArgb(68, 72, 73);
+        // Outline of the settings popover in composed previews.
+        internal static readonly Color PopoverBorder = Color.FromArgb(58, 62, 64);
+        // One ring of the popover's soft shadow in composed previews.
+        internal static readonly Color PopoverShadow = Color.FromArgb(18, 0, 0, 0);
         internal static readonly Color Field = Color.FromArgb(52, 56, 57);
         internal static readonly Color FieldBorder = Color.FromArgb(66, 70, 71);
         internal static readonly Color GridLine = Color.FromArgb(36, 39, 40);
         internal static readonly Color CellTrack = Color.FromArgb(50, 53, 54);
+        // Dotted leaders between a supporting metric and its value.
+        internal static readonly Color Leader = Color.FromArgb(70, 74, 75);
 
         // Text.
         internal static readonly Color Ink = Color.FromArgb(236, 238, 238);
@@ -119,6 +126,8 @@ namespace BatteryChargeMeter
             switch (tone)
             {
                 case ReadoutTone.Muted:
+                    return Muted;
+                case ReadoutTone.Unavailable:
                     return Faint;
                 case ReadoutTone.NumericMuted:
                     return NumericMuted;
@@ -127,14 +136,6 @@ namespace BatteryChargeMeter
                 default:
                     return Ink;
             }
-        }
-
-        /// <summary>Headline colour: measured idle figures stay ink, not grey.</summary>
-        internal static Color Headline(ReadoutTone tone, BatteryAccentKind accent)
-        {
-            if (tone == ReadoutTone.Accent && accent == BatteryAccentKind.Idle)
-                return Ink;
-            return Tone(tone, accent);
         }
 
         internal static Color Alpha(Color color, int alpha)

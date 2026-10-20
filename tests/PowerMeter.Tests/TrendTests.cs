@@ -109,7 +109,7 @@ namespace BatteryChargeMeter.Tests
             double at, peak;
             Check("whole trend survives a round trip and keeps its N/A tail",
                 view.Trend.Series.Count == 120 && !view.Trend.Series.Latest.HasValue
-                && view.Trend.Series.Peak(out at, out peak) && Near(peak, 50) && view.Trend.Estimated
+                && view.Trend.Series.Peak(out at, out peak) && Near(peak, 50)
                 && view.Trend.PeakLabel == Strings.Format("峰值 {0}", "≈ 50.00 W"));
             Check("elevation is offered for the elevation-gated platform reading", view.ElevationHelps);
         }

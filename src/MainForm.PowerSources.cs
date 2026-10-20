@@ -16,6 +16,19 @@ namespace BatteryChargeMeter
         private readonly Label[] sourceNames = new Label[4];
         private readonly ReadoutLabel[] sourceValues = new ReadoutLabel[4];
 
+        // A dotted leader from a row's caption to its value, in content
+        // coordinates (the painter applies the scroll offset).
+        private struct Leader
+        {
+            public int From;
+            public int To;
+            public int Y;
+        }
+
+        // Measured when a row's text or layout changes, so painting (which
+        // the transparent labels also trigger) only draws.
+        private readonly Leader[] leaders = new Leader[4];
+
         /// <summary>
         /// Builds the source rows. Called from the constructor before
         /// <see cref="DpiLayout"/> captures the design bounds, so these controls
@@ -70,6 +83,48 @@ namespace BatteryChargeMeter
                 sourceNames[index].Bounds = name;
                 sourceValues[index].Bounds = value;
             }
+            UpdateLeaders();
+        }
+
+        private void UpdateLeaders()
+        {
+            // Measuring needs a device context; OnHandleCreated lays out again.
+            if (!IsHandleCreated) return;
+            float scale = LayoutScale;
+            Point scroll = AutoScrollPosition;
+            using (Graphics g = CreateGraphics())
+            {
+                for (int index = 0; index < sourceNames.Length; index++)
+                {
+                    Label name = sourceNames[index];
+                    ReadoutLabel value = sourceValues[index];
+                    Leader leader = new Leader();
+                    if (name.Visible)
+                    {
+                        leader.From = name.Left - scroll.X
+                            + TextRenderer.MeasureText(name.Text, name.Font, Size.Empty, AlignedLabel.Flags).Width
+                            + DpiLayout.ScaleValue(10, scale);
+                        leader.To = value.Right - scroll.X - value.Measure(g).Width - DpiLayout.ScaleValue(10, scale);
+                        leader.Y = name.Top - scroll.Y + name.Height / 2 + DpiLayout.ScaleValue(4, scale);
+                    }
+                    if (leader.From == leaders[index].From && leader.To == leaders[index].To && leader.Y == leaders[index].Y)
+                        continue;
+                    InvalidateLeader(leaders[index], scale);
+                    leaders[index] = leader;
+                    InvalidateLeader(leader, scale);
+                }
+            }
+        }
+
+        // The leader runs under the transparent caption and value labels,
+        // which paint it through this form, so they are invalidated too.
+        private void InvalidateLeader(Leader leader, float scale)
+        {
+            if (leader.To <= leader.From) return;
+            int pen = Math.Max(1, (int)Math.Ceiling(scale));
+            Rectangle area = Rectangle.FromLTRB(leader.From - pen, leader.Y - pen, leader.To + pen, leader.Y + pen + 1);
+            area.Offset(AutoScrollPosition);
+            Invalidate(area, true);
         }
 
         private void UpdatePowerSources(MeterView view)
@@ -106,8 +161,7 @@ namespace BatteryChargeMeter
         private void Apply(ReadoutLabel target, ReadoutText row, BatteryAccentKind accent)
         {
             target.Text = row.Text;
-            target.ForeColor = row.Tone == ReadoutTone.Muted && row.Text.StartsWith("≈", StringComparison.Ordinal)
-                ? UiTheme.Muted : UiTheme.Tone(row.Tone, accent);
+            target.ForeColor = UiTheme.Tone(row.Tone, accent);
             sourceTip.SetToolTip(target, row.Tooltip);
         }
 

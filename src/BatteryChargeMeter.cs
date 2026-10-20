@@ -208,7 +208,6 @@ namespace BatteryChargeMeter
             closeButton.Click += delegate { Close(); };
 
             title = NewLabel("估算整机输入功率", 18, 50, 168, 20, 9f, FontStyle.Regular);
-            title.ForeColor = UiTheme.Muted;
 
             stateLabel = new StatusLabel();
             stateLabel.Text = Strings.Get("正在读取");
@@ -247,10 +246,7 @@ namespace BatteryChargeMeter
             historyLabel = Readout(149, TripTop + 31, 100, 32, "Bahnschrift SemiLight", 16.5f, true);
             percentageLabel = Readout(266, TripTop + 31, 104, 32, "Bahnschrift SemiLight", 16.5f, true);
             foreach (ReadoutLabel statistic in new ReadoutLabel[] { statisticsLabel, historyLabel, percentageLabel })
-            {
                 statistic.UnitScale = 13f / 22f;
-                statistic.PrefixScale = 1f;
-            }
 
             batteryCells = new BatteryCells();
             batteryCells.Bounds = new Rectangle(266, TripTop + 65, 104, 4);
@@ -275,12 +271,11 @@ namespace BatteryChargeMeter
             footerBand.BackColor = UiTheme.FooterBand;
             footerBand.Bounds = new Rectangle(0, NoticeTop + NoticeSectionHeight, DesignWidth, 40);
 
+            // Caption and text are bound by ShowView, like every other readout.
             updatedLabel = Readout(18, 1, 200, 39, "Bahnschrift", 9f, false);
-            updatedLabel.Caption = Strings.Get("更新于");
             updatedLabel.CaptionScale = 1f;
             updatedLabel.CaptionColor = UiTheme.Faint;
             updatedLabel.ForeColor = UiTheme.Muted;
-            updatedLabel.Text = "--:--:--";
             Controls.Remove(updatedLabel);
             footerBand.Controls.Add(updatedLabel);
 
@@ -344,9 +339,8 @@ namespace BatteryChargeMeter
             GlyphButton button = new GlyphButton();
             button.IconBody = icon;
             button.Bounds = new Rectangle(x, 0, 42, TitleBarHeight);
-            button.AccessibleName = Strings.Get(name);
+            // ApplyLanguage sets the localized name and tooltip from the tag.
             button.Tag = name;
-            sourceTip.SetToolTip(button, Strings.Get(name));
             Controls.Add(button);
             return button;
         }
@@ -453,21 +447,12 @@ namespace BatteryChargeMeter
             }
 
             // Dotted leaders join each supporting metric to its value.
-            using (Pen dots = new Pen(Color.FromArgb(70, 74, 75), Math.Max(1f, s)))
+            using (Pen dots = new Pen(UiTheme.Leader, Math.Max(1f, s)))
             {
                 dots.DashPattern = new float[] { 1f, 2f };
-                for (int index = 0; index < sourceNames.Length; index++)
-                {
-                    Label name = sourceNames[index];
-                    ReadoutLabel value = sourceValues[index];
-                    if (name == null || !name.Visible) continue;
-                    int from = name.Left + TextRenderer.MeasureText(name.Text, name.Font, Size.Empty, AlignedLabel.Flags).Width
-                        + DpiLayout.ScaleValue(10, s);
-                    int to = value.Right - value.MeasureContent().Width - DpiLayout.ScaleValue(10, s);
-                    int y = name.Top + name.Height / 2 + DpiLayout.ScaleValue(4, s);
-                    if (to > from)
-                        g.DrawLine(dots, from - AutoScrollPosition.X, y - AutoScrollPosition.Y, to - AutoScrollPosition.X, y - AutoScrollPosition.Y);
-                }
+                foreach (Leader leader in leaders)
+                    if (leader.To > leader.From)
+                        g.DrawLine(dots, leader.From, leader.Y, leader.To, leader.Y);
             }
         }
 
@@ -679,13 +664,13 @@ namespace BatteryChargeMeter
         {
             lastView = view;
             title.Text = view.Title.Text;
-            title.ForeColor = UiTheme.Muted;
+            title.ForeColor = UiTheme.Tone(view.Title.Tone, view.Accent);
             sourceTip.SetToolTip(title, view.Title.Tooltip);
             stateLabel.Text = view.Supply.Text;
             stateLabel.IconBody = UiIcons.For(view.SupplyIcon);
-            stateLabel.ForeColor = view.Supply.Tone == ReadoutTone.Accent ? UiTheme.Accent(view.Accent) : UiTheme.Muted;
+            stateLabel.ForeColor = UiTheme.Tone(view.Supply.Tone, view.Accent);
             powerLabel.Text = view.Headline.Text;
-            powerLabel.ForeColor = UiTheme.Headline(view.Headline.Tone, view.Accent);
+            powerLabel.ForeColor = UiTheme.Tone(view.Headline.Tone, view.Accent);
             sourceTip.SetToolTip(powerLabel, view.Headline.Tooltip);
             voltageLabel.Caption = view.VoltageCaption;
             voltageLabel.Text = view.Voltage;
@@ -704,13 +689,12 @@ namespace BatteryChargeMeter
             sourceTip.SetToolTip(historyLabel, view.PeakTooltip);
             statisticsLabel.Text = view.AverageValue;
             historyLabel.Text = view.PeakValue;
-            statisticsLabel.ForeColor = view.AverageValue.StartsWith("--", StringComparison.Ordinal) ? UiTheme.Faint : UiTheme.Ink;
-            historyLabel.ForeColor = view.PeakValue.StartsWith("--", StringComparison.Ordinal) ? UiTheme.Faint : UiTheme.Ink;
+            statisticsLabel.ForeColor = UiTheme.Tone(view.AverageTone, view.Accent);
+            historyLabel.ForeColor = UiTheme.Tone(view.PeakTone, view.Accent);
 
             UpdatePowerSources(view);
             updatedLabel.Caption = Strings.Get("更新于");
             updatedLabel.Text = view.Updated;
-            Invalidate(false);
             if (trayEnabled)
             {
                 if (view.TrayGlyph != null)

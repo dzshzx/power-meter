@@ -11,9 +11,13 @@ namespace BatteryChargeMeter
     internal enum ReadoutTone
     {
         Ink,
+        // Quieter text: captions and estimated supporting figures.
         Muted,
+        // An estimated headline: lighter than ink, still legible at size.
         NumericMuted,
-        Accent
+        Accent,
+        // No value to show: N/A and "--" placeholders.
+        Unavailable
     }
 
     /// <summary>
@@ -36,7 +40,6 @@ namespace BatteryChargeMeter
     internal sealed class TrendView
     {
         public TrendSeries Series;
-        public bool Estimated;
         // Four labels for the left edge, one third, two thirds and the right edge.
         public string[] AxisLabels;
         // Recorded duration while the window is still filling; null once full.
@@ -80,9 +83,11 @@ namespace BatteryChargeMeter
         public ReadoutTone BatteryTone;
         public string AverageCaption;
         public string AverageValue;
+        public ReadoutTone AverageTone;
         public string AverageTooltip;
         public string PeakCaption;
         public string PeakValue;
+        public ReadoutTone PeakTone;
         public string PeakTooltip;
         // Fixed order: battery terminal, CPU package, platform, whole system.
         public ReadoutText[] Rows;
@@ -203,9 +208,7 @@ namespace BatteryChargeMeter
             view.Accent = profile.Accent;
             view.Supply = Text(Strings.Get(SupplyCaptionKey(reading.SupplyState)), ReadoutTone.Accent, null);
             view.SupplyIcon = SupplyIconFor(reading.SupplyState);
-            view.Headline = Text(headline,
-                selected == null || !selected.Available ? ReadoutTone.Muted
-                    : selected.Kind == MeasurementKind.Estimated ? ReadoutTone.NumericMuted : ReadoutTone.Accent,
+            view.Headline = Text(headline, HeadlineTone(selected, profile.Accent),
                 selected == null ? null : Strings.Diagnostic(selected.Available ? selected.Source : selected.UnavailableReason));
             Electrical(view,
                 reading.VoltageAvailable ? NumberText.Format(reading.VoltageVolts, "0.00") + " V" : "--.-- V",
@@ -244,14 +247,14 @@ namespace BatteryChargeMeter
             view.Accent = BatteryAccentKind.Error;
             view.Supply = Text(Strings.Get("传感器异常"), ReadoutTone.Accent, null);
             view.SupplyIcon = SupplyIcon.Alert;
-            view.Headline = Text("N/A", ReadoutTone.Muted, reason);
+            view.Headline = Text("N/A", ReadoutTone.Unavailable, reason);
             Electrical(view, "-- V", "≈ -- A");
             view.Percentage = "--%";
             view.BatteryLevel = -1;
             view.BatteryTone = ReadoutTone.Accent;
             view.Rows = new ReadoutText[4];
             for (int index = 0; index < view.Rows.Length; index++)
-                view.Rows[index] = Text("N/A", ReadoutTone.Muted, reason);
+                view.Rows[index] = Text("N/A", ReadoutTone.Unavailable, reason);
             view.Title = Text(Strings.Get(PowerSample.LabelFor(
                 mode == DisplayMode.Battery ? PowerBoundary.BatteryTerminal : wholeBoundary)),
                 ReadoutTone.Muted, TitleTooltip(view.Rows));
@@ -270,7 +273,8 @@ namespace BatteryChargeMeter
         {
             MeterView view = new MeterView();
             view.Accent = BatteryAccentKind.Charging;
-            view.Supply = Text(Strings.Get("正在读取"), ReadoutTone.Ink, null);
+            view.Supply = Text(Strings.Get("正在读取"), ReadoutTone.Muted, null);
+            view.SupplyIcon = SupplyIcon.None;
             view.Headline = Text("--.-- W", ReadoutTone.Accent, null);
             Electrical(view, "--.-- V", "≈ --.-- A");
             view.Percentage = "--%";
@@ -347,15 +351,23 @@ namespace BatteryChargeMeter
             view.PeakCaption = duration >= PowerHistory.PeakWindow - 0.000001 ? Strings.Get("5 分钟峰值")
                 : Strings.Format("峰值 · {0}/5分", Covered(duration));
             view.AverageValue = (average.HasValue ? prefix + NumberText.Format(average.Value, "0.00") : "--") + " W";
+            view.AverageTone = average.HasValue ? ReadoutTone.Ink : ReadoutTone.Unavailable;
             view.PeakValue = (peak.HasValue ? prefix + NumberText.Format(peak.Value, "0.00") : "--") + " W";
+            view.PeakTone = peak.HasValue ? ReadoutTone.Ink : ReadoutTone.Unavailable;
         }
 
-        // Whole seconds under a minute, then whole minutes: "3秒", "2分".
+        // "3秒", "2分".
         private static string Covered(double seconds)
         {
+            return SecondsOrMinutes(seconds, "{0}秒", "{0}分");
+        }
+
+        // Whole seconds under a minute, then whole minutes.
+        private static string SecondsOrMinutes(double seconds, string secondsKey, string minutesKey)
+        {
             return seconds < 60
-                ? Strings.Format("{0}秒", Math.Floor(seconds).ToString("0", CultureInfo.InvariantCulture))
-                : Strings.Format("{0}分", Math.Floor(seconds / 60).ToString("0", CultureInfo.InvariantCulture));
+                ? Strings.Format(secondsKey, Math.Floor(seconds).ToString("0", CultureInfo.InvariantCulture))
+                : Strings.Format(minutesKey, Math.Floor(seconds / 60).ToString("0", CultureInfo.InvariantCulture));
         }
 
         private static string Elapsed(double seconds)
@@ -386,17 +398,11 @@ namespace BatteryChargeMeter
             TrendSeries series = trend.Series(mode);
             TrendView chart = new TrendView();
             chart.Series = series;
-            chart.Estimated = estimated;
             chart.AxisLabels = series.Full || series.Count == 0
                 ? new string[] { Strings.Get("−30 分"), NumberText.Format(-20, "0"), NumberText.Format(-10, "0"), Strings.Get("现在") }
                 : new string[] { "0", "10", "20", Strings.Get("30 分") };
             if (series.Count > 0 && !series.Full)
-            {
-                double recorded = Math.Floor(series.Recorded);
-                chart.Recorded = recorded < 60
-                    ? Strings.Format("已记录 {0} 秒", recorded.ToString("0", CultureInfo.InvariantCulture))
-                    : Strings.Format("已记录 {0} 分钟", Math.Floor(recorded / 60).ToString("0", CultureInfo.InvariantCulture));
-            }
+                chart.Recorded = SecondsOrMinutes(series.Recorded, "已记录 {0} 秒", "已记录 {0} 分钟");
             double at, watts;
             if (series.Peak(out at, out watts))
                 chart.PeakLabel = Strings.Format("峰值 {0}", (estimated ? "≈ " : "") + NumberText.Format(watts, "0.00") + " W");
@@ -415,11 +421,22 @@ namespace BatteryChargeMeter
         private static ReadoutText Row(PowerSample sample)
         {
             if (sample == null || !sample.Available)
-                return Text("N/A", ReadoutTone.Muted,
+                return Text("N/A", ReadoutTone.Unavailable,
                     sample == null ? Strings.Get("无数据") : Strings.Diagnostic(sample.UnavailableReason));
             return Text(Watts(sample),
                 sample.Kind == MeasurementKind.Estimated ? ReadoutTone.Muted : ReadoutTone.Ink,
                 Strings.Diagnostic(sample.Source));
+        }
+
+        // A measured idle headline stays ink: with no battery flow the grey
+        // idle accent would make a valid reading look unavailable.
+        private static ReadoutTone HeadlineTone(PowerSample selected, BatteryAccentKind accent)
+        {
+            if (selected == null || !selected.Available)
+                return ReadoutTone.Unavailable;
+            if (selected.Kind == MeasurementKind.Estimated)
+                return ReadoutTone.NumericMuted;
+            return accent == BatteryAccentKind.Idle ? ReadoutTone.Ink : ReadoutTone.Accent;
         }
 
         // Estimated figures always carry the ≈ prefix (GLOSSARY.md).

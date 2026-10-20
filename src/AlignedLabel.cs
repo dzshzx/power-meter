@@ -153,77 +153,129 @@ namespace BatteryChargeMeter
             return (int)Math.Round(logical * FontScale);
         }
 
+        // Smaller affix and caption fonts, created on first use and rebuilt
+        // when Font changes (DPI). The scales are set while the window is
+        // built, before the first measurement, and never change afterwards.
+        private Font unitFont;
+        private Font prefixFont;
+        private Font captionFont;
+
+        private Font UnitFont
+        {
+            get { return unitFont ?? (unitFont = Derived(Font.FontFamily.Name, UnitScale)); }
+        }
+
+        private Font PrefixFont
+        {
+            get { return prefixFont ?? (prefixFont = Derived(Font.FontFamily.Name, PrefixScale)); }
+        }
+
+        private Font CaptionFont
+        {
+            get { return captionFont ?? (captionFont = Derived(UiTheme.TextFont, CaptionScale)); }
+        }
+
         private Font Derived(string family, float ratio)
         {
             return new Font(family, Font.Size * ratio, FontStyle.Regular, Font.Unit);
         }
 
+        private void DisposeDerivedFonts()
+        {
+            foreach (Font font in new Font[] { unitFont, prefixFont, captionFont })
+                if (font != null) font.Dispose();
+            unitFont = prefixFont = captionFont = null;
+        }
+
+        protected override void OnFontChanged(EventArgs e)
+        {
+            DisposeDerivedFonts();
+            base.OnFontChanged(e);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) DisposeDerivedFonts();
+            base.Dispose(disposing);
+        }
+
+        // One laid-out part, positioned relative to the content's top-left.
+        private struct Piece
+        {
+            public string Text;
+            public Font Font;
+            public Color Color;
+            public int X;
+            public int Y;
+        }
+
         internal override Size MeasureContent()
         {
             using (Graphics g = CreateGraphics())
-            {
-                int top, height;
-                return new Size(Arrange(g, null, out top, out height), height);
-            }
+                return Measure(g);
         }
 
-        // Lays out (and optionally draws) the parts; returns the total width.
-        private int Arrange(Graphics g, Point? origin, out int baselineTop, out int height)
+        /// <summary>Content size measured with a caller's device context.</summary>
+        internal Size Measure(Graphics g)
+        {
+            int count;
+            return Arrange(g, new Piece[4], out count);
+        }
+
+        // Lays out caption, prefix, number and unit on the number's baseline;
+        // returns the content size.
+        private Size Arrange(Graphics g, Piece[] pieces, out int count)
         {
             Parts parts = Split();
-            using (Font unit = Derived(Font.FontFamily.Name, UnitScale))
-            using (Font prefix = Derived(Font.FontFamily.Name, PrefixScale))
-            using (Font caption = Derived(UiTheme.TextFont, CaptionScale))
+            count = 0;
+            Size number = TextRenderer.MeasureText(g, parts.Number, Font, Size.Empty, Flags);
+            float ascent = Ascent(Font, g);
+            int height = number.Height;
+            int width = 0;
+            if (!String.IsNullOrEmpty(Caption))
             {
-                Size number = TextRenderer.MeasureText(g, parts.Number, Font, Size.Empty, Flags);
-                float ascent = Ascent(Font, g);
-                height = number.Height;
-                int width = 0;
-                int x = origin.HasValue ? origin.Value.X : 0;
-                int y = origin.HasValue ? origin.Value.Y : 0;
-                baselineTop = y;
-                if (!String.IsNullOrEmpty(Caption))
-                {
-                    Size size = TextRenderer.MeasureText(g, Caption, caption, Size.Empty, Flags);
-                    int cy = y + (int)Math.Round(ascent - Ascent(caption, g));
-                    if (origin.HasValue)
-                        TextRenderer.DrawText(g, Caption, caption, new Point(x + width, cy), CaptionColor, Flags);
-                    width += size.Width + Px(CaptionGap);
-                    height = Math.Max(height, cy - y + size.Height);
-                }
-                if (parts.Prefix != null)
-                {
-                    Size size = TextRenderer.MeasureText(g, parts.Prefix, prefix, Size.Empty, Flags);
-                    int py = y + (int)Math.Round(ascent - Ascent(prefix, g));
-                    if (origin.HasValue)
-                        TextRenderer.DrawText(g, parts.Prefix, prefix, new Point(x + width, py), PrefixColor, Flags);
-                    width += size.Width + Px(Gap);
-                }
-                if (origin.HasValue)
-                    TextRenderer.DrawText(g, parts.Number, Font, new Point(x + width, y), ForeColor, Flags);
-                width += number.Width;
-                if (parts.Unit != null)
-                {
-                    width += Px(Gap);
-                    Size size = TextRenderer.MeasureText(g, parts.Unit, unit, Size.Empty, Flags);
-                    int uy = y + (int)Math.Round(ascent - Ascent(unit, g));
-                    if (origin.HasValue)
-                        TextRenderer.DrawText(g, parts.Unit, unit, new Point(x + width, uy), UnitColor, Flags);
-                    width += size.Width;
-                }
-                return width;
+                Font caption = CaptionFont;
+                Size size = TextRenderer.MeasureText(g, Caption, caption, Size.Empty, Flags);
+                int cy = (int)Math.Round(ascent - Ascent(caption, g));
+                pieces[count++] = new Piece { Text = Caption, Font = caption, Color = CaptionColor, X = width, Y = cy };
+                width += size.Width + Px(CaptionGap);
+                height = Math.Max(height, cy + size.Height);
             }
+            if (parts.Prefix != null)
+            {
+                Font prefix = PrefixFont;
+                Size size = TextRenderer.MeasureText(g, parts.Prefix, prefix, Size.Empty, Flags);
+                pieces[count++] = new Piece { Text = parts.Prefix, Font = prefix, Color = PrefixColor, X = width,
+                    Y = (int)Math.Round(ascent - Ascent(prefix, g)) };
+                width += size.Width + Px(Gap);
+            }
+            pieces[count++] = new Piece { Text = parts.Number, Font = Font, Color = ForeColor, X = width, Y = 0 };
+            width += number.Width;
+            if (parts.Unit != null)
+            {
+                width += Px(Gap);
+                Font unit = UnitFont;
+                Size size = TextRenderer.MeasureText(g, parts.Unit, unit, Size.Empty, Flags);
+                pieces[count++] = new Piece { Text = parts.Unit, Font = unit, Color = UnitColor, X = width,
+                    Y = (int)Math.Round(ascent - Ascent(unit, g)) };
+                width += size.Width;
+            }
+            return new Size(width, height);
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             if (String.IsNullOrEmpty(Text)) return;
-            int top, height;
-            int width = Arrange(e.Graphics, null, out top, out height);
-            int x = TextAlign == ContentAlignment.MiddleRight ? Width - width
-                : TextAlign == ContentAlignment.MiddleCenter ? (Width - width) / 2 : 0;
-            int y = (Height - height) / 2;
-            Arrange(e.Graphics, new Point(Math.Max(0, x), Math.Max(0, y)), out top, out height);
+            Piece[] pieces = new Piece[4];
+            int count;
+            Size content = Arrange(e.Graphics, pieces, out count);
+            int x = TextAlign == ContentAlignment.MiddleRight ? Width - content.Width
+                : TextAlign == ContentAlignment.MiddleCenter ? (Width - content.Width) / 2 : 0;
+            int y = (Height - content.Height) / 2;
+            Point origin = new Point(Math.Max(0, x), Math.Max(0, y));
+            for (int index = 0; index < count; index++)
+                TextRenderer.DrawText(e.Graphics, pieces[index].Text, pieces[index].Font,
+                    new Point(origin.X + pieces[index].X, origin.Y + pieces[index].Y), pieces[index].Color, Flags);
         }
     }
 

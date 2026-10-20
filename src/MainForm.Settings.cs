@@ -30,8 +30,6 @@ namespace BatteryChargeMeter
             settingsButton.RadiusLogical = 4;
             settingsButton.Bounds = new Rectangle(348, 5, 34, 30);
             settingsButton.Tag = "设置";
-            settingsButton.AccessibleName = Strings.Get("设置");
-            sourceTip.SetToolTip(settingsButton, Strings.Get("设置"));
             settingsButton.Click += delegate { OpenSettings(); };
             footerBand.Controls.Add(settingsButton);
         }
@@ -49,7 +47,7 @@ namespace BatteryChargeMeter
         private Rectangle SettingsBounds(int x, int y, int width, int height)
         {
             // Scale edges, not sizes, so adjacent rows never overlap after rounding.
-            return DpiLayout.ScaleBounds(new Rectangle(x, y, width, height), dpiLayout.CurrentDpi / 96f);
+            return DpiLayout.ScaleBounds(new Rectangle(x, y, width, height), LayoutScale);
         }
 
         private AlignedLabel SettingsLabel(Panel content, string text, Color color, Rectangle bounds, ContentAlignment align)
@@ -71,7 +69,7 @@ namespace BatteryChargeMeter
         {
             if (settingsPopup != null && !settingsPopup.IsDisposed) { CloseSettings(); return; }
             bool elevated = Startup.IsElevated();
-            float scale = dpiLayout.CurrentDpi / 96f;
+            float scale = LayoutScale;
             if (settingsFont != null) settingsFont.Dispose();
             settingsFont = new Font(UiTheme.TextFont, 13f * scale, FontStyle.Regular, GraphicsUnit.Pixel);
             Panel content = new Panel();

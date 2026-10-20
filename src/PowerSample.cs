@@ -70,6 +70,22 @@ namespace BatteryChargeMeter
             return sample;
         }
 
+        /// <summary>The reading in watts, or null when there is none to record.</summary>
+        internal static double? WattsOrNull(PowerSample sample)
+        {
+            return sample != null && sample.Available ? (double?)sample.Watts : null;
+        }
+
+        /// <summary>
+        /// The peak rule shared by the 5-minute statistic and the trend: the
+        /// largest magnitude wins and keeps its sign, so a discharge peak is
+        /// the most negative reading; an equal magnitude keeps the earlier one.
+        /// </summary>
+        internal static bool ExceedsPeak(double candidate, double peak)
+        {
+            return Math.Abs(candidate) > Math.Abs(peak);
+        }
+
         /// <summary>Chinese UI label for the boundary, per GLOSSARY.md.</summary>
         public static string LabelFor(PowerBoundary boundary)
         {

@@ -58,7 +58,9 @@ namespace BatteryChargeMeter
     internal sealed class PowerHistory
     {
         internal const double MaximumGap = 5.0;
-        // The single definition of both statistics' windows.
+        // Both statistics' windows. The captions' translation keys in
+        // MeterSession.Statistics spell out 10 and 5 minutes ("10 分钟均值",
+        // "/10分", "/5分"), so changing a window here also means new keys.
         internal const double AverageWindow = 600;
         internal const double PeakWindow = 300;
         private const double Retention = AverageWindow > PeakWindow ? AverageWindow : PeakWindow;
@@ -86,7 +88,7 @@ namespace BatteryChargeMeter
             points.Add(new TimedPower
             {
                 Seconds = seconds,
-                Watts = sample != null && sample.Available ? (double?)sample.Watts : null
+                Watts = PowerSample.WattsOrNull(sample)
             });
             // Retain one predecessor for clipping the first weighted interval.
             while (points.Count > 1 && points[1].Seconds <= seconds - Retention)
@@ -129,7 +131,7 @@ namespace BatteryChargeMeter
             foreach (TimedPower point in points)
             {
                 if (point.Seconds >= cutoff && point.Watts.HasValue
-                    && (!peak.HasValue || Math.Abs(point.Watts.Value) > Math.Abs(peak.Value)))
+                    && (!peak.HasValue || PowerSample.ExceedsPeak(point.Watts.Value, peak.Value)))
                     peak = point.Watts;
             }
             return peak;

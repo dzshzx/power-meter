@@ -37,13 +37,23 @@ namespace BatteryChargeMeter
             if (targetDpi < 96 || targetDpi > 768)
                 throw new ArgumentOutOfRangeException("targetDpi");
 
+            // Suggest one of two fixed spots near the working area's top-left,
+            // whichever the window is not at: the move shows that the window
+            // follows the suggestion, and repeated transitions never drift it
+            // off-screen, where DWM does not compose it for capture.
             NativeMethods.Rect suggested;
             NativeMethods.GetWindowRect(Handle, out suggested);
             float transitionScale = targetDpi / (float)Math.Max(96, dpiLayout.CurrentDpi);
-            suggested.Left += 17;
-            suggested.Top += 13;
-            suggested.Right = suggested.Left + DpiLayout.ScaleValue(Width, transitionScale);
-            suggested.Bottom = suggested.Top + DpiLayout.ScaleValue(Height, transitionScale);
+            Rectangle area = Screen.FromHandle(Handle).WorkingArea;
+            bool atFirst = suggested.Left == area.Left + 17 && suggested.Top == area.Top + 13;
+            int width = DpiLayout.ScaleValue(Width, transitionScale);
+            int height = DpiLayout.ScaleValue(Height, transitionScale);
+            // A window larger than the working area (very high DPI on a small
+            // screen) is clamped to it, so it starts at the area's corner.
+            suggested.Left = Math.Max(area.Left, Math.Min(area.Left + (atFirst ? 34 : 17), area.Right - width));
+            suggested.Top = Math.Max(area.Top, Math.Min(area.Top + (atFirst ? 26 : 13), area.Bottom - height));
+            suggested.Right = suggested.Left + width;
+            suggested.Bottom = suggested.Top + height;
 
             IntPtr suggestedPointer = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(NativeMethods.Rect)));
             try
@@ -80,32 +90,12 @@ namespace BatteryChargeMeter
 
         private void CapturePreview(string path, string dpiMetadata)
         {
-            // Paint every control first: a section that has just expanded is
-            // otherwise still unpainted (black) in the redirection surface.
-            Refresh();
-            Application.DoEvents();
             NativeMethods.Rect rectangle;
-            NativeMethods.GetWindowRect(Handle, out rectangle);
-            int captureWidth = Math.Max(1, rectangle.Right - rectangle.Left);
-            int captureHeight = Math.Max(1, rectangle.Bottom - rectangle.Top);
-            using (Bitmap bitmap = new Bitmap(captureWidth, captureHeight))
+            int captureWidth, captureHeight;
+            using (Bitmap bitmap = CaptureWindow(out rectangle))
             {
-                bool printed;
-                using (Graphics graphics = Graphics.FromImage(bitmap))
-                {
-                    IntPtr deviceContext = graphics.GetHdc();
-                    try
-                    {
-                        printed = NativeMethods.PrintWindow(Handle, deviceContext, 2);
-                    }
-                    finally
-                    {
-                        graphics.ReleaseHdc(deviceContext);
-                    }
-                }
-
-                if (!printed)
-                    DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+                captureWidth = bitmap.Width;
+                captureHeight = bitmap.Height;
                 // GetWindowRect includes invisible resize margins. PrintWindow
                 // leaves those black; publish the visible DWM frame instead.
                 NativeMethods.Rect frame;
@@ -150,6 +140,30 @@ namespace BatteryChargeMeter
                     errorLabel.Height));
         }
 
+        /// <summary>
+        /// The window's own rendering at its window rectangle, after painting
+        /// every control: a section that has just expanded is otherwise still
+        /// unpainted (black) in the redirection surface. Falls back to
+        /// DrawToBitmap where PrintWindow fails. Nothing is read from the screen.
+        /// </summary>
+        private Bitmap CaptureWindow(out NativeMethods.Rect window)
+        {
+            Refresh();
+            Application.DoEvents();
+            NativeMethods.GetWindowRect(Handle, out window);
+            Bitmap bitmap = new Bitmap(Math.Max(1, window.Right - window.Left), Math.Max(1, window.Bottom - window.Top));
+            bool printed;
+            using (Graphics graphics = Graphics.FromImage(bitmap))
+            {
+                IntPtr deviceContext = graphics.GetHdc();
+                try { printed = NativeMethods.PrintWindow(Handle, deviceContext, 2); }
+                finally { graphics.ReleaseHdc(deviceContext); }
+            }
+            if (!printed)
+                DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+            return bitmap;
+        }
+
         // PrintWindow returns the square client bitmap; on Windows 11 DWM
         // shows it with 8-pixel (scaled) rounded corners, so captures match.
         private Bitmap RoundCorners(Bitmap source)
@@ -180,18 +194,9 @@ namespace BatteryChargeMeter
         /// </summary>
         internal void CaptureWithSettings(string path)
         {
-            Refresh();
-            Application.DoEvents();
             NativeMethods.Rect window;
-            NativeMethods.GetWindowRect(Handle, out window);
-            using (Bitmap frame = new Bitmap(Math.Max(1, window.Right - window.Left), Math.Max(1, window.Bottom - window.Top)))
+            using (Bitmap frame = CaptureWindow(out window))
             {
-                using (Graphics graphics = Graphics.FromImage(frame))
-                {
-                    IntPtr deviceContext = graphics.GetHdc();
-                    try { NativeMethods.PrintWindow(Handle, deviceContext, 2); }
-                    finally { graphics.ReleaseHdc(deviceContext); }
-                }
                 using (Bitmap shaped = RoundCorners(frame))
                 {
                     Panel content = settingsContent;
@@ -209,12 +214,12 @@ namespace BatteryChargeMeter
                             for (int ring = 6; ring >= 1; ring--)
                                 using (System.Drawing.Drawing2D.GraphicsPath shadow = WidgetPath.Rounded(new RectangleF(
                                     origin.X - ring * s, origin.Y - ring * s + 4 * s, content.Width + 2 * ring * s, content.Height + 2 * ring * s), (8 + ring) * s))
-                                using (SolidBrush brush = new SolidBrush(Color.FromArgb(18, 0, 0, 0)))
+                                using (SolidBrush brush = new SolidBrush(UiTheme.PopoverShadow))
                                     graphics.FillPath(brush, shadow);
                             using (System.Drawing.Drawing2D.GraphicsPath outline = WidgetPath.Rounded(
                                 new RectangleF(origin.X, origin.Y, content.Width, content.Height), 8 * s))
                             using (TextureBrush brush = new TextureBrush(panel))
-                            using (Pen border = new Pen(Color.FromArgb(58, 62, 64), Math.Max(1f, s)))
+                            using (Pen border = new Pen(UiTheme.PopoverBorder, Math.Max(1f, s)))
                             {
                                 brush.TranslateTransform(origin.X, origin.Y);
                                 graphics.FillPath(brush, outline);

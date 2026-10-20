@@ -47,8 +47,8 @@ namespace BatteryChargeMeter
             points.Add(new TrendPoint
             {
                 Seconds = seconds,
-                Whole = Value(whole),
-                Battery = Value(battery),
+                Whole = PowerSample.WattsOrNull(whole),
+                Battery = PowerSample.WattsOrNull(battery),
                 BreakBefore = gap
             });
             int drop = 0;
@@ -79,11 +79,6 @@ namespace BatteryChargeMeter
                 breaks[i] = point.BreakBefore;
             }
             return new TrendSeries(seconds, values, breaks, firstSeconds ?? 0);
-        }
-
-        private static double? Value(PowerSample sample)
-        {
-            return sample != null && sample.Available ? (double?)sample.Watts : null;
         }
     }
 
@@ -118,12 +113,7 @@ namespace BatteryChargeMeter
             this.values = values;
             this.breaks = breaks;
             if (seconds.Length == 0)
-            {
-                Now = 0;
-                Recorded = 0;
-                Start = 0;
                 return;
-            }
             Now = seconds[seconds.Length - 1];
             Recorded = Now - firstSeconds;
             Start = Recorded >= PowerTrend.WindowSeconds ? Now - PowerTrend.WindowSeconds : firstSeconds;
@@ -167,7 +157,7 @@ namespace BatteryChargeMeter
             for (int i = 0; i < values.Length; i++)
             {
                 if (!values[i].HasValue || seconds[i] < Start) continue;
-                if (!found || Math.Abs(values[i].Value) > Math.Abs(watts))
+                if (!found || PowerSample.ExceedsPeak(values[i].Value, watts))
                 {
                     found = true;
                     watts = values[i].Value;
