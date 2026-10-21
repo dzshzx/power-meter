@@ -92,7 +92,7 @@ five samples reported 27.98 W battery charge, 31.80–46.08 W platform and
 59.78–74.06 W estimated input. These samples verify the data path and unchanged
 formula, not absolute input-meter accuracy.
 
-The user confirmed on this notebook that canceling the first UAC prompt kept the
+The maintainer confirmed on this notebook that canceling the first UAC prompt kept the
 ordinary window usable, then the administrator restart action succeeded after
 approval, with matching whole-system window and tray readings. Process readback
 showed one development process with the elevation-attempted argument. A

@@ -21,7 +21,7 @@ runtime and toolchain decisions (target framework, SDK, Inno Setup) in `docs/adr
 - Verification entry: `pwsh -NoProfile -File .\scripts\test.ps1` from a
   Windows-local checkout (.NET Framework rejects WSL UNC paths). Local host and
   UI acceptance requirements are in `docs/testing/ui-localization.md`.
-- Renovate PRs require the user's own Windows-local validation before manual
+- Renovate PRs require the maintainer's own Windows-local validation before manual
   merging. UI layout or `scripts/test-ui.ps1` changes also pass manual Windows
   validation (`docs/testing/manual-ci.md`) before landing, because the runner's
   smaller screen clamps the window at high DPI (until #31 lands). An authorized

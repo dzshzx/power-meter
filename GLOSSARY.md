@@ -89,6 +89,12 @@ _Avoid_: autostart copy, cached exe
 A scheduled task carrying this program's task name whose structure the program did not create. It is never modified or adopted; disabling autostart and uninstalling proceed without it and tell the user where to remove it by hand.
 _Avoid_: stale task, corrupted task
 
+## People
+
+**Maintainer (维护者)**:
+The owner and decision-maker of this repository: makes technical trade-offs and ADRs, approves deletions and releases, and receives alerts; that is, the user who talks with the agent. People who install and run the app are called users.
+_Avoid_: user, owner, 用户, 业主 (when meaning the maintainer)
+
 ## Example
 
 Dev: "On AC the battery shows −5 W. Should the whole-system row just show Platform Power?"

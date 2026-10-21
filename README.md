@@ -288,8 +288,8 @@ uv run --script --locked (Join-Path $planDir 'version_plan.py') plan `
 计划只读输出“基线到目标”。版本档位标准：
 
 - 默认 patch。
-- minor（有用户能感知的新能力）须先经用户确认。
-- major（含 0.x→1.0）须先经用户确认。内部重构、目录搬迁、删兼容层不算破坏性变更。
+- minor（有用户能感知的新能力）须先经维护者确认。
+- major（含 0.x→1.0）须先经维护者确认。内部重构、目录搬迁、删兼容层不算破坏性变更。
 
 版本计划脚本由 agent-skills 仓共享（`scripts/version_plan.py` 及其锁文件），
 按 40 位提交 SHA 拉取，CI 与本地用同一个 SHA；升级时同时改本段与
