@@ -4,9 +4,9 @@
     ".NETFramework,Version=v4.8.1": {
       "AntdUI": {
         "type": "Direct",
-        "requested": "[2.4.14, )",
-        "resolved": "2.4.14",
-        "contentHash": "N/X8ZjGtUWG0iRYHXT/eNRoB2p4ZU43I4RhW59rEtPVb3q/tRtVT0xozeWw3rrwrtFZ0B656hcdGsM5/PgFY8A=="
+        "requested": "[2.4.15, )",
+        "resolved": "2.4.15",
+        "contentHash": "ntPrvbwo1lZyZ/ecEC+Df2UX6BOFSWvVTfaa9eat572gZuqBQcbdrzKwNNz9jE9dy7lGoiCeW48433GZI5qbJQ=="
       },
       "Microsoft.NETFramework.ReferenceAssemblies": {
         "type": "Direct",
