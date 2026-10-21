@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run --script --quiet
+#!/usr/bin/env -S uv run --script --locked --quiet
 # /// script
 # requires-python = ">=3.12"
 # dependencies = ["cairosvg", "pillow"]
