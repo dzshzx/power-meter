@@ -92,7 +92,7 @@ _Avoid_: stale task, corrupted task
 ## People
 
 **Maintainer (维护者)**:
-The owner and decision-maker of this repository: makes technical trade-offs and ADRs, approves deletions and releases, and receives alerts; that is, the user who talks with the agent. People who install and run the app are called users.
+The person who decides on and answers for this repository: makes technical trade-offs and ADRs, approves deletions and releases, and receives alerts; that is, the user who talks with the agent. People who install and run the app are called users.
 _Avoid_: user, owner, 用户, 业主 (when meaning the maintainer)
 
 ## Example
