@@ -160,14 +160,9 @@ public static class FooterTextProbe {
             control.DrawToBitmap(hover, bounds);
             leave.Invoke(control, new object[] { EventArgs.Empty });
             control.DrawToBitmap(after, bounds);
-            int changes = 0;
-            for (int y = 0; y < control.Height; y++)
-                for (int x = 0; x < control.Width; x++) {
-                    if (before.GetPixel(x, y) != hover.GetPixel(x, y)) changes++;
-                    if (before.GetPixel(x, y) != after.GetPixel(x, y))
-                        throw new InvalidOperationException("Segment hover did not clear on mouse leave.");
-                }
-            if (changes == 0 || !Object.Equals(selection, selected.GetValue(control, null)))
+            if (DifferingPixels(before, after) != 0)
+                throw new InvalidOperationException("Segment hover did not clear on mouse leave.");
+            if (DifferingPixels(before, hover) == 0 || !Object.Equals(selection, selected.GetValue(control, null)))
                 throw new InvalidOperationException("Segment hover must render feedback without changing the selection.");
         }
     }
@@ -447,13 +442,13 @@ try {
     Invoke-Internal $form 'RestoreFromTray'
     [Windows.Forms.Application]::DoEvents()
     # Independent of any capture: every supporting row already has its leader.
-    $headlineRow = if ((Get-Property (Get-Field $form 'session') 'Mode').ToString() -eq 'Battery') { 0 } else { 3 }
+    $headlineRow = Get-Property $form 'HeadlineRow'
     $leaders = Get-Field $form 'leaders'
     for ($index = 0; $index -lt $leaders.Length; $index++) {
         if ($index -eq $headlineRow) { continue }
         $leader = $leaders[$index]
-        $from = $leader.GetType().GetField('From', $flags).GetValue($leader)
-        $to = $leader.GetType().GetField('To', $flags).GetValue($leader)
+        $from = Get-Field $leader 'From'
+        $to = Get-Field $leader 'To'
         Should -ActualValue ($to -gt $from) -BeTrue -Because "Row $index has no dotted leader after restoring from the tray ($from..$to)"
     }
     # The product's own capture (PrintWindow with its DrawToBitmap fallback).

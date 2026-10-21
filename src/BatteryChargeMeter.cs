@@ -271,7 +271,8 @@ namespace BatteryChargeMeter
             footerBand.BackColor = UiTheme.FooterBand;
             footerBand.Bounds = new Rectangle(0, NoticeTop + NoticeSectionHeight, DesignWidth, 40);
 
-            // Caption and text are bound by ShowView, like every other readout.
+            // The caption follows the language (ApplyLanguage); the text is
+            // bound by ShowView, like every other readout.
             updatedLabel = Readout(18, 1, 200, 39, "Bahnschrift", 9f, false);
             updatedLabel.CaptionScale = 1f;
             updatedLabel.CaptionColor = UiTheme.Faint;
@@ -693,7 +694,6 @@ namespace BatteryChargeMeter
             historyLabel.ForeColor = UiTheme.Tone(view.PeakTone, view.Accent);
 
             UpdatePowerSources(view);
-            updatedLabel.Caption = Strings.Get("更新于");
             updatedLabel.Text = view.Updated;
             if (trayEnabled)
             {
@@ -773,7 +773,6 @@ namespace BatteryChargeMeter
             int index = mode == DisplayMode.Battery ? 1 : 0;
             if (modeSegments.SelectedIndex != index)
                 modeSegments.SelectedIndex = index;
-            LayoutSourceRows();
             ShowView(view);
         }
 

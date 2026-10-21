@@ -48,6 +48,7 @@ namespace BatteryChargeMeter
                 button.AccessibleName = Strings.Get((string)button.Tag);
                 sourceTip.SetToolTip(button, Strings.Get((string)button.Tag));
             }
+            updatedLabel.Caption = Strings.Get("更新于");
             sourceTip.SetToolTip(updatedLabel, Strings.Get("更新时间"));
             modeSegments.AccessibleName = Strings.Get("功率显示口径");
             modeSegments.Invalidate();

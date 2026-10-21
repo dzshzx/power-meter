@@ -89,9 +89,28 @@ namespace BatteryChargeMeter
     /// </summary>
     internal class ReadoutLabel : AlignedLabel
     {
-        internal float UnitScale = 0.6f;
-        internal float PrefixScale = 1f;
-        internal float CaptionScale = 0.86f;
+        private float unitScale = 0.6f;
+        private float prefixScale = 1f;
+        private float captionScale = 0.86f;
+
+        internal float UnitScale
+        {
+            get { return unitScale; }
+            set { unitScale = value; DisposeDerivedFonts(); }
+        }
+
+        internal float PrefixScale
+        {
+            get { return prefixScale; }
+            set { prefixScale = value; DisposeDerivedFonts(); }
+        }
+
+        internal float CaptionScale
+        {
+            get { return captionScale; }
+            set { captionScale = value; DisposeDerivedFonts(); }
+        }
+
         // Logical pixels at 96 DPI, scaled with the font.
         internal float Gap = 3f;
         internal float CaptionGap = 6f;
@@ -154,8 +173,7 @@ namespace BatteryChargeMeter
         }
 
         // Smaller affix and caption fonts, created on first use and rebuilt
-        // when Font changes (DPI). The scales are set while the window is
-        // built, before the first measurement, and never change afterwards.
+        // when Font (DPI) or a scale changes.
         private Font unitFont;
         private Font prefixFont;
         private Font captionFont;

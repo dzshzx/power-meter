@@ -18,11 +18,16 @@ namespace BatteryChargeMeter
 
         // A dotted leader from a row's caption to its value, in content
         // coordinates (the painter applies the scroll offset).
-        private struct Leader
+        private struct Leader : IEquatable<Leader>
         {
             public int From;
             public int To;
             public int Y;
+
+            public bool Equals(Leader other)
+            {
+                return From == other.From && To == other.To && Y == other.Y;
+            }
         }
 
         // Measured when a row's text or layout changes, so painting (which
@@ -117,7 +122,7 @@ namespace BatteryChargeMeter
                         leader.To = value.Right - scroll.X - value.Measure(g).Width - DpiLayout.ScaleValue(10, scale);
                         leader.Y = name.Top - scroll.Y + name.Height / 2 + DpiLayout.ScaleValue(4, scale);
                     }
-                    if (leader.From == leaders[index].From && leader.To == leaders[index].To && leader.Y == leaders[index].Y)
+                    if (leader.Equals(leaders[index]))
                         continue;
                     InvalidateLeader(leaders[index], scale);
                     leaders[index] = leader;
