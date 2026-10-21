@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --script --quiet
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.12"
 # dependencies = ["cairosvg", "pillow"]
 # ///
 """Render the Lucide battery-medium artwork with CairoSVG and Pillow.
