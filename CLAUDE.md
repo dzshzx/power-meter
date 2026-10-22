@@ -21,9 +21,11 @@ runtime and toolchain decisions (target framework, SDK, Inno Setup) in `docs/adr
 - Verification entry: `pwsh -NoProfile -File .\scripts\test.ps1` from a
   Windows-local checkout (.NET Framework rejects WSL UNC paths). Local host and
   UI acceptance requirements are in `docs/testing/ui-localization.md`.
-- Renovate PRs require the maintainer's own Windows-local validation before manual
-  merging. UI layout or `scripts/test-ui.ps1` changes also pass manual Windows
-  validation (`docs/testing/manual-ci.md`) before landing, because the runner's
+- Dependency updates are verified by an agent (`scripts/test.ps1` on the Windows
+  host plus the manual Windows validation workflow) and then landed; by the
+  maintainer's decision (2026-10-22, fleet-state ADR 0053) they go to the
+  maintainer only when evidence shows the update breaks the program. UI layout
+  or `scripts/test-ui.ps1` changes also pass manual Windows validation (`docs/testing/manual-ci.md`) before landing, because the runner's
   smaller screen clamps the window at high DPI (until #31 lands). An authorized
   annotated `vX.Y.Z` tag must match manifest `X.Y.Z.0`; master synchronization
   itself does not publish. Published tags are immutable; fixes use a new patch
