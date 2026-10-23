@@ -23,7 +23,7 @@ runtime and toolchain decisions (target framework, SDK, Inno Setup) in `docs/adr
   UI acceptance requirements are in `docs/testing/ui-localization.md`.
 - Dependency updates are verified by an agent (`scripts/test.ps1` on the Windows
   host plus the manual Windows validation workflow) and then landed; by the
-  maintainer's decision (2026-10-22, fleet-state ADR 0053) they go to the
+  maintainer's decision (fleet-state ADR 0053) they go to the
   maintainer only when evidence shows the update breaks the program. UI layout
   or `scripts/test-ui.ps1` changes also pass manual Windows validation (`docs/testing/manual-ci.md`) before landing, because the runner's
   smaller screen clamps the window at high DPI (until #31 lands). An authorized
