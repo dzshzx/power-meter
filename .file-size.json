@@ -1,0 +1,30 @@
+{
+  "oversize": {
+    "README.md": {
+      "bytes": 24754,
+      "reason": "存量，待整改"
+    },
+    "docs/research/system-input-power.md": {
+      "bytes": 67578,
+      "reason": "存量，待整改"
+    },
+    "scripts/test-installer-uninstall.ps1": {
+      "bytes": 33305,
+      "reason": "存量，待整改"
+    },
+    "scripts/test-ui.ps1": {
+      "bytes": 33061,
+      "reason": "存量，待整改"
+    },
+    "src/BatteryChargeMeter.cs": {
+      "bytes": 39901,
+      "reason": "存量，待整改"
+    },
+    "src/UiWidgets.cs": {
+      "bytes": 34530,
+      "reason": "存量，待整改"
+    }
+  },
+  "exclude": [],
+  "complexity": {}
+}
