@@ -4,10 +4,6 @@
       "bytes": 24754,
       "reason": "存量，待整改"
     },
-    "docs/research/system-input-power.md": {
-      "bytes": 67578,
-      "reason": "存量，待整改"
-    },
     "scripts/test-installer-uninstall.ps1": {
       "bytes": 33305,
       "reason": "存量，待整改"
