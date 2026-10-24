@@ -7,14 +7,6 @@
     "scripts/test-ui.ps1": {
       "bytes": 33061,
       "reason": "存量，待整改"
-    },
-    "src/BatteryChargeMeter.cs": {
-      "bytes": 39901,
-      "reason": "存量，待整改"
-    },
-    "src/UiWidgets.cs": {
-      "bytes": 34530,
-      "reason": "存量，待整改"
     }
   },
   "exclude": [],
