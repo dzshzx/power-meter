@@ -1,10 +1,5 @@
 {
-  "oversize": {
-    "scripts/test-installer-uninstall.ps1": {
-      "bytes": 33305,
-      "reason": "存量，待整改"
-    }
-  },
+  "oversize": {},
   "exclude": [],
   "complexity": {}
 }
