@@ -1,9 +1,10 @@
 # Power Meter agent notes
 
 Windows WinForms monitor targeting .NET Framework 4.8.1. Power terminology and
-measurement boundaries are defined in `GLOSSARY.md`; packaging and release
-commands are in `README.md`, PawnIO obligations in `third_party/NOTICE.md`, and
-runtime and toolchain decisions (target framework, SDK, Inno Setup) in `docs/adr/`.
+measurement boundaries are defined in `GLOSSARY.md`; build and packaging
+commands are in `README.md`, release commands in `docs/release.md`, PawnIO
+obligations in `third_party/NOTICE.md`, and runtime and toolchain decisions
+(target framework, SDK, Inno Setup) in `docs/adr/`.
 
 - Keep the manifest `asInvoker`: GUI startup requests elevation once, with
   cancellation falling back to ordinary mode. CLI commands never request UAC.
