@@ -3,10 +3,6 @@
     "scripts/test-installer-uninstall.ps1": {
       "bytes": 33305,
       "reason": "存量，待整改"
-    },
-    "scripts/test-ui.ps1": {
-      "bytes": 33061,
-      "reason": "存量，待整改"
     }
   },
   "exclude": [],
