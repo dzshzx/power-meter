@@ -259,7 +259,7 @@ C# 与 PowerShell 不在范围内。`third_party/`（上游许可证与哈希钉
 
 ## 发布
 
-日常改动完成相应本地验证后，用 `land --no-recut` 快进同步 `master`；推送符合 `vX.Y.Z`
+日常改动完成相应本地验证后，用 `land -C <任务 worktree> --merge` 合入并快进同步 `master`；推送符合 `vX.Y.Z`
 格式的带注解 tag 时，Release 工作流重新构建并发布便携 EXE、当前用户安装包及各自的
 SHA-256 校验文件。版本计划、版本档位、打 tag 与公开产物复验见 `docs/release.md`。
 

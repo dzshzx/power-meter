@@ -12,7 +12,8 @@ Manual CI runs on a pushed task branch, so finalize its commits before
 pushing. Once the run passes, integrate the branch without rewriting the
 pushed commits:
 
-1. In the task worktree, merge master into the branch (`git merge master`).
-2. From the main checkout, fast-forward master with
-   `git merge --ff-only <task-branch>`.
-3. Synchronize master with `land --no-recut`.
+1. In the task worktree, merge the latest origin master into the branch
+   (`git fetch`, then `git merge origin/master`).
+2. From the same task worktree, run `land`. It pushes the worktree HEAD to
+   origin master; the local master advances only by land's post-push sync.
+   If land exits 3 because origin moved, repeat both steps.

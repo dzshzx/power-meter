@@ -4,7 +4,7 @@
 
 项目使用 GitHub Actions 构建和发布：
 
-- 日常改动完成相应本地验证后，用 `land --no-recut` 快进同步 `master`。
+- 日常改动完成相应本地验证后，用 `land -C <任务 worktree> --merge` 合入并快进同步 `master`。
   GitHub 保留手动 Windows validation 和正式 Release 的 Windows 构建、真实安装/卸载验收。
   依赖升级由 agent 在 Windows 宿主跑测试并手动触发 Windows validation，通过后合入；只有证据表明升级会出问题时才交维护者。
 - 推送符合 `vX.Y.Z` 格式的 tag 时，Release 工作流会校验 tag 与 manifest
