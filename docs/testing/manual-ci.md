@@ -14,6 +14,8 @@ pushed commits:
 
 1. In the task worktree, merge the latest origin master into the branch
    (`git fetch`, then `git merge origin/master`).
-2. From the same task worktree, run `land`. It pushes the worktree HEAD to
+2. In the same task worktree, run `merge-gate` (the declared merge gate in
+   `.merge-gate.toml`); plain `land` does not run it, unlike `land --merge`.
+3. From the same task worktree, run `land`. It pushes the worktree HEAD to
    origin master; the local master advances only by land's post-push sync.
-   If land exits 3 because origin moved, repeat both steps.
+   If land exits 3 because origin moved, repeat all three steps.

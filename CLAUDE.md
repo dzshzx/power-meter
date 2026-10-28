@@ -22,6 +22,10 @@ obligations in `third_party/NOTICE.md`, and runtime and toolchain decisions
 - Verification entry: `pwsh -NoProfile -File .\scripts\test.ps1` from a
   Windows-local checkout (.NET Framework rejects WSL UNC paths). Local host and
   UI acceptance requirements are in `docs/testing/ui-localization.md`.
+- Merge gate: the root `.merge-gate.toml` declares `bash scripts/format.sh
+--check`, which `land --merge` runs automatically. `scripts/test.ps1` and the
+  UI acceptance below cannot run in WSL, so they stay manual steps before
+  landing.
 - Dependency updates are verified by an agent (`scripts/test.ps1` on the Windows
   host plus the manual Windows validation workflow) and then landed; by the
   maintainer's decision (fleet-state ADR 0053) they go to the

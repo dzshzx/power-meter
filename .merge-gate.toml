@@ -1,0 +1,5 @@
+# 合入前门禁：wt merge 时由用户级 Worktrunk pre-merge 经 merge-gate 从目标分支读取本文件运行，
+# 或复用 6 小时内同一棵树的回执；手动跑门禁也用 merge-gate（fleet-state ADR 0073，dotfiles#244）。
+# 只声明 WSL/Linux 上能跑的格式检查。Windows 的 scripts/test.ps1（.NET Framework 不接受 WSL UNC 路径）
+# 与 UI 手动验收不在这里跑，仍由合入者手动完成，见 dotfiles git-task-isolation.md 合入表与表注。
+command = "bash scripts/format.sh --check"
