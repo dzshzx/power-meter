@@ -6,6 +6,15 @@ Release workflow (`.github/workflows/release.yml`). Both run
 `scripts/test.ps1 -RequireInstaller`, so a missing Inno Setup compiler fails
 the run.
 
+## Local run over SSH
+
+An SSH session on the Windows host runs in session 0 without an interactive
+desktop. The installer lifecycle test clicks the real Inno uninstall dialog,
+so under SSH it times out at that step (reproduced on master). Run
+`scripts/test.ps1` there through a one-off interactive scheduled task, as the
+host's Windows instructions describe, or rely on the dispatched workflow: its
+runner has an interactive session.
+
 ## Task-branch flow
 
 Manual CI runs on a pushed task branch, so finalize its commits before
