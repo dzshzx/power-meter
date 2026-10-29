@@ -10,9 +10,9 @@
     <Reference Include="System.Design" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="AntdUI" Version="2.4.15" />
+    <PackageReference Include="AntdUI" Version="2.4.17" />
     <PackageReference Include="TaskScheduler" Version="2.12.2" />
-    <PackageReference Include="System.CommandLine" Version="2.0.13" />
+    <PackageReference Include="System.CommandLine" Version="2.0.14" />
   </ItemGroup>
   <ItemGroup>
     <!-- A same-named IntelMSR.bin beside the EXE takes precedence at runtime;

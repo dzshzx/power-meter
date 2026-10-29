@@ -22,8 +22,8 @@
       },
       "AntdUI": {
         "type": "Transitive",
-        "resolved": "2.4.15",
-        "contentHash": "ntPrvbwo1lZyZ/ecEC+Df2UX6BOFSWvVTfaa9eat572gZuqBQcbdrzKwNNz9jE9dy7lGoiCeW48433GZI5qbJQ=="
+        "resolved": "2.4.17",
+        "contentHash": "liGv4JujAR7xJidcydM9ACwTW79U0h+HjI596L5pzkASNgbFp4PjcoeqpOqTASuwRYTNXwMMTb4pRb7Kn41kdw=="
       },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
@@ -102,8 +102,8 @@
       },
       "System.CommandLine": {
         "type": "Transitive",
-        "resolved": "2.0.13",
-        "contentHash": "TIO2lMV+sSP7WW7pD/oCRHD9ENWY+jqwXmYzgks3R46cEdDzwjQOAhsiBn+M3EegfGjgTpa2h+eIrcU+AM2k6A==",
+        "resolved": "2.0.14",
+        "contentHash": "15fyVO4aG6poR6IKmhM74zf7PUzaU6FZAGm2d3SQSO9yIyGAeo44e6t9qeKjjaqyMEqYdqcb2G1B0gpLoDU2cA==",
         "dependencies": {
           "System.Memory": "4.5.5"
         }
@@ -238,8 +238,8 @@
       "powermeter": {
         "type": "Project",
         "dependencies": {
-          "AntdUI": "[2.4.15, )",
-          "System.CommandLine": "[2.0.13, )",
+          "AntdUI": "[2.4.17, )",
+          "System.CommandLine": "[2.0.14, )",
           "TaskScheduler": "[2.12.2, )"
         }
       }

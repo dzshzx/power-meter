@@ -5,8 +5,8 @@
 
 # x64 edition from the official GitHub release, verified against the SHA-256
 # digest published with that release.
-$innoSetupVersion = '7.1.0'
-$innoSetupInstallerSha256 = '0362a383ed217d4c4239b5933866dd96d3eb2102737da92f80f6057a4b40df2f'
+$innoSetupVersion = '7.1.1'
+$innoSetupInstallerSha256 = '8a5a6711c3766a6e5fb74f280ba0e3551e719ce94538d901fdbd1f8f9920b3f0'
 
 function Get-InnoSetupCompilerVersion([string]$CompilerPath) {
     # ISCC.exe's Windows version resource can be 0.0.0.0. Query its own

@@ -4,9 +4,9 @@
     ".NETFramework,Version=v4.8.1": {
       "AntdUI": {
         "type": "Direct",
-        "requested": "[2.4.15, )",
-        "resolved": "2.4.15",
-        "contentHash": "ntPrvbwo1lZyZ/ecEC+Df2UX6BOFSWvVTfaa9eat572gZuqBQcbdrzKwNNz9jE9dy7lGoiCeW48433GZI5qbJQ=="
+        "requested": "[2.4.17, )",
+        "resolved": "2.4.17",
+        "contentHash": "liGv4JujAR7xJidcydM9ACwTW79U0h+HjI596L5pzkASNgbFp4PjcoeqpOqTASuwRYTNXwMMTb4pRb7Kn41kdw=="
       },
       "Microsoft.NETFramework.ReferenceAssemblies": {
         "type": "Direct",
@@ -19,9 +19,9 @@
       },
       "System.CommandLine": {
         "type": "Direct",
-        "requested": "[2.0.13, )",
-        "resolved": "2.0.13",
-        "contentHash": "TIO2lMV+sSP7WW7pD/oCRHD9ENWY+jqwXmYzgks3R46cEdDzwjQOAhsiBn+M3EegfGjgTpa2h+eIrcU+AM2k6A==",
+        "requested": "[2.0.14, )",
+        "resolved": "2.0.14",
+        "contentHash": "15fyVO4aG6poR6IKmhM74zf7PUzaU6FZAGm2d3SQSO9yIyGAeo44e6t9qeKjjaqyMEqYdqcb2G1B0gpLoDU2cA==",
         "dependencies": {
           "System.Memory": "4.5.5"
         }
