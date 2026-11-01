@@ -65,10 +65,10 @@ On 2026-09-23, verification included:
   two-minute warm-up and a four-minute partial trend. Actual WinForms
   controls are checked for overlapping bounds and clipped content (labels,
   readouts with their affixes and captions, the status glyph). Diagnostic
-  expansion and collapse are exercised repeatedly at each scale. The 288 DPI
-  pass repeats with the window limited to 1008 × 704, the size `DpiLayout`
-  reaches on a 1024 × 768 runner, so assertions that only hold on a large
-  screen fail locally too; its captures are named `*-288-small.png`.
+  expansion and collapse are exercised repeatedly at each scale. Each pass
+  from 144 to 288 DPI repeats with the window limited to 1008 × 704, the size
+  `DpiLayout` reaches on a 1024 × 768 runner, so assertions that only hold on a
+  large screen fail locally too; those captures are named `*-<dpi>-small.png`.
 - Full statistics use concise captions; partial windows average and peak the
   readings so far and show their coverage («均值 · 2分/10分», «Avg · 2m/10m»:
   whole seconds under a minute, then whole minutes). The fixtures keep the

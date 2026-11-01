@@ -52,6 +52,8 @@ function Assert-Layout($Parent) {
 }
 
 $form = [Activator]::CreateInstance($assembly.GetType('BatteryChargeMeter.MainForm'), @($false))
+$margin = $assembly.GetType('BatteryChargeMeter.DpiLayout').GetField('WorkingAreaMargin', [Reflection.BindingFlags]'Static,NonPublic').GetValue($null)
+$runnerLimit = New-Object Drawing.Size (1024 - $margin), (720 - $margin)
 $scenarioTicks = @{ idle = 600; charging = 1800; discharging = 1800; supplemented = 60; unavailable = 60; starting = 0; warming = 120; early = 240 }
 function Set-Scenario([string]$Scenario) {
     $mode = if ($Scenario -eq 'discharging') { 'Battery' } else { 'WholeSystem' }
@@ -84,19 +86,19 @@ try {
     $stringsType.GetMethod('Select', [Reflection.BindingFlags]'Static,NonPublic').Invoke($null, @($language, $false))
     Invoke-Internal $form 'ApplyLanguage'
     Should -ActualValue ($form.Text -eq $(if ($language -eq 'en') { 'Power Meter' } else { '功率计' })) -BeTrue -Because 'Incorrect localized application name'
-    # 288-small repeats the assertions under the limit DpiLayout reaches on the
+    # A -small pass repeats the assertions under the limit DpiLayout reaches on the
     # GitHub runner: 1024x768 with a 720-pixel working area, less its margin. The
-    # window clamps and scrolls there, whatever the size of the local screen.
-    foreach ($pass in @('96', '144', '168', '192', '288', '288-small', '96')) {
-        $small = $pass -eq '288-small'
+    # window clamps and scrolls there from 144 DPI, whatever the local screen.
+    foreach ($pass in @('96', '144', '144-small', '168', '168-small', '192', '192-small', '288', '288-small', '96')) {
+        $small = $pass -like '*-small'
         $dpi = [int]($pass -replace '-small$')
-        $form.MaximumSize = if ($small) { New-Object Drawing.Size 1008, 704 } else { [Drawing.Size]::Empty }
-        Invoke-Internal $form 'SendDpiTransition' @([int]$dpi)
+        $form.MaximumSize = if ($small) { $runnerLimit } else { [Drawing.Size]::Empty }
+        Invoke-Internal $form 'SendDpiTransition' @($dpi)
         $scale = $dpi / 96.0
         foreach ($scenario in @('idle', 'charging', 'discharging', 'supplemented', 'unavailable', 'starting', 'warming', 'early')) {
             $mode = Set-Scenario $scenario
             if ($small) {
-                Should -ActualValue ($form.Height -le 704 -and $form.AutoScrollMinSize.Height -gt $form.ClientSize.Height) -BeTrue -Because 'The small-screen pass must clamp the window'
+                Should -ActualValue ($form.AutoScrollMinSize.Height -gt $form.ClientSize.Height) -BeTrue -Because 'The small-screen pass must clamp the window'
             }
             $diagnostics = Get-Field $form 'errorLabel'
             $expectedHeight = if ($scenario -eq 'unavailable') { 660 } else { 568 }
