@@ -84,11 +84,20 @@ try {
     $stringsType.GetMethod('Select', [Reflection.BindingFlags]'Static,NonPublic').Invoke($null, @($language, $false))
     Invoke-Internal $form 'ApplyLanguage'
     Should -ActualValue ($form.Text -eq $(if ($language -eq 'en') { 'Power Meter' } else { '功率计' })) -BeTrue -Because 'Incorrect localized application name'
-    foreach ($dpi in @(96, 144, 168, 192, 288, 96)) {
+    # 288-small repeats the assertions under the limit DpiLayout reaches on the
+    # GitHub runner: 1024x768 with a 720-pixel working area, less its margin. The
+    # window clamps and scrolls there, whatever the size of the local screen.
+    foreach ($pass in @('96', '144', '168', '192', '288', '288-small', '96')) {
+        $small = $pass -eq '288-small'
+        $dpi = [int]($pass -replace '-small$')
+        $form.MaximumSize = if ($small) { New-Object Drawing.Size 1008, 704 } else { [Drawing.Size]::Empty }
         Invoke-Internal $form 'SendDpiTransition' @([int]$dpi)
         $scale = $dpi / 96.0
         foreach ($scenario in @('idle', 'charging', 'discharging', 'supplemented', 'unavailable', 'starting', 'warming', 'early')) {
             $mode = Set-Scenario $scenario
+            if ($small) {
+                Should -ActualValue ($form.Height -le 704 -and $form.AutoScrollMinSize.Height -gt $form.ClientSize.Height) -BeTrue -Because 'The small-screen pass must clamp the window'
+            }
             $diagnostics = Get-Field $form 'errorLabel'
             $expectedHeight = if ($scenario -eq 'unavailable') { 660 } else { 568 }
             Should -ActualValue ($form.AutoScrollMinSize.Height -eq [Math]::Round($expectedHeight * $scale)) -BeTrue -Because `
@@ -178,7 +187,7 @@ try {
             if ($language -eq 'en') {
                 Should -ActualValue ($diagnostics.Text -notmatch '[一-鿿]') -BeTrue -Because 'English diagnostics contain untranslated application text'
             }
-            $path = Join-Path $OutputDirectory "$language-$scenario-$dpi.png"
+            $path = Join-Path $OutputDirectory "$language-$scenario-$pass.png"
             Invoke-Internal $form 'CapturePreview' @($path, "Fixture=$scenario; Dpi=$dpi")
             if ($scenario -eq 'idle') {
                 $pin = Get-Field $form 'pinButton'
@@ -194,12 +203,12 @@ try {
                 Should -ActualValue ($null -ne $settings -and -not $settings.IsDisposed) -BeTrue -Because 'Settings did not open'
                 Should -ActualValue ($settings.Width -eq [Math]::Round(296 * $scale)) -BeTrue -Because 'Settings content was scaled twice'
                 Assert-Layout $settings
-                [FooterTextProbe]::Capture($settings, (Join-Path $OutputDirectory "$language-settings-$dpi.png"))
+                [FooterTextProbe]::Capture($settings, (Join-Path $OutputDirectory "$language-settings-$pass.png"))
                 Invoke-Internal $form 'SendDpiTransition' @([int]$dpi)
                 Should -ActualValue ($null -eq (Get-Field $form 'settingsContent')) -BeTrue -Because 'DPI transition did not close settings before rescaling fonts'
             }
         }
-        Write-Host "PASS $language at $dpi DPI: eight reading scenarios, trend, title bar, text fit, hover, geometry, diagnostics and captures"
+        Write-Host "PASS $language at $pass DPI: eight reading scenarios, trend, title bar, text fit, hover, geometry, diagnostics and captures"
     }
     }
     # A reading bound while the window sits in the tray must be complete in the
