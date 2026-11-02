@@ -2,6 +2,9 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = ["cairosvg", "pillow"]
+#
+# [tool.uv]
+# exclude-newer = "3 days"
 # ///
 """Render the Lucide battery-medium artwork with CairoSVG and Pillow.
 
