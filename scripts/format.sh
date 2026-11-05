@@ -2,7 +2,7 @@
 # 统一格式化入口：Python 用 ruff format，JS/TS 与 Markdown/YAML/JSON 用 prettier，Shell 用 shfmt。
 # 用法：scripts/format.sh [--check]
 #   无参数：就地格式化本仓跟踪的文件与未被忽略的新文件；--check：只检查，不一致时列出文件并非零退出（CI 用）。
-# 工具版本只在下方常量固定；各工具配置：ruff.toml、.prettierrc.json/.prettierignore、.editorconfig（shfmt）。
+# 工具版本只在下方常量固定；各工具配置：.prettierrc.json/.prettierignore、.editorconfig（shfmt），ruff 用默认风格。
 set -euo pipefail
 
 RUFF_VERSION=0.17.3

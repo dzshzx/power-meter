@@ -23,6 +23,7 @@ pushed commits:
 
 1. In the task worktree, merge the latest origin master into the branch
    (`git fetch`, then `git merge origin/master`).
-2. In the same task worktree, run `bash scripts/check.sh`.
+2. In the same task worktree, run the repository gate `bash scripts/format.sh --check`
+   (the Windows part is the manual run that just passed).
 3. From the same task worktree, run `wt merge`, then `git push` from master.
    If the push is rejected because origin moved, repeat all three steps.
