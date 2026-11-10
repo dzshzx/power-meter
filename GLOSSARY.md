@@ -64,9 +64,6 @@ Power Meter (功率计) interface presents localized Chinese or English captions
 switching language does not change the supply state, boundary, measurement
 kind, sign convention or history window.
 
-**界面配色语言(UI Accent Language)**:
-Hue is reserved for the supply state. The dark window renders Charging emerald (`#4CC48F`), Discharging amber (`#F2A54A`) and Error red (`#F27A6F`); Idle carries no hue and stays neutral light grey — with no battery flow there is nothing to signal. The tray badge keeps solid tiles (`#059669` charging, also the app icon; `#D97706` discharging; neutral gray for idle and error). Estimated figures stay muted regardless of accent, and structural surfaces (bands, dividers, tracks) never take a hue.
-
 **电池补充(Battery Supplementation)**:
 The External Power Supplemented case: the adapter cannot cover the load, so the battery discharges while plugged in. Its negative terminal power must reduce the estimate, never be clamped.
 _避免_: hybrid mode, fake charging
@@ -80,22 +77,6 @@ _避免_: accurate, exact
 **估算(Estimated)**:
 A figure derived from two or more measured figures and therefore missing whatever no counter measures (Estimated System Input Power, estimated battery current). Estimated values always carry the `≈` prefix and the muted colour in the UI; an estimate is never promoted to Measured and a missing figure is never substituted by a neighbouring boundary's number.
 _避免_: approximate value shown as measured, Contract
-
-### 启动与安装
-
-**受保护副本(Protected Copy)**:
-The copy of the executable that the elevated logon task runs, kept in a directory only administrators can write, so that replacing the user-writable installation cannot change what runs elevated. It is created and refreshed only by an elevated process copying its own running image.
-_避免_: autostart copy, cached exe
-
-**外部自启任务(Foreign Autostart Task)**:
-A scheduled task carrying this program's task name whose structure the program did not create. It is never modified or adopted; disabling autostart and uninstalling proceed without it and tell the user where to remove it by hand.
-_避免_: stale task, corrupted task
-
-### 人员
-
-**维护者(Maintainer)**:
-对本仓拍板并负责的人：负责技术取舍、批准删除与发布、接收告警；也就是与 agent 对话的用户本人。安装并运行本程序的人称用户。
-_避免_: 指本人时写用户、user、owner、业主
 
 ## 示例
 
