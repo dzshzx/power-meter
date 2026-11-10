@@ -94,8 +94,8 @@ _避免_: stale task, corrupted task
 ### 人员
 
 **维护者(Maintainer)**:
-The person who decides on and answers for this repository: makes technical trade-offs, approves deletions and releases, and receives alerts; that is, the user who talks with the agent. People who install and run the app are called users.
-_避免_: user, owner, 用户, 业主 (when meaning the maintainer)
+对本仓拍板并负责的人：负责技术取舍、批准删除与发布、接收告警；也就是与 agent 对话的用户本人。安装并运行本程序的人称用户。
+_避免_: 指本人时写用户、user、owner、业主
 
 ## 示例
 
