@@ -268,7 +268,7 @@ SHA-256 校验文件。版本计划、版本档位、打 tag 与公开产物复�
 ```text
 .
 ├── .github/     # CI 与 Release 工作流
-├── docs/        # 发布流程、测试验收、ADR 与功率数据源研究记录
+├── docs/        # 发布流程、测试验收与功率数据源研究记录
 ├── installer/   # Inno Setup 安装包定义
 ├── scripts/     # 构建、测试与发布打包脚本
 ├── src/         # C# 源码与 DPI manifest
