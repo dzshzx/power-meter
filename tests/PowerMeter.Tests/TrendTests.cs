@@ -136,9 +136,14 @@ namespace BatteryChargeMeter.Tests
                 && view.Trend.PeakLabel == Strings.Format("峰值 {0}", "−17.50 W")
                 && NumberText.Format(-1.5, "0.00") == "−1.50" && NumberText.Format(2, "0.00") == "2.00");
 
+            FullWindowEndsAtTheLatestReading(session, view);
+        }
+
+        private static void FullWindowEndsAtTheLatestReading(MeterSession session, MeterView view)
+        {
             for (int second = 241; second <= 2000; second++)
                 view = session.Observe(Snapshot(second, second == 100 ? -60 : -17.5, Platform(20)));
-            series = view.Trend.Series;
+            TrendSeries series = view.Trend.Series;
             Check("a full window ends at the latest reading", Near(series.Start, 200) && Near(series.Now, 2000)
                 && view.Trend.Recorded == null && view.Trend.AxisLabels[3] == Strings.Get("现在"));
         }

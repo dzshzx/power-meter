@@ -20,6 +20,19 @@ namespace BatteryChargeMeter.Tests
             BatteryReading charging = Battery(true, true, true, 39.08);
 
             MeterSession session = new MeterSession(DisplayMode.WholeSystem);
+            ChargingShowsTheEstimatedTotal(session, time, charging, cpuPackage, platform);
+            ModeChangeRestartsStatistics(session, time, charging, cpuPackage, platform);
+
+            MissingPlatformIsExplainedOnce(time, charging, cpuPackage, noPlatform);
+
+            SupplementationAndSensorFailure(time, cpuPackage);
+
+            BeforeTheFirstReading();
+        }
+
+        private static void ChargingShowsTheEstimatedTotal(MeterSession session, DateTimeOffset time,
+            BatteryReading charging, PowerSample cpuPackage, PowerSample platform)
+        {
             MeterView view = session.Observe(PowerSnapshot.Compose(time, 1, charging, cpuPackage, platform));
             Check("charging headline, row and tray show the estimated total, not battery or extra CPU",
                 view.Headline.Text == "≈ 66.08 W" && view.Headline.Tone == ReadoutTone.NumericMuted
@@ -31,8 +44,12 @@ namespace BatteryChargeMeter.Tests
                 && view.TrayGlyph == "66" && view.Accent == BatteryAccentKind.Charging
                 && view.TrayTooltip == Strings.Get("估算整机输入功率") + ": ≈ 66.08 W"
                 && view.Supply.Text == Strings.Get("已接电源 · 充电中") && view.Updated == "10:20:30");
+        }
 
-            view = session.SetMode(DisplayMode.Battery);
+        private static void ModeChangeRestartsStatistics(MeterSession session, DateTimeOffset time,
+            BatteryReading charging, PowerSample cpuPackage, PowerSample platform)
+        {
+            MeterView view = session.SetMode(DisplayMode.Battery);
             Check("battery mode changes headline and tray together and restarts statistics",
                 session.Mode == DisplayMode.Battery && view.Headline.Text == "39.08 W"
                 && view.Headline.Tone == ReadoutTone.Accent && view.TrayGlyph == "39"
@@ -47,9 +64,13 @@ namespace BatteryChargeMeter.Tests
             view = session.Render();
             Check("re-rendering does not record another reading",
                 view.AverageCaption == Strings.Format("均值 · {0}/10分", Strings.Format("{0}秒", "1")));
+        }
 
-            session = new MeterSession(DisplayMode.WholeSystem);
-            view = session.Observe(PowerSnapshot.Compose(time, 1, charging, cpuPackage, noPlatform));
+        private static void MissingPlatformIsExplainedOnce(DateTimeOffset time, BatteryReading charging,
+            PowerSample cpuPackage, PowerSample noPlatform)
+        {
+            MeterSession session = new MeterSession(DisplayMode.WholeSystem);
+            MeterView view = session.Observe(PowerSnapshot.Compose(time, 1, charging, cpuPackage, noPlatform));
             Check("missing platform clears the total and tray and explains it once",
                 view.Headline.Text == "N/A" && view.Headline.Tone == ReadoutTone.Unavailable
                 && view.Rows[MeterView.WholeSystemRow].Text == "N/A"
@@ -64,36 +85,51 @@ namespace BatteryChargeMeter.Tests
                 view.Headline.Text == "17.50 W" && view.TrayGlyph == "18"
                 && view.TrayTooltip == Strings.Get("系统负载功率") + ": 17.50 W"
                 && view.WholeCaption == Strings.Get("系统负载功率") && view.Diagnostics.Count == 1);
+        }
 
+        private static void SupplementationAndSensorFailure(DateTimeOffset time, PowerSample cpuPackage)
+        {
             BatteryReading supplemented = Battery(true, false, true, -5);
-            session = new MeterSession(DisplayMode.WholeSystem);
+            MeterSession session = new MeterSession(DisplayMode.WholeSystem);
             PowerSample platform24 = PowerSample.FromValue(PowerBoundary.Platform,
                 MeasurementKind.Measured, 24, "fixture", TimeSpan.FromSeconds(1));
             session.Observe(PowerSnapshot.Compose(time, 0, supplemented, cpuPackage, platform24));
-            view = session.Observe(PowerSnapshot.Compose(time, 1, supplemented, cpuPackage, platform24));
+            MeterView view = session.Observe(PowerSnapshot.Compose(time, 1, supplemented, cpuPackage, platform24));
             Check("battery supplementation reduces the estimate and statistics stay estimated",
                 view.Headline.Text == "≈ 19.00 W" && view.AverageValue == "≈ 19.00 W" && view.PeakValue == "≈ 19.00 W"
                 && view.Supply.Text == Strings.Get("已接电源 · 电池补充") && view.Accent == BatteryAccentKind.Discharging);
 
             view = session.Fail("sensor failed");
             Check("sensor failure clears statistics and never shows a stale figure",
-                view.Headline.Text == "N/A" && view.Accent == BatteryAccentKind.Error
-                && view.Supply.Text == Strings.Get("传感器异常") && view.TrayGlyph == "--"
-                && view.TrayTooltip == Strings.Get("整机功率") + ": N/A"
-                && view.Diagnostics.Count == 1 && view.Diagnostics[0] == "sensor failed"
-                && view.AverageValue == "-- W" && view.PeakValue == "-- W" && view.Updated == "10:20:30"
-                && view.AverageTone == ReadoutTone.Unavailable && view.PeakTone == ReadoutTone.Unavailable
-                && view.Headline.Tone == ReadoutTone.Unavailable
-                && view.Rows[MeterView.PlatformRow].Text == "N/A" && view.Rows[MeterView.PlatformRow].Tone == ReadoutTone.Unavailable
-                && view.BatteryLevel == -1);
+                FailureClearsTheReadout(view) && FailureClearsTheStatistics(view));
             view = session.Render();
             Check("sensor failure survives re-rendering until the next reading",
                 view.Supply.Text == Strings.Get("传感器异常"));
             view = session.Observe(PowerSnapshot.Compose(time, 10, supplemented, cpuPackage, platform24));
             Check("readings after a failure start new statistics",
                 view.Headline.Text == "≈ 19.00 W" && view.AverageValue == "-- W");
+        }
 
-            view = new MeterSession(DisplayMode.Battery).Render();
+        private static bool FailureClearsTheReadout(MeterView view)
+        {
+            return view.Headline.Text == "N/A" && view.Accent == BatteryAccentKind.Error
+                && view.Supply.Text == Strings.Get("传感器异常") && view.TrayGlyph == "--"
+                && view.TrayTooltip == Strings.Get("整机功率") + ": N/A"
+                && view.Diagnostics.Count == 1 && view.Diagnostics[0] == "sensor failed";
+        }
+
+        private static bool FailureClearsTheStatistics(MeterView view)
+        {
+            return view.AverageValue == "-- W" && view.PeakValue == "-- W" && view.Updated == "10:20:30"
+                && view.AverageTone == ReadoutTone.Unavailable && view.PeakTone == ReadoutTone.Unavailable
+                && view.Headline.Tone == ReadoutTone.Unavailable
+                && view.Rows[MeterView.PlatformRow].Text == "N/A" && view.Rows[MeterView.PlatformRow].Tone == ReadoutTone.Unavailable
+                && view.BatteryLevel == -1;
+        }
+
+        private static void BeforeTheFirstReading()
+        {
+            MeterView view = new MeterSession(DisplayMode.Battery).Render();
             Check("before the first reading the tray keeps the application icon",
                 view.TrayGlyph == null && view.Headline.Text == "--.-- W" && view.Diagnostics.Count == 0
                 && view.Supply.Tone == ReadoutTone.Muted && view.AverageTone == ReadoutTone.Unavailable
@@ -136,6 +172,14 @@ namespace BatteryChargeMeter.Tests
         {
                         PowerHistory history = new PowerHistory();
             BatterySupplyState supply = BatterySupplyState.BatteryDischarging;
+            GapsAndStateChangesClearTheBaseline(history, supply);
+            PeakAndMeanKeepTheirOwnWindows(history, supply);
+            WeightedMeanClipsAndSkipsGaps(history, supply);
+            Check("nonfinite sensor values cannot reach readings or tray", !Value(Double.NaN).Available && !Value(Double.PositiveInfinity).Available);
+        }
+
+        private static void GapsAndStateChangesClearTheBaseline(PowerHistory history, BatterySupplyState supply)
+        {
             history.Add(0, DisplayMode.Battery, supply, Value(-10));
             history.Add(1, DisplayMode.Battery, supply, Value(-20));
             history.Add(4, DisplayMode.Battery, supply, Value(-20));
@@ -154,9 +198,14 @@ namespace BatteryChargeMeter.Tests
             Check("mode change clears history", history.Points.Count == 1);
             history.Add(22, DisplayMode.WholeSystem, BatterySupplyState.ExternalPowerIdle, Value(30));
             Check("supply state change clears history", history.Points.Count == 1);
+        }
+
+        private static void PeakAndMeanKeepTheirOwnWindows(PowerHistory history, BatterySupplyState supply)
+        {
             history.Clear();
             for (int second = 0; second <= 700; second++) history.Add(second, DisplayMode.Battery, supply, Value(second == 200 ? -100 : -10));
-            average = history.Average(out coverage);
+            double coverage;
+            double? average = history.Average(out coverage);
             Check("10 minute mean still holds a reading the 5 minute peak has dropped",
                 Near(average.Value, (-10 * 599 - 100) / 600.0) && Near(coverage, 600) && Near(history.Peak().Value, -10)
                 && Near(history.Duration(PowerHistory.PeakWindow), 300));
@@ -165,11 +214,16 @@ namespace BatteryChargeMeter.Tests
             Check("a peak stays for exactly 5 minutes", Near(history.Peak().Value, -100));
             history.Add(1002, DisplayMode.Battery, supply, Value(-10));
             Check("old peak expires at the real 5 minute boundary", Near(history.Peak().Value, -10));
+        }
+
+        private static void WeightedMeanClipsAndSkipsGaps(PowerHistory history, BatterySupplyState supply)
+        {
             history.Clear();
             for (int second = 0; second <= 600; second += 4)
                 history.Add(second, DisplayMode.Battery, supply, Value(second == 0 ? 40 : 10));
             history.Add(602, DisplayMode.Battery, supply, Value(10));
-            average = history.Average(out coverage);
+            double coverage;
+            double? average = history.Average(out coverage);
             Check("weighted mean clips the first interval at the exact 10 minute cutoff", Near(average.Value, 10.1) && Near(coverage, 600));
             history.Clear();
             for (int second = 0; second <= 700; second++)
@@ -178,7 +232,6 @@ namespace BatteryChargeMeter.Tests
             average = history.Average(out coverage);
             Check("an N/A spell inside 10 minutes is excluded, never averaged as zero",
                 Near(average.Value, 20) && Near(coverage, 600 - 101) && Near(history.Peak().Value, 20));
-            Check("nonfinite sensor values cannot reach readings or tray", !Value(Double.NaN).Available && !Value(Double.PositiveInfinity).Available);
         }
 
         [Fact]

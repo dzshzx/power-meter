@@ -11,7 +11,15 @@ namespace BatteryChargeMeter.Tests
         [Fact]
         public void Policy()
         {
-                        // Synchronize: a protected copy never copies from its user-writable source.
+            SynchronizeMigratesAndRefreshesTheCopy();
+            SynchronizeRemovesOrphansAndLeavesOthers();
+            DisableRemovesOnlyThisInstallation();
+            EnableAndInAppSwitch();
+        }
+
+        private static void SynchronizeMigratesAndRefreshesTheCopy()
+        {
+            // Synchronize: a protected copy never copies from its user-writable source.
             AutostartFacts fromCopy = Facts(true, true, false, true, false, true, false, true);
             fromCopy.RunningFromCopy = true;
             AutostartPlan plan = AutostartPolicy.Synchronize(fromCopy, true);
@@ -39,8 +47,11 @@ namespace BatteryChargeMeter.Tests
             Check("outdated copy is refreshed and restarted only when startup is enabled",
                 plan.Sync == AutostartSync.StaleCopy && Steps(plan) == "none"
                 && Steps(staleDisabled) == "install" && Steps(staleEnabled) == "install+restart");
+        }
 
-            plan = AutostartPolicy.Synchronize(Facts(false, false, false, false, false, true, false, false), false);
+        private static void SynchronizeRemovesOrphansAndLeavesOthers()
+        {
+            AutostartPlan plan = AutostartPolicy.Synchronize(Facts(false, false, false, false, false, true, false, false), false);
             AutostartPlan orphan = AutostartPolicy.Synchronize(Facts(false, false, false, false, false, true, false, true), true);
             AutostartPlan foreignOrphan = AutostartPolicy.Synchronize(Facts(false, false, false, false, true, true, false, false), false);
             AutostartPlan foreignApplied = AutostartPolicy.Synchronize(Facts(false, false, false, false, true, true, false, true), true);
@@ -58,9 +69,12 @@ namespace BatteryChargeMeter.Tests
             plan = AutostartPolicy.Synchronize(Facts(true, false, true, true, false, false, false, true), true);
             Check("another installation's startup is left alone",
                 plan.Sync == AutostartSync.Current && Steps(plan) == "none");
+        }
 
+        private static void DisableRemovesOnlyThisInstallation()
+        {
             // Disable.
-            plan = AutostartPolicy.Disable(Facts(true, true, true, true, false, true, true, true));
+            AutostartPlan plan = AutostartPolicy.Disable(Facts(true, true, true, true, false, true, true, true));
             Check("elevated removal deletes the task and the copy",
                 plan.Removal == AutostartRemoval.Removed && Steps(plan) == "delete+remove");
             plan = AutostartPolicy.Disable(Facts(true, true, true, true, false, true, true, false));
@@ -79,7 +93,10 @@ namespace BatteryChargeMeter.Tests
             plan = AutostartPolicy.Disable(Facts(true, true, false, true, false, false, false, false));
             Check("ordinary removal disarms an unprotected task without a copy",
                 plan.Removal == AutostartRemoval.Removed && Steps(plan) == "delete");
+        }
 
+        private static void EnableAndInAppSwitch()
+        {
             // Enable.
             AutostartState absent = new AutostartState();
             AutostartState other = new AutostartState { Exists = true, Registration = "<Task/>", Executable = @"C:\Other\PowerMeter.exe" };

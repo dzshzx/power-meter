@@ -68,6 +68,12 @@ namespace BatteryChargeMeter.Tests
                 Startup.Route(route, false, launch);
             }
             Check("invalid route cannot launch UAC", launches == 1);
+            ParsedArgumentsReachDispatch();
+            LaunchFailuresKeepTheOrdinaryGui();
+        }
+
+        private static void ParsedArgumentsReachDispatch()
+        {
             StartupRoute probe = StartupRoute.Parse(new string[] { "--POWER-PROBE", "out.txt", "12" });
             StartupRoute defaultProbe = StartupRoute.Parse(new string[] { "--power-probe", "out.txt" });
             StartupRoute dpi = StartupRoute.Parse(new string[] { "--dpi-preview", "shot.png", "168", "96" });
@@ -77,6 +83,10 @@ namespace BatteryChargeMeter.Tests
                 && defaultProbe.Seconds == 5
                 && dpi.Path == "shot.png" && dpi.Dpis.Length == 2 && dpi.Dpis[0] == 168 && dpi.Dpis[1] == 96
                 && tray.Path == "icon.png" && tray.TrayGlyph == "99+" && tray.TrayDischarging);
+        }
+
+        private static void LaunchFailuresKeepTheOrdinaryGui()
+        {
             ElevationResult cancel = Startup.Launch(delegate { throw new System.ComponentModel.Win32Exception(1223); });
             ElevationResult failure = Startup.Launch(delegate { throw new InvalidOperationException("failure"); });
             Check("cancel and launch failure retain ordinary GUI with reason", !cancel.Started && cancel.Message.Contains("取消") && !failure.Started && failure.Message.Contains("failure") && !Startup.Launch(delegate { return false; }).Started);
