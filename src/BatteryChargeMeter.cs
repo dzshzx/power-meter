@@ -389,17 +389,7 @@ namespace BatteryChargeMeter
             }
             if (message.Msg == NativeMethods.WmNcCalcSize && message.LParam != IntPtr.Zero)
             {
-                // The whole window is client area except scroll bars (very
-                // high DPI on a small screen); the title bar is drawn.
-                NativeMethods.Rect proposed = (NativeMethods.Rect)Marshal.PtrToStructure(message.LParam, typeof(NativeMethods.Rect));
-                int style = NativeMethods.GetWindowLong(Handle, NativeMethods.GwlStyle);
-                int dpi = ReadWindowDpi();
-                if ((style & NativeMethods.WsVScroll) != 0)
-                    proposed.Right -= ScrollBarSize(NativeMethods.SmCxVScroll, dpi);
-                if ((style & NativeMethods.WsHScroll) != 0)
-                    proposed.Bottom -= ScrollBarSize(NativeMethods.SmCyHScroll, dpi);
-                Marshal.StructureToPtr(proposed, message.LParam, false);
-                message.Result = IntPtr.Zero;
+                CalculateClientArea(ref message);
                 return;
             }
             if (message.Msg == NativeMethods.WmStyleChanging && message.WParam.ToInt64() == NativeMethods.GwlStyle
@@ -434,36 +424,56 @@ namespace BatteryChargeMeter
             // message so the application EXE retains per-monitor scaling.
             if (message.Msg == NativeMethods.WmDpiChanged && message.LParam != IntPtr.Zero)
             {
-                CloseSettings();
-                int newDpi = (int)(message.WParam.ToInt64() & 0xffff);
-                NativeMethods.Rect suggested = (NativeMethods.Rect)Marshal.PtrToStructure(
-                    message.LParam,
-                    typeof(NativeMethods.Rect));
-
-                lastSuggestedPosition = new Point(suggested.Left, suggested.Top);
-                lastDpiWindowPositionApplied = NativeMethods.SetWindowPos(
-                    Handle,
-                    IntPtr.Zero,
-                    suggested.Left,
-                    suggested.Top,
-                    suggested.Right - suggested.Left,
-                    suggested.Bottom - suggested.Top,
-                    NativeMethods.SwpNoZOrder | NativeMethods.SwpNoActivate);
-                if (!lastDpiWindowPositionApplied)
-                {
-                    throw new Win32Exception(
-                        Marshal.GetLastWin32Error(),
-                        "Unable to apply the suggested DPI window bounds.");
-                }
-
-                dpiLayout.Apply(newDpi);
-                LayoutSourceRows();
-                Invalidate(true);
-                message.Result = IntPtr.Zero;
+                ApplyDpiChange(ref message);
                 return;
             }
 
             base.WndProc(ref message);
+        }
+
+        private void CalculateClientArea(ref Message message)
+        {
+            // The whole window is client area except scroll bars (very
+            // high DPI on a small screen); the title bar is drawn.
+            NativeMethods.Rect proposed = (NativeMethods.Rect)Marshal.PtrToStructure(message.LParam, typeof(NativeMethods.Rect));
+            int style = NativeMethods.GetWindowLong(Handle, NativeMethods.GwlStyle);
+            int dpi = ReadWindowDpi();
+            if ((style & NativeMethods.WsVScroll) != 0)
+                proposed.Right -= ScrollBarSize(NativeMethods.SmCxVScroll, dpi);
+            if ((style & NativeMethods.WsHScroll) != 0)
+                proposed.Bottom -= ScrollBarSize(NativeMethods.SmCyHScroll, dpi);
+            Marshal.StructureToPtr(proposed, message.LParam, false);
+            message.Result = IntPtr.Zero;
+        }
+
+        private void ApplyDpiChange(ref Message message)
+        {
+            CloseSettings();
+            int newDpi = (int)(message.WParam.ToInt64() & 0xffff);
+            NativeMethods.Rect suggested = (NativeMethods.Rect)Marshal.PtrToStructure(
+                message.LParam,
+                typeof(NativeMethods.Rect));
+
+            lastSuggestedPosition = new Point(suggested.Left, suggested.Top);
+            lastDpiWindowPositionApplied = NativeMethods.SetWindowPos(
+                Handle,
+                IntPtr.Zero,
+                suggested.Left,
+                suggested.Top,
+                suggested.Right - suggested.Left,
+                suggested.Bottom - suggested.Top,
+                NativeMethods.SwpNoZOrder | NativeMethods.SwpNoActivate);
+            if (!lastDpiWindowPositionApplied)
+            {
+                throw new Win32Exception(
+                    Marshal.GetLastWin32Error(),
+                    "Unable to apply the suggested DPI window bounds.");
+            }
+
+            dpiLayout.Apply(newDpi);
+            LayoutSourceRows();
+            Invalidate(true);
+            message.Result = IntPtr.Zero;
         }
 
         protected override void OnResize(EventArgs e)
