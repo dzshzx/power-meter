@@ -124,6 +124,52 @@ namespace BatteryChargeMeter.Tests
         }
 
         [Fact]
+        public void BatteryAggregationWithoutRates()
+        {
+            BatteryReading charging = Battery(true, true, true, 10.0);
+            BatteryReading noRate = Battery(true, true, false, 0.0);
+            noRate.RateUnavailableReason = "电池充电速率不可用";
+            BatteryReading combined = BatterySensor.CombineReadings(
+                new BatteryReading[] { charging, noRate });
+            Check("a pack without a rate keeps its reason and the shared direction",
+                !combined.RateAvailable
+                    && combined.RateUnavailableReason == "电池充电速率不可用"
+                    && combined.SupplyState == BatterySupplyState.ExternalPowerCharging);
+
+            BatteryReading idle = Battery(true, false, false, 0.0);
+            combined = BatterySensor.CombineReadings(
+                new BatteryReading[] { charging, idle });
+            Check("packs without a rate in different directions leave the direction unknown",
+                !combined.RateAvailable
+                    && combined.RateUnavailableReason == "至少一块电池速率不可用"
+                    && combined.SupplyState == BatterySupplyState.ExternalPowerDirectionUnknown);
+        }
+
+        [Fact]
+        public void BatteryAggregationInconsistent()
+        {
+            BatteryReading combined = BatterySensor.CombineReadings(
+                new BatteryReading[] { Battery(true, true, true, 10.0), Battery(false, false, true, -5.0) });
+            Check("packs disagreeing on external power are inconsistent",
+                combined.SupplyState == BatterySupplyState.Inconsistent
+                    && !combined.RateAvailable
+                    && combined.StatusUnavailableReason == "多块电池报告的供电状态不一致");
+
+            combined = BatterySensor.CombineReadings(
+                new BatteryReading[] { Battery(false, false, true, -5.0), null });
+            Check("a missing pack status makes the aggregate inconsistent",
+                combined.SupplyState == BatterySupplyState.Inconsistent
+                    && combined.StatusUnavailableReason == "至少一块电池状态不可用");
+
+            combined = BatterySensor.CombineReadings(
+                new BatteryReading[] { Battery(false, false, true, 3.0), Battery(false, false, true, 2.0) });
+            Check("aggregate power flowing in without external power is inconsistent",
+                combined.SupplyState == BatterySupplyState.Inconsistent
+                    && !combined.RateAvailable
+                    && combined.StatusUnavailableReason == "聚合后的电池功率方向与供电状态不一致");
+        }
+
+        [Fact]
         public void WholeSystem()
         {
                         PowerSample platform = PowerSample.FromValue(
