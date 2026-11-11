@@ -76,5 +76,5 @@ jobs:
       - name: Check formatting (ruff, prettier, shfmt)
         run: bash scripts/format.sh --check
 
-      - name: Check lint (ruff, shellcheck, file length)
+      - name: Check lint (ruff, shellcheck, function complexity, file length)
         run: bash scripts/format.sh --lint

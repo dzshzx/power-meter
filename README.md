@@ -255,7 +255,8 @@ PowerShell 中 dot-source 该脚本后运行 `Install-InnoSetup` 即可安装。
 C# 与 PowerShell 不在重排范围内。`third_party/`（上游许可证与哈希钉住的文件）、锁文件与
 `dist/` 保持原字节，不参与重排。
 `scripts/format.sh --lint` 对同一份文件清单跑 ruff check、Python 函数圈复杂度上限（15）与
-shellcheck，并检查代码文件（含 C# 与 PowerShell）不超过 2000 行。
+shellcheck，用 lizard 查 C# 函数圈复杂度上限（同为 15，测试代码也查，不接受豁免注释），
+并检查代码文件（含 C# 与 PowerShell）不超过 2000 行。
 按需 Windows validation 同时在 Linux runner 上运行 `scripts/format.sh --check` 与
 `scripts/format.sh --lint`，有问题即失败。
 纯格式重排提交登记在 `.git-blame-ignore-revs`，本地可用
