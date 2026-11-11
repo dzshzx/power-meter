@@ -505,26 +505,11 @@ namespace BatteryChargeMeter
             string protectedExecutable, string protectedSource)
         {
             ExecAction exec = definition.Actions.Count == 1 ? definition.Actions[0] as ExecAction : null;
-            if (definition.RegistrationInfo.Source != Owner
-                || !MatchesUser(definition.Principal.UserId, userSid)
-                || exec == null
-                || exec.Arguments != Arguments)
-                throw new ForeignAutostartTaskException();
+            RequireOwnShape(definition, userSid, exec);
             string target = exec.Path ?? "";
             TaskSettings settings = definition.Settings;
-            LogonTrigger logon = null;
-            foreach (Trigger trigger in definition.Triggers)
-                if (logon == null)
-                    logon = trigger as LogonTrigger;
-            bool correctPolicy = definition.Principal.RunLevel == TaskRunLevel.Highest
-                && definition.Principal.LogonType == TaskLogonType.InteractiveToken
-                && logon != null && MatchesUser(logon.UserId, userSid) && logon.Enabled;
-            bool correctSettings = !settings.DisallowStartIfOnBatteries
-                && !settings.StopIfGoingOnBatteries
-                && !settings.RunOnlyIfIdle
-                && !settings.RunOnlyIfNetworkAvailable
-                && settings.ExecutionTimeLimit == TimeSpan.Zero
-                && settings.MultipleInstances == TaskInstancesPolicy.IgnoreNew;
+            bool correctPolicy = HasStartupPolicy(definition, userSid);
+            bool correctSettings = HasStartupSettings(settings);
             bool isProtected = protectedExecutable != null && target.Length > 0
                 && ProtectedCopy.SamePath(target, protectedExecutable);
             bool thisCopy = isProtected
@@ -541,12 +526,47 @@ namespace BatteryChargeMeter
                 // reported as working startup, even if its policy is intact.
                 Enabled = settings.Enabled && correctPolicy && correctSettings && isProtected,
                 Registration = definition.XmlText,
-                RepairReason = !correctPolicy || !correctSettings
-                    ? "自启任务设置已变化（权限、触发条件或运行限制），请重新勾选以修复。"
-                    : !isProtected
-                        ? "自启仍指向普通权限可替换的程序文件，请以管理员身份重新勾选，改用受保护副本。"
-                        : null
+                RepairReason = RepairReasonFor(correctPolicy, correctSettings, isProtected)
             };
+        }
+
+        private static void RequireOwnShape(TaskDefinition definition, string userSid, ExecAction exec)
+        {
+            if (definition.RegistrationInfo.Source != Owner
+                || !MatchesUser(definition.Principal.UserId, userSid)
+                || exec == null
+                || exec.Arguments != Arguments)
+                throw new ForeignAutostartTaskException();
+        }
+
+        private static bool HasStartupPolicy(TaskDefinition definition, string userSid)
+        {
+            LogonTrigger logon = null;
+            foreach (Trigger trigger in definition.Triggers)
+                if (logon == null)
+                    logon = trigger as LogonTrigger;
+            return definition.Principal.RunLevel == TaskRunLevel.Highest
+                && definition.Principal.LogonType == TaskLogonType.InteractiveToken
+                && logon != null && MatchesUser(logon.UserId, userSid) && logon.Enabled;
+        }
+
+        private static bool HasStartupSettings(TaskSettings settings)
+        {
+            return !settings.DisallowStartIfOnBatteries
+                && !settings.StopIfGoingOnBatteries
+                && !settings.RunOnlyIfIdle
+                && !settings.RunOnlyIfNetworkAvailable
+                && settings.ExecutionTimeLimit == TimeSpan.Zero
+                && settings.MultipleInstances == TaskInstancesPolicy.IgnoreNew;
+        }
+
+        private static string RepairReasonFor(bool correctPolicy, bool correctSettings, bool isProtected)
+        {
+            return !correctPolicy || !correctSettings
+                ? "自启任务设置已变化（权限、触发条件或运行限制），请重新勾选以修复。"
+                : !isProtected
+                    ? "自启仍指向普通权限可替换的程序文件，请以管理员身份重新勾选，改用受保护副本。"
+                    : null;
         }
 
         internal static bool IsCurrentCopy(string target, string path)
