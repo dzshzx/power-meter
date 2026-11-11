@@ -93,7 +93,12 @@ namespace BatteryChargeMeter
             }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            RunCommand(route);
+        }
 
+        // Preview, diagnostic and notice commands.
+        private static void RunCommand(StartupRoute route)
+        {
             switch (route.Command)
             {
                 case "--screenshot":
