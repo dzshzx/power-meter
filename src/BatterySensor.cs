@@ -158,20 +158,37 @@ namespace BatteryChargeMeter
                 sawDischarging = sawDischarging || reading.Discharging;
                 sawIdle = sawIdle || (!reading.Charging && !reading.Discharging);
 
-                if (!reading.RateAvailable)
-                {
-                    combined.RateAvailable = false;
-                    if (String.IsNullOrEmpty(combined.RateUnavailableReason))
-                    {
-                        combined.RateUnavailableReason = String.IsNullOrEmpty(reading.RateUnavailableReason)
-                            ? "至少一块电池速率不可用"
-                            : reading.RateUnavailableReason;
-                    }
-                }
+                MergeRateAvailability(combined, reading);
 
                 combined.PowerWatts += reading.PowerWatts;
             }
 
+            ResolveCombinedState(combined, inconsistent, powerOnline, sawCharging, sawDischarging, sawIdle);
+
+            // Packs can have different terminal voltages, so a single voltage
+            // or derived current would not describe the aggregate boundary.
+            combined.VoltageAvailable = false;
+            combined.CurrentAvailable = false;
+            return combined;
+        }
+
+        private static void MergeRateAvailability(BatteryReading combined, BatteryReading reading)
+        {
+            if (!reading.RateAvailable)
+            {
+                combined.RateAvailable = false;
+                if (String.IsNullOrEmpty(combined.RateUnavailableReason))
+                {
+                    combined.RateUnavailableReason = String.IsNullOrEmpty(reading.RateUnavailableReason)
+                        ? "至少一块电池速率不可用"
+                        : reading.RateUnavailableReason;
+                }
+            }
+        }
+
+        private static void ResolveCombinedState(BatteryReading combined, bool inconsistent, bool? powerOnline,
+            bool sawCharging, bool sawDischarging, bool sawIdle)
+        {
             if (inconsistent || !powerOnline.HasValue)
             {
                 combined.SupplyState = BatterySupplyState.Inconsistent;
@@ -191,12 +208,6 @@ namespace BatteryChargeMeter
                 combined.SupplyState = StateFromDirections(
                     powerOnline.Value, sawCharging, sawDischarging, sawIdle);
             }
-
-            // Packs can have different terminal voltages, so a single voltage
-            // or derived current would not describe the aggregate boundary.
-            combined.VoltageAvailable = false;
-            combined.CurrentAvailable = false;
-            return combined;
         }
 
         private static BatterySupplyState StateFromAggregatePower(bool powerOnline, double powerWatts)
