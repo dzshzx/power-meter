@@ -14,8 +14,8 @@ The SVG is the editable source; all Windows icon sizes are packed by Pillow.
 """
 
 import io
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import cairosvg
 from PIL import Image
