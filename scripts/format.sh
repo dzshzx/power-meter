@@ -133,9 +133,10 @@ if [ "$LINT" -eq 1 ]; then
   if [ ${#CS[@]} -gt 0 ]; then
     echo "== C# 函数圈复杂度不超过 $MAX_COMPLEXITY"
     lizard -l csharp -C "$MAX_COMPLEXITY" -w -- "${CS[@]}"
-    # 复杂度不认豁免：lizard 会放过带 "#lizard forgives" 注释的函数和仓根 whitelizard.txt 里列的函数，所以另查一遍。
-    if grep -n -i 'lizard forgive' -- "${CS[@]}" || [ -e whitelizard.txt ]; then
-      echo "lint: 不接受 lizard 的豁免注释与 whitelizard.txt" >&2
+    # 复杂度不认豁免：lizard 会放过带 #lizard forgives 注释的函数、注释里含 GENERATED CODE 的整个文件
+    # 和仓根 whitelizard.txt 里列的函数，所以另查一遍。
+    if grep -n -i -e 'lizard forgive' -e 'generated code' -- "${CS[@]}" || [ -e whitelizard.txt ]; then
+      echo "lint: 不接受 lizard 的豁免注释（#lizard forgives、GENERATED CODE）与 whitelizard.txt" >&2
       exit 1
     fi
   fi
