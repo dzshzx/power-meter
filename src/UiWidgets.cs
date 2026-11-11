@@ -210,13 +210,7 @@ namespace BatteryChargeMeter
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             float scale = Height / (float)DesignHeight;
-            Color fill = Color.Empty;
-            if (IsClose && (hovered || pressed))
-                fill = pressed ? UiTheme.ClosePressed : UiTheme.CloseHover;
-            else if (pressed)
-                fill = UiTheme.ButtonActive;
-            else if (hovered || active)
-                fill = UiTheme.ButtonHover;
+            Color fill = BackgroundFill();
             if (!fill.IsEmpty)
             {
                 using (GraphicsPath path = WidgetPath.Rounded(new Rectangle(0, 0, Width, Height), RadiusLogical * scale))
@@ -229,6 +223,18 @@ namespace BatteryChargeMeter
             UiIcons.Draw(g, IconBody, glyph, new Rectangle((Width - size) / 2, (Height - size) / 2, size, size), StrokeWidth);
             if (Focused && ShowFocusCues)
                 ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(ClientRectangle, -2, -2), UiTheme.Muted, Color.Transparent);
+        }
+
+        private Color BackgroundFill()
+        {
+            Color fill = Color.Empty;
+            if (IsClose && (hovered || pressed))
+                fill = pressed ? UiTheme.ClosePressed : UiTheme.CloseHover;
+            else if (pressed)
+                fill = UiTheme.ButtonActive;
+            else if (hovered || active)
+                fill = UiTheme.ButtonHover;
+            return fill;
         }
     }
 
