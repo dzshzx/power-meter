@@ -21,7 +21,7 @@ LIZARD_VERSION=1.26.0
 MAX_COMPLEXITY=15
 MAX_LINES=2000
 # 字节必须保持不变的文件（git pathspec），三种语言共用；与 .prettierignore 保持一致。
-# third_party/：上游许可证与通知，含哈希钉住的文件，NOTICE.md 按字节嵌入 EXE 并与发布件比对。
+# third_party/：上游许可证与通知，含按哈希固定的文件，NOTICE.md 按字节嵌入 EXE 并与发布件比对。
 EXCLUDE=(':(exclude)third_party/**' ':(exclude)**/*.lock' ':(exclude)**/dist/**')
 
 CHECK=0

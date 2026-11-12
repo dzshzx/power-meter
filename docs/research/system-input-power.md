@@ -70,7 +70,7 @@ Windows 没有一个在普通笔记本上必然可用、直接返回“充电口
 1. **只接受可证明的物理边界。** PMI 必须同时满足 measurement 支持、`MeterType=input`、整机关联（或 systemwide `MeteredHardware`）；EMI/OEM 通道必须由固件或 OEM 资料明确为 DC jack/VBUS 入口总 rail。仅凭通道名猜测不够。
 2. **能力发现而非假定存在。** 先枚举 `Win32_PowerMeter`/PMI 与 `GUID_DEVICE_ENERGY_METER`；均无合格实例时返回 `Unsupported`。型号专用 EC provider 必须白名单到明确的硬件/固件协议版本。
 3. **按接口正确换算。** PMI 应应用 `BaseUnits`、`UnitModifier`、平均窗口和 accuracy；EMI 用两次累计能量与时间差计算平均 W，并处理计数器回绕、重置、时间倒退和采样窗口。
-4. **处理多入口与混合供电。** 多个 USB-C/DC 输入只能在确认各通道互不重叠且处于同一边界后求和；电池同时充/放电不改变“入口电表”为事实源的原则。
+4. **处理多入口与混合供电。** 多个 USB-C/DC 输入只能在确认各通道互不重叠且处于同一边界后求和；电池同时充/放电不改变以“入口电表”为事实来源的原则。
 5. **暴露数据质量。** 返回来源、`Measured/Estimated`、边界、采样时刻/窗口、精度和 stale/unknown 状态。E3、PD 合同、额定功率、CPU/GPU 之和与 `BATTERY_STATUS.Rate` 可单独展示，但不得降级冒充 `System Input Power`。
 
 ## 最终判断
