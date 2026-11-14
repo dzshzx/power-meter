@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 统一格式化与检查入口：Python 用 ruff，JS/TS 与 Markdown/YAML/JSON 用 prettier，Shell 用 shfmt 与 shellcheck，
+# 统一格式化与检查入口：Python 用 ruff（函数复杂度用 complexipy），JS/TS 与 Markdown/YAML/JSON 用 prettier，Shell 用 shfmt 与 shellcheck，
 # C# 用 lizard 查函数复杂度。
 # 用法：scripts/format.sh [--check | --lint]
 #   无参数：就地格式化本仓跟踪的文件与未被忽略的新文件；--check：只检查格式，不一致时列出文件并非零退出；
@@ -17,7 +17,9 @@ SHELLCHECK_VERSION=0.11.0
 # PyPI 包 shellcheck-py 分发 shellcheck，该版本内置上面的 shellcheck。
 SHELLCHECK_PY_VERSION=0.11.0.1
 LIZARD_VERSION=1.26.0
-# 单个 Python 或 C# 函数的圈复杂度上限与单个代码文件的行数上限。
+COMPLEXIPY_VERSION=8.3.0
+# 单个 Python 或 C# 函数的复杂度上限与单个代码文件的行数上限。Python 量认知复杂度（complexipy），
+# C# 量圈复杂度（lizard），两者共用这一个上限。
 MAX_COMPLEXITY=15
 MAX_LINES=2000
 # 字节必须保持不变的文件（git pathspec），三种语言共用；与 .prettierignore 保持一致。
@@ -60,6 +62,16 @@ ruff() {
     uvx -q "ruff==$RUFF_VERSION" "$@"
   else
     pipx run --spec "ruff==$RUFF_VERSION" ruff "$@"
+  fi
+}
+
+# 缓存放仓外：complexipy 默认在当前目录建 .complexipy_cache。
+complexipy() {
+  set -- --cache-dir "${XDG_CACHE_HOME:-$HOME/.cache}/complexipy" "$@"
+  if command -v uvx >/dev/null 2>&1; then
+    uvx -q "complexipy==$COMPLEXIPY_VERSION" "$@"
+  else
+    pipx run --spec "complexipy==$COMPLEXIPY_VERSION" complexipy "$@"
   fi
 }
 
@@ -119,10 +131,9 @@ if [ "$LINT" -eq 1 ]; then
   if [ ${#PY[@]} -gt 0 ]; then
     echo "== ruff check"
     ruff check --output-format concise -- "${PY[@]}"
-    # 复杂度不认行内的 noqa，要放宽只能改这里。
-    echo "== Python 函数圈复杂度不超过 $MAX_COMPLEXITY"
-    ruff check --select C901 --ignore-noqa --config "lint.mccabe.max-complexity=$MAX_COMPLEXITY" \
-      --output-format concise -- "${PY[@]}"
+    # --no-ignore：不认行内的 noqa: complexipy，要放宽只能改 MAX_COMPLEXITY。
+    echo "== Python 函数认知复杂度不超过 $MAX_COMPLEXITY"
+    complexipy --max-complexity-allowed "$MAX_COMPLEXITY" --no-ignore --failed --plain -- "${PY[@]}"
   fi
   if [ ${#SH[@]} -gt 0 ]; then
     echo "== shellcheck"

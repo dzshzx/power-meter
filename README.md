@@ -254,7 +254,7 @@ PowerShell 中 dot-source 该脚本后运行 `Install-InnoSetup` 即可安装。
 （ruff 经 uvx，缺 uv 时用 pipx；prettier 经 npx；shfmt 优先用本机同版本，否则经 uvx 或 pipx 取 PyPI 包 shfmt-py）。
 C# 与 PowerShell 不在重排范围内。`third_party/`（上游许可证与按哈希固定的文件）、锁文件与
 `dist/` 保持原字节，不参与重排。
-`scripts/format.sh --lint` 对同一份文件清单跑 ruff check、Python 函数圈复杂度上限（15）与
+`scripts/format.sh --lint` 对同一份文件清单跑 ruff check、Python 函数认知复杂度上限（15，用 complexipy 查，不接受豁免注释）与
 shellcheck，用 lizard 查 C# 函数圈复杂度上限（同为 15，测试代码也查，不接受豁免注释），
 并检查代码文件（含 C# 与 PowerShell）不超过 2000 行。
 按需 Windows validation 同时在 Linux runner 上运行 `scripts/format.sh --check` 与
