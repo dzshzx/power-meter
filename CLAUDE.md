@@ -18,11 +18,10 @@ obligations in `third_party/NOTICE.md`.
 - Portable EXE and per-user installer are equal release options. Preserve the
   replaceable `IntelMSR.bin` sidecar, LGPL notice/licence and exact corresponding
   source bundle; release assets include both formats and SHA-256 files.
-- Verification entry: `pwsh -NoProfile -File .\scripts\test.ps1` from a
-  Windows-local checkout (.NET Framework rejects WSL UNC paths). Local host and
-  UI acceptance requirements are in `docs/testing/ui-localization.md`.
-- `scripts/test.ps1` and the UI acceptance above cannot run in WSL; run them
-  manually before landing.
+- Gate: `bash scripts/check.sh` (Linux checks; `wt land` runs it). Before
+  landing, run `pwsh -NoProfile -File .\scripts\test.ps1` and the UI acceptance
+  in `docs/testing/ui-localization.md` from a Windows-local checkout; neither
+  runs in WSL (.NET Framework rejects WSL UNC paths).
 - Dependency updates are verified by an agent on the Windows host and then
   landed; they go to the maintainer only when evidence shows the update breaks
   the program.
