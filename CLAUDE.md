@@ -21,7 +21,8 @@ obligations in `third_party/NOTICE.md`.
 - Gate: `bash scripts/check.sh` (Linux checks; `wt land` runs it). Before
   landing, run `pwsh -NoProfile -File .\scripts\test.ps1` and the UI acceptance
   in `docs/testing/ui-localization.md` from a Windows-local checkout; neither
-  runs in WSL (.NET Framework rejects WSL UNC paths).
+  runs in WSL (.NET Framework rejects WSL UNC paths). A pushed task branch that
+  ran manual CI is merged as in `docs/testing/manual-ci.md`.
 - Dependency updates are verified by an agent on the Windows host and then
   landed; they go to the maintainer only when evidence shows the update breaks
   the program.
