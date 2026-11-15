@@ -10,9 +10,8 @@ the run.
 
 An SSH session on the Windows host runs in session 0 without an interactive
 desktop. The installer lifecycle test clicks the real Inno uninstall dialog,
-so under SSH it times out at that step (reproduced on master). Run
-`scripts/test.ps1` there through a one-off interactive scheduled task, as the
-host's Windows instructions describe, or rely on the dispatched workflow: its
+so under SSH it times out at that step. Run `scripts/test.ps1` there through
+a one-off interactive scheduled task, or rely on the dispatched workflow: its
 runner has an interactive session.
 
 ## Task-branch flow

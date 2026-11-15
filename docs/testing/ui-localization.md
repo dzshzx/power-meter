@@ -1,14 +1,8 @@
 # Compact UI, localization and upgrade compatibility
 
-Power Meter is displayed as 功率计 in Simplified Chinese. The executable and
-release assets use `PowerMeter`; the repository is `dzshzx/power-meter`.
-The settings key, installer AppId and logon-task ownership identity retain
-their pre-rename values for compatibility.
-
 The window uses one dark instrument theme (it does not follow the system
-light/dark setting). The normal client area is 388 × 568 logical pixels; a
-diagnostic expands it to 660, and clearing it removes both its space and the
-restart action. The system caption is replaced by a drawn title bar holding
+light/dark setting). A diagnostic expands the client area, and clearing it
+removes both its space and the restart action. The system caption is replaced by a drawn title bar holding
 the application tile (Lucide zap), the display-mode segments, pin, minimize
 and close. The window keeps the native caption, system-menu and minimize
 styles while `WM_NCCALCSIZE` removes the frame, so dragging uses the system
@@ -18,7 +12,7 @@ maximize style a caption double-click does nothing and maximize commands are
 ignored. Windows 11 is the only supported target; Windows 10 is not tested.
 
 Below the boundary caption and supply state (with its Lucide glyph) the
-reading uses Bahnschrift Light SemiCondensed at 84 px; other figures use
+reading uses Bahnschrift Light SemiCondensed; other figures use
 Bahnschrift named instances and fall back to Segoe UI; interface text uses
 Microsoft YaHei UI. Display figures use the typographic minus (U+2212); CLI
 reports and logs keep ASCII. Battery voltage and current follow, then the
@@ -52,90 +46,29 @@ Run from a Windows-local checkout:
 pwsh -NoProfile -File scripts/test.ps1
 ```
 
-Local Windows verification and packaging run on NERV, from a Windows-local
-checkout using PowerShell 7. GitHub Windows CI is an additional check.
-On 2026-09-23, verification included:
+It runs `scripts/test-ui.ps1`, which saves PNGs plus layout metadata under
+`dist/ui-preview/`; `-ShowcaseDirectory <dir>` adds the review set, including
+the settings popover composed over the window from the controls' own
+renderings (nothing is read from the screen). These use deterministic fixture
+measurements, not live laptop readings. Visual review covers the 175% Chinese
+and English idle previews, along with unavailable-source and small-icon
+renders.
 
-- Power derivation, signed battery supplementation, measured/estimated display,
-  per-monitor DPI transitions, CLI routing and embedded third-party notices.
-- Chinese → English → Chinese switching at 96, 144, 168, 192, 288 and back to
-  96 DPI. Each pass covers idle, charging and battery discharge with a full
-  30-minute trend (including a peak and an N/A spell that must stay a gap),
-  external-power supplementation, unavailable platform power, startup, a
-  two-minute warm-up and a four-minute partial trend. Actual WinForms
-  controls are checked for overlapping bounds and clipped content (labels,
-  readouts with their affixes and captions, the status glyph). Diagnostic
-  expansion and collapse are exercised repeatedly at each scale. Each pass
-  from 144 to 288 DPI repeats with the window limited to 1008 × 704, the size
-  `DpiLayout` reaches on a 1024 × 768 runner, so assertions that only hold on a
-  large screen fail locally too; those captures are named `*-<dpi>-small.png`.
-- Full statistics use concise captions; partial windows average and peak the
-  readings so far and show their coverage («均值 · 2分/10分», «Avg · 2m/10m»:
-  whole seconds under a minute, then whole minutes). The fixtures keep the
-  charging spike at −10 min and the discharge spike at −12 min outside the
-  5-minute peak window. Each mode exposes exactly three supporting rows.
-- The drawn title bar: the window keeps caption, system-menu and minimize
-  styles and no maximize style; the title area hit-tests as caption and the
-  body as client; without scroll bars the client area equals the window; pin,
-  minimize and close fill the title height, render their glyphs and carry
-  localized names; minimize minimizes and a maximize command is ignored.
-- The unselected mode segment gains a quiet hover fill and text emphasis.
-  Bitmap comparisons verify the feedback appears, disappears on mouse leave,
-  and never changes the selected mode by itself.
-- Actual pin clicks toggle the window's TopMost state in both directions; its
-  glyph must render in both states. The settings popover opens in each language
-  and scale, and its content is checked for clipping, overlap and double scaling.
-  A DPI transition disposes the popover before replacing the fonts.
-- The unavailable-platform notice shows the boundary in bold, at least the
-  lines it needs up to two, the full text as tooltip, and the restart action
-  in an ordinary session.
-- Real English install, Chinese upgrade, localized uninstall names, and
-  upgrade replacement of the old executable with the compatibility launcher.
-  An isolated legacy logon task is recognized by the new executable and, since
-  2026-09-26, migrated to the protected copy; a different portable copy cannot
-  claim it. See `protected-autostart.md`.
-- The actual legacy launcher starts the new GUI hidden with `--autostart`,
-  retaining the inherited token. A manual new-name launch restores that same
-  process. Cleanup forwarding preserves the child exit code.
-- Real uninstall cancellation, cleanup failure and successful removal. The
-  tests use unique installer/task identities and temporary directories.
-- All 11 Python version-plan tests.
-
-The installer regression also retains the actual Start Menu names inside an
-isolated folder: English install, legacy-name migration during Chinese upgrade,
-Chinese-to-English upgrade, and removal on uninstall. A locked executable makes
-a real Chinese upgrade fail; the regression checks that the previous executables
-and Start Menu entries survive, the legacy entry still targets a working
-executable, and no Chinese entry appears. A manually seeded obsolete-name
-shortcut targeting a different copy survives cleanup. That shortcut is created
-after a complete uninstall, so no older uninstall log owns its name.
-
-Run this installer lifecycle on Windows hosts with legacy code pages and UTF-8.
+Run the installer lifecycle on Windows hosts with legacy code pages and UTF-8.
 The Chinese shortcut name exercises target lookup outside an English process's
-ANSI code page; a UTF-8 host can hide failures in that lookup. On 2026-10-10,
-separate COM probes used process-specific `activeCodePage` manifests to select
-ACP 1252 and ACP 65001 without changing the machine locale. The Unicode Shell
-reader preserved Chinese and Devanagari shortcut names, parent directories and
-executable targets in all 12 reads across 32-bit and 64-bit processes.
+ANSI code page; a UTF-8 host can hide failures in that lookup. With
+process-specific `activeCodePage` manifests selecting ACP 1252 and ACP 65001,
+the Unicode Shell reader preserves Chinese and Devanagari shortcut names,
+parent directories and executable targets across 32-bit and 64-bit processes.
 
-`scripts/test-ui.ps1` also runs separately and saves PNGs plus layout metadata
-under `dist/ui-preview/`; `-ShowcaseDirectory <dir>` adds the review set,
-including the settings popover composed over the window from the controls'
-own renderings (nothing is read from the screen). These use deterministic fixture measurements, not
-live laptop readings. The 175% Chinese and English idle previews were visually
-reviewed, along with unavailable-source and small-icon renders.
+The installer regression fixture uses a short unique AppId: Inno Setup
+shortens long IDs in uninstall registry keys, so a test must not infer an
+unshortened key from an oversized ID.
 
-The initial installer acceptance used real Inno Setup 6.7.3. The installer
-regression fixture uses a short unique AppId: Inno Setup shortens
-long IDs in uninstall registry keys, so a test must not infer an unshortened
-key from an oversized ID.
-
-Text alignment is checked from rendered glyphs: the three statistic values must
-agree within one physical pixel. Readouts align the smaller `≈` and unit to the
-number by GDI ascent (GDI+ family metrics differ for Bahnschrift's named
-instances) and the headline is checked for a common rendered baseline. The
-settings popover uses AntdUI's popover and selector in AntdUI dark mode; the
-switch and buttons are drawn by the application.
+Readouts align the smaller `≈` and unit to the number by GDI ascent, because
+GDI+ family metrics differ for Bahnschrift's named instances. The settings
+popover uses AntdUI's popover and selector in AntdUI dark mode; the switch and
+buttons are drawn by the application.
 
 The fixture host adopts the application's Per-Monitor V2 thread context before
 creating controls. Screenshots use the visible DWM frame, excluding invisible
@@ -168,11 +101,10 @@ muted color and the approximation mark.
 [Krypton Toolkit](https://github.com/Krypton-Suite/Standard-Toolkit) were checked
 for existing .NET Framework support. AntdUI supplies the specific buttons,
 popover, panel and settings controls without replacing the WinForms lifecycle.
-Its pinned 2.4.17 net46 package has no additional NuGet runtime dependencies.
+Its net46 package has no additional NuGet runtime dependencies.
 The assembly is embedded and resolved before the GUI entry point is JIT-compiled;
 the existing isolated-EXE CLI/preview tests verify that no DLL sidecar is needed.
-The restore script checks the archive hash and re-extracts the assembly on each
-build. The executable is approximately 3.3 MiB with the UI toolkit and notices.
+The executable is approximately 3.3 MiB with the UI toolkit and notices.
 
 Lucide stroke geometry is wrapped in a group because AntdUI applies a root fill
 when tinting SVGs. Both states of the pin explicitly carry the same glyph.

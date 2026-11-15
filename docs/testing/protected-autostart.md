@@ -28,68 +28,43 @@ file would then start elevated at the next sign-in without a UAC prompt.
   returns 6 instead of failing, uninstall completes with a manual-deletion
   notice, and the in-app switch reads as off with the same hint.
 
-## Automated coverage
+## Testing
 
-- `tests/PowerMeter.Tests` (xUnit, run by `scripts/test.ps1`): task inspection with the protected path, recorded owner,
-  unprotected-task reporting, foreign task shapes, identity mapping, CLI
-  routing for `--sync-autostart`, and the full `AutostartPolicy` decision
-  table (synchronize, disable and enable plans, exit codes and their
-  precedence, refusals without elevation, and the in-app switch state).
-- `scripts/test-installer-uninstall.ps1` (inside `scripts/test.ps1`, requires
-  an elevated token): real Inno install, upgrade over a legacy task that runs
-  the user-writable launcher (migrated to the protected copy), ACL and owner
-  checks on every protected level, replacement of the installed executable,
-  upgrade refresh to a different executable with an unchanged task, and
-  uninstall cancel / cleanup failure / success, which removes task, copy and
-  the empty folders, then a reinstall whose same-name task is replaced by a
-  foreign shape: uninstall completes, the task is unchanged and the copy is
-  removed. It uses a unique `Program Files\Power Meter InstallerTest
-<id>` root and task name.
-- `scripts/test-autostart.ps1 -CheckOrdinaryClient` (manual, elevated
-  interactive session; from an elevated but non-interactive SSH session, run
-  it through a one-off scheduled task whose principal is the signed-in user's
-  SID with `-LogonType Interactive -RunLevel Highest`, since the account name
-  does not map there, and unregister the task afterwards): migration and report-only exit codes, replacement of
-  the user copy through the real Explorer token, write/rename/delete/ACL
-  attempts on the protected copy from that token, an elevated scheduler run
-  of the original copy afterwards, restore of the protected instance by a
-  manual launch of its source, removal of an unused copy, and a foreign
-  same-name task (read reports it, enable refuses, disable returns 6 and still
-  removes the copy).
+`tests/PowerMeter.Tests` covers the `AutostartPolicy` decision table and task
+inspection; `scripts/test-installer-uninstall.ps1` (inside `scripts/test.ps1`,
+elevated token required) covers real install, upgrade, ACL and uninstall.
+
+`scripts/test-autostart.ps1 -CheckOrdinaryClient` is manual and needs an
+elevated interactive session. From an elevated but non-interactive SSH session,
+run it through a one-off scheduled task whose principal is the signed-in
+user's SID with `-LogonType Interactive -RunLevel Highest`, since the account
+name does not map there, and unregister the task afterwards.
 
 The UAC prompt raised by an unelevated setup or uninstaller cannot be answered
 by automation, so that branch (and its declined fallback) is covered only by
 code review.
 
-## Host acceptance, 2026-09-26
+## Host results
 
-On NERV (Windows 11 26200, Inno Setup 6.7.1) against candidate commit
-`582b540`, with the real AppId, task name and protected root. Setup binaries
-were built from two builds of that commit (v9.9.1 and v9.9.2 test tags). Steps
-ran from an elevated session; ordinary-token steps ran at medium integrity in
-the interactive session.
+Observed on a real installation, with the real AppId, task name and protected
+root:
 
-| Step                                                                          | Observed                                                                                                                                                                                                                                    |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Install released v1.4.0 (ordinary token) and enable startup with its own code | Task ran `%LOCALAPPDATA%\Programs\Battery Charge Meter\BatteryChargeMeter.exe`, a folder where the user has full control.                                                                                                                   |
-| Upgrade to candidate build 1                                                  | Task action and working folder moved to the protected copy; its SHA-256 matched the installed EXE; the old name became the legacy launcher. All three folders: owner Administrators, protected DACL `SYSTEM:F, Administrators:F, Users:RX`. |
-| Ordinary token                                                                | `--sync-autostart` returned 0. Replacing both user-folder EXEs succeeded. Opening the copy for write, creating a file beside it, renaming or deleting it, renaming its folder, adding an ACE and rewriting the task action were all denied. |
-| Run the real task on demand                                                   | The process ran from the protected path, elevated, with the original build 1 hash, not the replacement.                                                                                                                                     |
-| Ordinary token places build 2 in the install folder                           | `--sync-autostart` returned 3; the copy was unchanged.                                                                                                                                                                                      |
-| Upgrade to build 2 while the logon instance ran                               | Copy hash became build 2; the task definition was byte-identical; the instance was stopped and restarted from the refreshed copy, elevated.                                                                                                 |
-| Uninstall                                                                     | Task, copy and `Program Files\Power Meter` removed; install folder, uninstall key and processes gone.                                                                                                                                       |
-| Fresh candidate install with a legacy-shaped task, then scheduler start       | The elevated new version migrated its own task to the protected copy at start. Ordinary `--remove-autostart` then returned 3 (task deleted, copy kept); elevated `--sync-autostart` removed the unused copy and folders.                    |
+- Upgrading over an older version whose task ran the user-writable
+  `%LOCALAPPDATA%\Programs\Battery Charge Meter\BatteryChargeMeter.exe` moves
+  the task action and working folder to the protected copy; its SHA-256
+  matches the installed EXE.
+- Under the ordinary token, replacing the user-folder EXEs succeeds, while
+  opening the copy for write, creating a file beside it, renaming or deleting
+  it, renaming its folder, adding an ACE and rewriting the task action are all
+  denied. The on-demand task run then starts the original protected build,
+  elevated.
+- With a newer build placed in the install folder by the ordinary token,
+  `--sync-autostart` returns 3 and leaves the copy unchanged. Upgrading while
+  the logon instance runs refreshes the copy, keeps the task definition
+  byte-identical, and restarts the instance from the refreshed copy, elevated.
+- Ordinary `--remove-autostart` on a migrated task returns 3 (task deleted,
+  copy kept); an elevated `--sync-autostart` then removes the unused copy and
+  folders. Uninstall removes task, copy and `Program Files\Power Meter`.
 
 Sign-out and sign-in were not performed; the scheduler's on-demand run uses
 the same principal and action as the logon trigger.
-
-## Policy refactor, 2026-09-27
-
-Decisions moved into the pure `AutostartPolicy`; the manager's interface,
-exit codes and task XML are unchanged. On NERV against candidate `1abb153`,
-`scripts/test-autostart.ps1 -CheckOrdinaryClient` passed all 43 checks from an
-elevated interactive session (started through a one-off interactive
-highest-privilege scheduled task, removed afterwards), including the ordinary
-Explorer-token client and the foreign same-name task. No test task, test
-folder or process remained. The real installer lifecycle is covered by the
-Windows CI run with `-RequireInstaller`.

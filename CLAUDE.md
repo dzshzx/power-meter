@@ -1,9 +1,14 @@
 # Power Meter agent notes
 
-Windows WinForms monitor targeting .NET Framework 4.8.1. Power terminology and
-measurement boundaries are defined in `GLOSSARY.md`; build and packaging
-commands are in `README.md`, release commands in `docs/release.md`, and PawnIO
-obligations in `third_party/NOTICE.md`.
+Power terminology and measurement boundaries are defined in `GLOSSARY.md`;
+build and packaging commands are in `README.md`, release commands in
+`docs/release.md`, and PawnIO obligations in `third_party/NOTICE.md`. Which
+Windows interfaces and sensors can or cannot supply whole-system input power,
+as measured on the target notebook, is in
+`docs/research/system-input-power.md`; read it before adding or changing a
+power source. Manual laptop checks are in `docs/testing/host-acceptance.md`,
+and the logon-startup security invariants in
+`docs/testing/protected-autostart.md`.
 
 - Keep the manifest `asInvoker`: GUI startup requests elevation once, with
   cancellation falling back to ordinary mode. CLI commands never request UAC.

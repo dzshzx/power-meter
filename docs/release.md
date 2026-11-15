@@ -48,8 +48,7 @@ git tag -a v1.2.2 -m "Release v1.2.2"
 git push origin v1.2.2
 ```
 
-Release 会排除本次 tag 并从远端记录重建计划，基线未知或降级时在创建 Release 前拒绝；
-旧 tag 上的 `Version-Approval` trailer 会被忽略。
+Release 会排除本次 tag 并从远端记录重建计划，基线未知或降级时在创建 Release 前拒绝。
 
 Release 完成后，在 Windows 交互桌面上从本仓库 checkout 复验公开产物：
 
