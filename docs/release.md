@@ -22,15 +22,19 @@ gh workflow run release.yml --ref master -f bump=patch
 
 工作流依次：
 
-1. 非 dry_run 时要求运行在 `master`，且该提交还没有 `vX.Y.Z` tag，否则失败并说明「这个提交已发过版」。
+1. 非 dry_run 时要求运行在 `master`。先判断这个提交是否已发过版：提交上有纯 `vX.Y.Z` tag、且同名
+   Release 已发布，才算发过版，非 dry_run 直接失败并说明「这个提交已发过版」。提交上只有 tag、
+   同名 Release 没有发布时，视为上次发版没做完，沿用这个版本继续发布，不再升档。这一步在门禁之前。
 2. 算出新版本号（见下节）。
 3. 在 Linux runner 上跑门禁 `bash scripts/check.sh`；在 Windows runner 上把新版本写进 manifest，
    安装固定版本的 Inno Setup 7，运行 `scripts/test.ps1 -RequireInstaller`（含 `--self-test` 等烟测与
    真实安装/卸载验收）和依赖许可检查。
 4. 生成便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产旁各带一个 `.sha256` 校验文件，
-   再用 `scripts/assert-release-version.ps1` 核对 EXE 内嵌 manifest 与安装包文件版本都是新版本。
-5. 全部通过后先建含全部资产的草稿 Release，再在该提交上打附注 tag `vX.Y.Z` 并推送，最后发布草稿；
-   Release 说明写明 `source_commit`。
+   全部放在一个只放发布资产的目录里；再用 `scripts/assert-release-version.ps1` 核对 EXE 内嵌
+   manifest 与安装包文件版本都是新版本。
+5. 全部通过后依次：删掉同名的旧草稿 Release，建含全部资产的草稿，经 GitHub API 在该提交上打附注
+   tag `vX.Y.Z`（tag 已指向本提交就跳过，指向别的提交就失败），最后发布草稿；Release 说明写明
+   `source_commit`。
 
 ## 版本号
 
@@ -44,10 +48,9 @@ gh workflow run release.yml --ref master -f bump=patch
 
 ## 出错后怎么办
 
-- 任何一步失败都不会留下 tag：推 tag 之前失败时，工作流会删掉已建的草稿 Release。修好后用同一个
-  `bump` 重跑即可。
-- 若 tag 已推送而发布草稿这一步失败，Release 停在草稿：核对后在 GitHub 上发布该草稿，或运行
-  `gh release edit vX.Y.Z --draft=false`。
+- 任何一步失败，恢复办法都是修好后用同一条触发命令重跑。打 tag 之前失败时，重跑按同一个 `bump`
+  算出同一个版本，并替换上次留下的草稿；打 tag 之后失败时，重跑认出这个提交上的 tag，沿用该版本
+  继续发布。不需要手工删 tag、删草稿或发布草稿。
 - 已发布的 tag 不移动、不删除、不复用；发布后才发现问题时向前修，修代码后发下一个 patch。
 
 ## 公开产物复验

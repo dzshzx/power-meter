@@ -12,6 +12,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+. (Join-Path $PSScriptRoot 'checksum.ps1')
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 if (-not $Directory) { $Directory = Join-Path ([IO.Path]::GetTempPath()) "PowerMeter-release-v$Version" }
@@ -34,14 +35,7 @@ foreach ($name in $assets) {
 }
 
 $hashes = [ordered]@{}
-foreach ($name in $checked) {
-    $checksum = (Get-Content -LiteralPath (Join-Path $Directory "$name.sha256") -Raw).Trim()
-    if ($checksum -notmatch '^([a-fA-F0-9]{64})  (.+)$' -or $Matches[2] -ne $name) { throw "Invalid checksum entry for $name" }
-    $expected = $Matches[1].ToLowerInvariant()
-    $actual = (Get-FileHash -LiteralPath (Join-Path $Directory $name) -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $expected) { throw "Checksum mismatch for $name" }
-    $hashes[$name] = $actual
-}
+foreach ($name in $checked) { $hashes[$name] = Test-Checksum (Join-Path $Directory $name) }
 
 $portable = Join-Path $Directory $portableName
 $versions = & (Join-Path $PSScriptRoot 'assert-release-version.ps1') `

@@ -40,16 +40,20 @@ foreach ($requiredPath in $requiredPaths) {
     }
 }
 
-# Writes <asset>.sha256 beside the asset in sha256sum format and returns its path.
-function Write-Checksum([string]$AssetPath) {
-    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $AssetPath).Hash.ToLowerInvariant()
-    $checksum = "$AssetPath.sha256"
-    "$hash  $(Split-Path -Leaf $AssetPath)" | Set-Content -LiteralPath $checksum -Encoding ascii
-    $checksum
-}
+. (Join-Path $PSScriptRoot 'checksum.ps1')
 
+# The output directory holds only Release assets, so callers publish its files.
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $resolvedOutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
+if (Get-ChildItem -LiteralPath $resolvedOutputDirectory -Force | Select-Object -First 1) {
+    throw "The output directory must be empty; it receives only Release assets: $resolvedOutputDirectory"
+}
+# Every asset is followed by its .sha256 file.
+$assets = [Collections.Generic.List[string]]::new()
+function Add-Asset([string]$AssetPath) {
+    $assets.Add($AssetPath)
+    $assets.Add((Write-Checksum $AssetPath))
+}
 
 $binaryName = "PowerMeter-$Tag-windows.exe"
 $binaryPath = Join-Path $resolvedOutputDirectory $binaryName
@@ -60,7 +64,7 @@ $sourceBundlePath = Join-Path $resolvedOutputDirectory 'PawnIO.Modules-0.2.10-so
 
 if ($includePortable) {
     Copy-Item -LiteralPath $resolvedExecutable -Destination $binaryPath -Force
-    $checksumPath = Write-Checksum $binaryPath
+    Add-Asset $binaryPath
 }
 
 $noticeProcess = Start-Process `
@@ -76,8 +80,8 @@ if ($noticeProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $noticesPath)
     throw "The application failed to export third-party notices (exit $($noticeProcess.ExitCode))."
 }
 Copy-Item -LiteralPath $sourceBundleSource -Destination $sourceBundlePath -Force
-$noticesChecksumPath = Write-Checksum $noticesPath
-$sourceBundleChecksumPath = Write-Checksum $sourceBundlePath
+Add-Asset $noticesPath
+Add-Asset $sourceBundlePath
 
 if ($includeInstaller) {
     if ($InstallerCompilerPath) {
@@ -118,16 +122,14 @@ if ($includeInstaller) {
         throw "Inno Setup did not create the expected installer: $installerPath"
     }
 
-    $installerChecksumPath = Write-Checksum $installerPath
+    Add-Asset $installerPath
 }
 
 [pscustomobject]@{
+    Directory = $resolvedOutputDirectory
+    Assets = $assets.ToArray()
     BinaryPath = if ($includePortable) { $binaryPath } else { $null }
-    ChecksumPath = if ($includePortable) { $checksumPath } else { $null }
     InstallerPath = if ($includeInstaller) { $installerPath } else { $null }
-    InstallerChecksumPath = if ($includeInstaller) { $installerChecksumPath } else { $null }
     NoticesPath = $noticesPath
-    NoticesChecksumPath = $noticesChecksumPath
     SourceBundlePath = $sourceBundlePath
-    SourceBundleChecksumPath = $sourceBundleChecksumPath
 }

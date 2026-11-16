@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'checksum.ps1')
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $distDir = Join-Path $repoRoot 'dist'
@@ -74,10 +75,7 @@ if ($executionLevel -ne 'asInvoker') {
 $releaseWorkflow = Get-Content -LiteralPath $releaseWorkflowPath -Raw
 foreach ($requiredFragment in @(
     "-Formats 'Portable', 'Installer'",
-    'installer=$($package.InstallerPath)',
-    'installer_checksum=$($package.InstallerChecksumPath)',
-    '${{ steps.package.outputs.installer }}',
-    '${{ steps.package.outputs.installer_checksum }}'
+    'gh release create $env:TAG @assets'
 )) {
     if (-not $releaseWorkflow.Contains($requiredFragment)) {
         throw "Release workflow does not publish the selectable installer format: $requiredFragment"
@@ -405,37 +403,27 @@ Set-Content -LiteralPath (Join-Path $outputDirectory "$outputBaseName.exe") -Val
     $package = & (Join-Path $PSScriptRoot 'package-release.ps1') `
         -Tag 'v9.8.7' `
         -ExecutablePath $executableArtifact.FullName `
-        -OutputDirectory $packageDir `
+        -OutputDirectory (Join-Path $packageDir 'assets') `
         -Formats @('Portable', 'Installer') `
         -InstallerCompilerPath $installerCompilerPath
 
-    $expectedBinaryName = 'PowerMeter-v9.8.7-windows.exe'
-    $expectedChecksumName = "$expectedBinaryName.sha256"
-    $expectedInstallerName = 'PowerMeter-v9.8.7-windows-setup.exe'
-    $expectedInstallerChecksumName = "$expectedInstallerName.sha256"
-    $expectedNoticesName = 'PowerMeter-THIRD-PARTY-NOTICES.txt'
-    $expectedSourceName = 'PawnIO.Modules-0.2.10-source.zip'
-    if ((Split-Path -Leaf $package.BinaryPath) -ne $expectedBinaryName) {
-        throw "Unexpected Release binary name: $($package.BinaryPath)"
+    # The returned asset list and the asset directory both hold exactly the
+    # Release assets, each beside a matching sha256sum-format checksum file.
+    $expectedAssetNames = @(
+        'PowerMeter-v9.8.7-windows.exe',
+        'PowerMeter-v9.8.7-windows-setup.exe',
+        'PowerMeter-THIRD-PARTY-NOTICES.txt',
+        'PawnIO.Modules-0.2.10-source.zip'
+    ) | ForEach-Object { $_; "$_.sha256" } | Sort-Object
+    $listedNames = $package.Assets | ForEach-Object { Split-Path -Leaf $_ }
+    $directoryNames = Get-ChildItem -LiteralPath $package.Directory -File | ForEach-Object Name
+    foreach ($names in $listedNames, $directoryNames) {
+        if ((@($names | Sort-Object) -join '|') -ne ($expectedAssetNames -join '|')) {
+            throw "Unexpected Release assets: $($names -join ', ')"
+        }
     }
-    if ((Split-Path -Leaf $package.ChecksumPath) -ne $expectedChecksumName) {
-        throw "Unexpected Release checksum name: $($package.ChecksumPath)"
-    }
-    if ((Split-Path -Leaf $package.InstallerPath) -ne $expectedInstallerName) {
-        throw "Unexpected installer name: $($package.InstallerPath)"
-    }
-    if ((Split-Path -Leaf $package.InstallerChecksumPath) -ne $expectedInstallerChecksumName) {
-        throw "Unexpected installer checksum name: $($package.InstallerChecksumPath)"
-    }
-    if ((Split-Path -Leaf $package.NoticesPath) -ne $expectedNoticesName) {
-        throw "Unexpected third-party notices name: $($package.NoticesPath)"
-    }
-    if ((Split-Path -Leaf $package.SourceBundlePath) -ne $expectedSourceName) {
-        throw "Unexpected third-party source bundle name: $($package.SourceBundlePath)"
-    }
-    if (-not (Test-Path -LiteralPath $package.NoticesPath) -or
-        -not (Test-Path -LiteralPath $package.SourceBundlePath)) {
-        throw 'Release compliance assets were not created.'
+    foreach ($asset in @($package.Assets) -notlike '*.sha256') {
+        Test-Checksum $asset | Out-Null
     }
     if ((Get-FileHash -Algorithm SHA256 -LiteralPath $package.SourceBundlePath).Hash.ToLowerInvariant() -ne
         $expectedSourceBundleHash) {
@@ -453,24 +441,6 @@ Set-Content -LiteralPath (Join-Path $outputDirectory "$outputBaseName.exe") -Val
         throw 'Release notices differ from the application notice export.'
     }
 
-    # Every Release asset has a sha256sum-format checksum file beside it.
-    foreach ($pair in @(
-        @($package.BinaryPath, $package.ChecksumPath),
-        @($package.InstallerPath, $package.InstallerChecksumPath),
-        @($package.NoticesPath, $package.NoticesChecksumPath),
-        @($package.SourceBundlePath, $package.SourceBundleChecksumPath)
-    )) {
-        $assetName = Split-Path -Leaf $pair[0]
-        if (-not $pair[1] -or (Split-Path -Leaf $pair[1]) -ne "$assetName.sha256") {
-            throw "Missing or misnamed checksum file for $assetName"
-        }
-        $expectedAssetHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $pair[0]).Hash.ToLowerInvariant()
-        $actualAssetChecksum = (Get-Content -LiteralPath $pair[1] -Raw).Trim()
-        if ($actualAssetChecksum -ne "$expectedAssetHash  $assetName") {
-            throw "Unexpected checksum content for ${assetName}: $actualAssetChecksum"
-        }
-    }
-
     $installerOnlyDir = Join-Path $packageDir 'installer-only'
     $installerOnly = & (Join-Path $PSScriptRoot 'package-release.ps1') `
         -Tag 'v9.8.7' `
@@ -478,7 +448,7 @@ Set-Content -LiteralPath (Join-Path $outputDirectory "$outputBaseName.exe") -Val
         -OutputDirectory $installerOnlyDir `
         -Formats 'Installer' `
         -InstallerCompilerPath $installerCompilerPath
-    if ($installerOnly.BinaryPath -or $installerOnly.ChecksumPath -or
+    if ($installerOnly.BinaryPath -or ($installerOnly.Assets -like '*-windows.exe*') -or
         -not (Test-Path -LiteralPath $installerOnly.InstallerPath)) {
         throw 'Installer-only packaging did not honor the selected Release format.'
     }
@@ -489,7 +459,7 @@ Set-Content -LiteralPath (Join-Path $outputDirectory "$outputBaseName.exe") -Val
         -ExecutablePath $executableArtifact.FullName `
         -OutputDirectory $portableOnlyDir `
         -Formats 'Portable'
-    if ($portableOnly.InstallerPath -or $portableOnly.InstallerChecksumPath -or
+    if ($portableOnly.InstallerPath -or ($portableOnly.Assets -like '*-setup.exe*') -or
         -not (Test-Path -LiteralPath $portableOnly.BinaryPath)) {
         throw 'Portable-only packaging did not honor the selected Release format.'
     }
