@@ -17,11 +17,9 @@ runner has an interactive session.
 ## Task-branch flow
 
 Manual CI runs on a pushed task branch, so finalize its commits before
-pushing. Once the run passes, integrate the branch without rewriting the
-pushed commits:
-
-1. In the task worktree, merge the latest origin master into the branch
-   (`git fetch`, then `git merge origin/master`).
-2. From the same task worktree, run `wt merge --no-commit --no-rebase`, then `git push` from master.
-   Its pre-merge hook runs the repository gate `bash scripts/check.sh`; the Windows part is the
-   manual run that just passed. If the push is rejected because origin moved, repeat both steps.
+pushing. Once the run passes, run `wt land` from the task worktree. For a
+branch that has been pushed it merges the latest origin master into the branch
+instead of rebasing, so the pushed commits stay as they are; it then runs the
+repository gate `bash scripts/check.sh` and fast-forwards origin master to the
+result. The Windows part is the manual run that just passed. If origin master
+moves while the gate runs, `wt land` starts over by itself.

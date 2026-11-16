@@ -27,7 +27,7 @@ and the logon-startup security invariants in
   landing, run `pwsh -NoProfile -File .\scripts\test.ps1` and the UI acceptance
   in `docs/testing/ui-localization.md` from a Windows-local checkout; neither
   runs in WSL (.NET Framework rejects WSL UNC paths). A pushed task branch that
-  ran manual CI is merged as in `docs/testing/manual-ci.md`.
+  ran manual CI lands the same way; see `docs/testing/manual-ci.md`.
 - Dependency updates are verified by an agent on the Windows host and then
   landed; they go to the maintainer only when evidence shows the update breaks
   the program.
