@@ -1,20 +1,57 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version step from the highest vX.Y.Z tag (minor and major need maintainer approval)
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      dry_run:
+        description: Build and verify only; no tag and no Release
+        type: boolean
+        default: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Gate (scripts/check.sh)
+        run: bash scripts/check.sh
+
   release:
+    needs: gate
     runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - name: Check out source
@@ -22,65 +59,61 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          version: "0.13.6"
-
-      - name: Validate immutable release identity
+      - name: Compute release version
         id: version
         shell: pwsh
+        env:
+          BUMP: ${{ inputs.bump }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          $tag = $env:GITHUB_REF_NAME
-          if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+)$') {
-              throw "Release tag must use vX.Y.Z format: $tag"
+          $dryRun = $env:DRY_RUN -eq 'true'
+          if (-not $dryRun -and $env:GITHUB_REF -ne "refs/heads/$env:DEFAULT_BRANCH") {
+              throw "A release (dry_run=false) must run on $env:DEFAULT_BRANCH; this run is on $env:GITHUB_REF."
           }
 
-          $version = $Matches.version
-          [xml]$manifest = Get-Content -LiteralPath 'src/BatteryChargeMeter.manifest'
-          $manifestVersion = $manifest.assembly.assemblyIdentity.version
-          $expectedManifestVersion = "$version.0"
+          $releaseTag = '^v\d+\.\d+\.\d+$'
+          $tags = @(git tag --list 'v*' | Where-Object { $_ -match $releaseTag })
+          if ($LASTEXITCODE -ne 0) { throw 'Could not list tags.' }
+          if ($tags.Count -eq 0) { throw 'No vX.Y.Z tag found; the version baseline is unknown.' }
 
-          if ($manifestVersion -ne $expectedManifestVersion) {
-              throw "Tag $tag requires manifest version $expectedManifestVersion; found $manifestVersion."
-          }
-
-          $planSha = '75bf5ca95a191bd97df2500521bcb7aad6136e7c'
-          $planDir = Join-Path ([IO.Path]::GetTempPath()) "version-plan-$planSha"
-          New-Item -ItemType Directory -Force -Path $planDir | Out-Null
-          foreach ($name in 'version_plan.py', 'version_plan.py.lock') {
-              Invoke-WebRequest -UseBasicParsing -OutFile (Join-Path $planDir $name) `
-                -Uri "https://raw.githubusercontent.com/dzshzx/agent-skills/$planSha/scripts/$name"
-          }
-          & uv run --script --locked (Join-Path $planDir 'version_plan.py') verify `
-            --repository dzshzx/power-meter `
-            --target "v=$version" `
-            --tag-ref "refs/tags/$tag"
-          if ($LASTEXITCODE -ne 0) {
-              throw "Release tag $tag failed version plan validation."
+          $headTags = @(git tag --points-at $env:GITHUB_SHA | Where-Object { $_ -match $releaseTag })
+          if ($LASTEXITCODE -ne 0) { throw 'Could not list tags on the source commit.' }
+          if ($headTags.Count -gt 0 -and -not $dryRun) {
+              throw "这个提交已发过版: $env:GITHUB_SHA already carries $($headTags -join ', ')."
           }
 
-          $tagRef = "refs/tags/$tag"
-          $tagObjectType = (git cat-file -t $tagRef).Trim()
-          if ($LASTEXITCODE -ne 0 -or $tagObjectType -ne 'tag') {
-              throw "Release tag must be annotated: $tag"
+          $base = $tags | ForEach-Object { [version]$_.Substring(1) } |
+              Sort-Object -Descending | Select-Object -First 1
+          $next = switch ($env:BUMP) {
+              'patch' { [version]::new($base.Major, $base.Minor, $base.Build + 1) }
+              'minor' { [version]::new($base.Major, $base.Minor + 1, 0) }
+              'major' { [version]::new($base.Major + 1, 0, 0) }
+              default { throw "Unknown bump: $env:BUMP" }
           }
+          # Each manifest version field is a 16-bit number.
+          if ($next.Major -gt 65535 -or $next.Minor -gt 65535 -or $next.Build -gt 65535) {
+              throw "Version $next does not fit the Windows manifest."
+          }
+          $version = $next.ToString(3)
 
-          $tagCommit = (git rev-list -n1 $tagRef).Trim()
-          if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $env:GITHUB_SHA) {
-              throw "Release tag $tag does not resolve to workflow SHA $env:GITHUB_SHA."
-          }
+          Write-Host "Baseline v$($base.ToString(3)), bump $env:BUMP -> v$version (dry_run=$dryRun)"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
 
-          git fetch --no-tags origin +master:refs/remotes/origin/master
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Could not fetch origin/master for release ancestry validation.'
+      - name: Write release version into the manifest
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $path = 'src/BatteryChargeMeter.manifest'
+          $text = [IO.File]::ReadAllText($path)
+          $pattern = '(<assemblyIdentity\s+version=")0\.0\.0\.0(")'
+          if ([regex]::Matches($text, $pattern).Count -ne 1) {
+              throw 'The manifest must carry the 0.0.0.0 development placeholder exactly once.'
           }
-          git merge-base --is-ancestor $env:GITHUB_SHA origin/master
-          if ($LASTEXITCODE -ne 0) {
-              throw "Release SHA $env:GITHUB_SHA is not on origin/master."
-          }
-
-          "tag=$tag" >> $env:GITHUB_OUTPUT
+          $text = [regex]::Replace($text, $pattern, "`${1}$env:VERSION.0`${2}")
+          [IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))
 
       - name: Install Inno Setup 7 (pinned, SHA-256 verified)
         shell: pwsh
@@ -93,6 +126,10 @@ jobs:
       - name: Test application and Release packages
         shell: pwsh
         run: ./scripts/test.ps1 -RequireInstaller
+
+      - name: Check NuGet dependency licenses (SPDX allowlist)
+        shell: pwsh
+        run: ./scripts/check-licenses.ps1
 
       - name: Save verification report
         if: always()
@@ -107,10 +144,11 @@ jobs:
       - name: Package
         id: package
         shell: pwsh
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          $tag = '${{ steps.version.outputs.tag }}'
           $package = ./scripts/package-release.ps1 `
-            -Tag $tag `
+            -Tag $env:TAG `
             -ExecutablePath 'dist/PowerMeter.exe' `
             -OutputDirectory $env:RUNNER_TEMP `
             -Formats 'Portable', 'Installer'
@@ -122,12 +160,57 @@ jobs:
           "notices=$($package.NoticesPath)" >> $env:GITHUB_OUTPUT
           "source_bundle=$($package.SourceBundlePath)" >> $env:GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Check artifact versions
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ./scripts/assert-release-version.ps1 `
+            -Version $env:VERSION `
+            -PortablePath '${{ steps.package.outputs.binary }}' `
+            -InstallerPath '${{ steps.package.outputs.installer }}' |
+            Format-List
+
+      - name: Summarize release
+        shell: pwsh
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          $assets = @(
+            '${{ steps.package.outputs.binary }}',
+            '${{ steps.package.outputs.checksum }}',
+            '${{ steps.package.outputs.installer }}',
+            '${{ steps.package.outputs.installer_checksum }}',
+            '${{ steps.package.outputs.notices }}',
+            '${{ steps.package.outputs.source_bundle }}'
+          )
+          $heading = if ($env:DRY_RUN -eq 'true') { "Dry run: would release $env:TAG" } else { "Releasing $env:TAG" }
+          $lines = @(
+            "## $heading", '',
+            "- version: ``$env:TAG``",
+            "- source_commit: ``$env:GITHUB_SHA``", '',
+            '| asset | sha256 |', '| --- | --- |'
+          )
+          foreach ($asset in $assets) {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $asset).Hash.ToLowerInvariant()
+            $lines += "| $(Split-Path -Leaf $asset) | ``$hash`` |"
+          }
+          $lines | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          $lines | Write-Host
+
+      # The order keeps a failed run from leaving a tag: the Release is created
+      # as a draft with every asset first, the annotated tag is pushed after
+      # that, and publishing the draft is the last step.
+      - name: Create draft Release
+        id: draft
+        if: ${{ !inputs.dry_run }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release create '${{ steps.version.outputs.tag }}' `
+          gh release create $env:TAG `
             '${{ steps.package.outputs.binary }}' `
             '${{ steps.package.outputs.checksum }}' `
             '${{ steps.package.outputs.installer }}' `
@@ -135,6 +218,48 @@ jobs:
             '${{ steps.package.outputs.notices }}' `
             '${{ steps.package.outputs.source_bundle }}' `
             --repo $env:GITHUB_REPOSITORY `
-            --verify-tag `
-            --generate-notes `
-            --title '${{ steps.version.outputs.tag }}'
+            --draft `
+            --target $env:GITHUB_SHA `
+            --title $env:TAG `
+            --notes "source_commit: $env:GITHUB_SHA" `
+            --generate-notes
+          if ($LASTEXITCODE -ne 0) { throw "gh release create exited with $LASTEXITCODE." }
+
+      - name: Push annotated tag
+        id: tag
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a $env:TAG -m "Release $env:TAG" $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw "Could not create tag $env:TAG." }
+          git push origin "refs/tags/$env:TAG"
+          if ($LASTEXITCODE -ne 0) { throw "Could not push tag $env:TAG." }
+
+      - name: Publish Release
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release edit $env:TAG --repo $env:GITHUB_REPOSITORY --verify-tag --draft=false
+          if ($LASTEXITCODE -ne 0) { throw "gh release edit exited with $LASTEXITCODE." }
+
+      - name: Remove the draft Release when no tag was pushed
+        if: ${{ failure() && !inputs.dry_run && steps.draft.outcome != 'skipped' && steps.tag.outcome != 'success' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $release = gh release view $env:TAG --repo $env:GITHUB_REPOSITORY --json isDraft 2>$null | ConvertFrom-Json
+          if ($release -and $release.isDraft) {
+              gh release delete $env:TAG --repo $env:GITHUB_REPOSITORY --yes
+              if ($LASTEXITCODE -ne 0) { throw "gh release delete exited with $LASTEXITCODE." }
+          }
+          # gh release view exits non-zero when no Release exists; that is fine here.
+          exit 0

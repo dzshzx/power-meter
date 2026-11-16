@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <!-- 0.0.0.0 is the development placeholder that local builds show. The
+       Release workflow writes the released X.Y.Z.0 here before it builds and
+       does not commit it. -->
   <assemblyIdentity
-    version="1.5.5.0"
+    version="0.0.0.0"
     name="BatteryChargeMeter.app"
     processorArchitecture="*" />
   <description>Power Meter</description>

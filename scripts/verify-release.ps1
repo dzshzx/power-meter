@@ -42,43 +42,10 @@ foreach ($name in @($portableName, $setupName)) {
     $hashes[$name] = $actual
 }
 
-Add-Type @'
-using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using System.Text;
-public static class ReleaseManifest {
-    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
-    static extern IntPtr LoadLibraryEx(string path, IntPtr file, uint flags);
-    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
-    static extern IntPtr FindResource(IntPtr module, IntPtr name, IntPtr type);
-    [DllImport("kernel32.dll", SetLastError=true)] static extern IntPtr LoadResource(IntPtr module, IntPtr resource);
-    [DllImport("kernel32.dll", SetLastError=true)] static extern uint SizeofResource(IntPtr module, IntPtr resource);
-    [DllImport("kernel32.dll")] static extern IntPtr LockResource(IntPtr resource);
-    [DllImport("kernel32.dll")] static extern bool FreeLibrary(IntPtr module);
-    public static string Read(string path) {
-        IntPtr module = LoadLibraryEx(path, IntPtr.Zero, 2);
-        if (module == IntPtr.Zero) throw new Win32Exception();
-        try {
-            IntPtr resource = FindResource(module, new IntPtr(1), new IntPtr(24));
-            if (resource == IntPtr.Zero) throw new Win32Exception();
-            uint size = SizeofResource(module, resource);
-            IntPtr bytes = LockResource(LoadResource(module, resource));
-            if (size == 0 || bytes == IntPtr.Zero) throw new Win32Exception();
-            byte[] data = new byte[size];
-            Marshal.Copy(bytes, data, 0, data.Length);
-            return Encoding.UTF8.GetString(data).TrimEnd('\0');
-        } finally { FreeLibrary(module); }
-    }
-}
-'@
 $portable = Join-Path $Directory $portableName
-[xml]$manifest = [ReleaseManifest]::Read($portable)
-if ($manifest.assembly.assemblyIdentity.version -ne $fileVersion) { throw 'Published portable manifest version mismatch.' }
-if ($manifest.assembly.trustInfo.security.requestedPrivileges.requestedExecutionLevel.level -ne 'asInvoker') { throw 'Published executable changed elevation policy.' }
-# Inno Setup pads the version string with trailing whitespace.
-$installerVersion = (Get-Item (Join-Path $Directory $setupName)).VersionInfo.FileVersion.Trim()
-if ($installerVersion -ne $fileVersion) { throw "Installer version mismatch: $installerVersion" }
+$versions = & (Join-Path $PSScriptRoot 'assert-release-version.ps1') `
+    -Version $Version -PortablePath $portable -InstallerPath (Join-Path $Directory $setupName)
+$installerVersion = $versions.InstallerVersion
 $publishedSource = Join-Path $Directory $sourceBundle.Name
 if ((Get-FileHash $publishedSource -Algorithm SHA256).Hash -ne (Get-FileHash $sourceBundle.FullName -Algorithm SHA256).Hash) { throw 'Corresponding source bundle mismatch.' }
 

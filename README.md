@@ -264,9 +264,10 @@ C# 与 PowerShell 不在重排范围内。`third_party/`（上游许可证与按
 
 ## 发布
 
-日常改动完成相应本地验证后合入并快进同步 `master`；推送符合 `vX.Y.Z`
-格式的带注解 tag 时，Release 工作流重新构建并发布便携 EXE、当前用户安装包及各自的
-SHA-256 校验文件。版本计划、版本档位、打 tag 与公开产物复验见 `docs/release.md`。
+日常改动完成相应本地验证后合入并快进同步 `master`。发版手动触发 Release 工作流
+（`gh workflow run release.yml --ref master -f bump=patch`），它按已有 tag 算出新版本号，
+重新构建、验收并发布便携 EXE、当前用户安装包及各自的 SHA-256 校验文件。本地构建的版本是
+占位值 `0.0.0.0`。版本档位、dry_run、出错处理与公开产物复验见 `docs/release.md`。
 
 ## 项目结构
 
