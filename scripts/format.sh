@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# 统一格式化与检查入口：Python 用 ruff（函数复杂度用 complexipy），JS/TS 与 Markdown/YAML/JSON 用 prettier，Shell 用 shfmt 与 shellcheck，
+# 统一格式化与检查入口：JS/TS 与 Markdown/YAML/JSON 用 prettier，Shell 用 shfmt 与 shellcheck，
 # C# 用 lizard 查函数复杂度。
 # 用法：scripts/format.sh [--check | --lint]
 #   无参数：就地格式化本仓跟踪的文件与未被忽略的新文件；--check：只检查格式，不一致时列出文件并非零退出；
-#   --lint：跑 ruff check、Python 与 C# 函数复杂度上限、shellcheck，并检查代码文件不超过 MAX_LINES 行，有问题时非零退出。
+#   --lint：跑 C# 函数复杂度上限、shellcheck，并检查代码文件不超过 MAX_LINES 行，有问题时非零退出。
 #   后两种 CI 用。
-# 工具版本只在下方常量固定；各工具配置：.prettierrc.json/.prettierignore、.editorconfig（shfmt），ruff 用默认风格。
+# 工具版本只在下方常量固定；各工具配置：.prettierrc.json/.prettierignore、.editorconfig（shfmt）。
 set -euo pipefail
 
-RUFF_VERSION=0.17.3
 PRETTIER_VERSION=3.9.10
 SHFMT_VERSION=3.14.1
 # shfmt 经 PyPI 包 shfmt-py 分发，该版本内置上面的 shfmt。
@@ -17,12 +16,10 @@ SHELLCHECK_VERSION=0.11.0
 # PyPI 包 shellcheck-py 分发 shellcheck，该版本内置上面的 shellcheck。
 SHELLCHECK_PY_VERSION=0.11.0.1
 LIZARD_VERSION=1.26.0
-COMPLEXIPY_VERSION=8.3.0
-# 单个 Python 或 C# 函数的复杂度上限与单个代码文件的行数上限。Python 量认知复杂度（complexipy），
-# C# 量圈复杂度（lizard），两者共用这一个上限。
+# 单个 C# 函数的圈复杂度上限（lizard 量）与单个代码文件的行数上限。
 MAX_COMPLEXITY=15
 MAX_LINES=2000
-# 字节必须保持不变的文件（git pathspec），三种语言共用；与 .prettierignore 保持一致。
+# 字节必须保持不变的文件（git pathspec），各语言共用；与 .prettierignore 保持一致。
 # third_party/：上游许可证与通知，含按哈希固定的文件，NOTICE.md 按字节嵌入 EXE 并与发布件比对。
 EXCLUDE=(':(exclude)third_party/**' ':(exclude)**/*.lock' ':(exclude)**/dist/**')
 
@@ -57,26 +54,8 @@ files() {
   done
 }
 
-ruff() {
-  if command -v uvx >/dev/null 2>&1; then
-    uvx -q "ruff==$RUFF_VERSION" "$@"
-  else
-    pipx run --spec "ruff==$RUFF_VERSION" ruff "$@"
-  fi
-}
-
-# 缓存放仓外：complexipy 默认在当前目录建 .complexipy_cache。
-complexipy() {
-  set -- --cache-dir "${XDG_CACHE_HOME:-$HOME/.cache}/complexipy" "$@"
-  if command -v uvx >/dev/null 2>&1; then
-    uvx -q "complexipy==$COMPLEXIPY_VERSION" "$@"
-  else
-    pipx run --spec "complexipy==$COMPLEXIPY_VERSION" complexipy "$@"
-  fi
-}
-
 shfmt() {
-  # 本机已装同版本（Homebrew 输出 3.x.y，官方二进制输出 v3.x.y）则直接用；否则与 ruff 同样经 uvx/pipx 取 shfmt-py。
+  # 本机已装同版本（Homebrew 输出 3.x.y，官方二进制输出 v3.x.y）则直接用；否则经 uvx/pipx 取 shfmt-py。
   local have
   have=$(command shfmt --version 2>/dev/null || true)
   if [ -n "$have" ] && [ "${have#v}" = "$SHFMT_VERSION" ]; then
@@ -114,9 +93,7 @@ max_lines() {
   wc -l -- "$@" /dev/null | sed '$d' | awk -v max="$MAX_LINES" '$1 > max { print; bad = 1 } END { exit bad }'
 }
 
-mapfile -d '' PY < <(files '*.py' '*.pyi')
 # 进程替换的退出码不会自动传出：每个 < <(...) 之后 wait "$!" 取回，git ls-files 失败时随 set -e 退出。
-wait "$!"
 mapfile -d '' PRETTIER < <(files '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' \
   '*.md' '*.yml' '*.yaml' '*.json')
 wait "$!"
@@ -125,18 +102,9 @@ wait "$!"
 
 if [ "$LINT" -eq 1 ]; then
   # 每一步直接调用工具并原样透出它的输出，非零即随 set -e 退出。
-  mapfile -d '' CODE < <(files '*.py' '*.pyi' '*.sh' '*.bash' '*.cs' '*.ps1' '*.psm1' \
+  mapfile -d '' CODE < <(files '*.sh' '*.bash' '*.cs' '*.ps1' '*.psm1' \
     '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx')
   wait "$!"
-  if [ ${#PY[@]} -gt 0 ]; then
-    echo "== ruff check"
-    ruff check --output-format concise -- "${PY[@]}"
-    # --no-ignore 不认行内的 noqa: complexipy；--snapshot-ignore 不认基线快照 complexipy-snapshot.json；
-    # --isolated 不读 pyproject.toml、complexipy.toml 里的配置。要放宽只能改 MAX_COMPLEXITY。
-    echo "== Python 函数认知复杂度不超过 $MAX_COMPLEXITY"
-    complexipy --max-complexity-allowed "$MAX_COMPLEXITY" --no-ignore --snapshot-ignore --isolated --failed --plain \
-      -- "${PY[@]}"
-  fi
   if [ ${#SH[@]} -gt 0 ]; then
     echo "== shellcheck"
     shellcheck -- "${SH[@]}"
@@ -160,13 +128,6 @@ if [ "$LINT" -eq 1 ]; then
 fi
 
 FAIL=0
-if [ ${#PY[@]} -gt 0 ]; then
-  if [ "$CHECK" -eq 1 ]; then
-    ruff format --check --output-format concise -- "${PY[@]}" || FAIL=1
-  else
-    ruff format -- "${PY[@]}"
-  fi
-fi
 if [ ${#PRETTIER[@]} -gt 0 ]; then
   if [ "$CHECK" -eq 1 ]; then
     npm_config_loglevel=warn npx --yes "prettier@$PRETTIER_VERSION" --check -- "${PRETTIER[@]}" || FAIL=1
