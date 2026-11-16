@@ -453,15 +453,22 @@ Set-Content -LiteralPath (Join-Path $outputDirectory "$outputBaseName.exe") -Val
         throw 'Release notices differ from the application notice export.'
     }
 
-    $expectedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $package.BinaryPath).Hash.ToLowerInvariant()
-    $actualChecksum = (Get-Content -LiteralPath $package.ChecksumPath -Raw).Trim()
-    if ($actualChecksum -ne "$expectedHash  $expectedBinaryName") {
-        throw "Unexpected Release checksum content: $actualChecksum"
-    }
-    $expectedInstallerHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $package.InstallerPath).Hash.ToLowerInvariant()
-    $actualInstallerChecksum = (Get-Content -LiteralPath $package.InstallerChecksumPath -Raw).Trim()
-    if ($actualInstallerChecksum -ne "$expectedInstallerHash  $expectedInstallerName") {
-        throw "Unexpected installer checksum content: $actualInstallerChecksum"
+    # Every Release asset has a sha256sum-format checksum file beside it.
+    foreach ($pair in @(
+        @($package.BinaryPath, $package.ChecksumPath),
+        @($package.InstallerPath, $package.InstallerChecksumPath),
+        @($package.NoticesPath, $package.NoticesChecksumPath),
+        @($package.SourceBundlePath, $package.SourceBundleChecksumPath)
+    )) {
+        $assetName = Split-Path -Leaf $pair[0]
+        if (-not $pair[1] -or (Split-Path -Leaf $pair[1]) -ne "$assetName.sha256") {
+            throw "Missing or misnamed checksum file for $assetName"
+        }
+        $expectedAssetHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $pair[0]).Hash.ToLowerInvariant()
+        $actualAssetChecksum = (Get-Content -LiteralPath $pair[1] -Raw).Trim()
+        if ($actualAssetChecksum -ne "$expectedAssetHash  $assetName") {
+            throw "Unexpected checksum content for ${assetName}: $actualAssetChecksum"
+        }
     }
 
     $installerOnlyDir = Join-Path $packageDir 'installer-only'

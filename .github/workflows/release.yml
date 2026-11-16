@@ -158,7 +158,9 @@ jobs:
           "installer=$($package.InstallerPath)" >> $env:GITHUB_OUTPUT
           "installer_checksum=$($package.InstallerChecksumPath)" >> $env:GITHUB_OUTPUT
           "notices=$($package.NoticesPath)" >> $env:GITHUB_OUTPUT
+          "notices_checksum=$($package.NoticesChecksumPath)" >> $env:GITHUB_OUTPUT
           "source_bundle=$($package.SourceBundlePath)" >> $env:GITHUB_OUTPUT
+          "source_bundle_checksum=$($package.SourceBundleChecksumPath)" >> $env:GITHUB_OUTPUT
 
       - name: Check artifact versions
         shell: pwsh
@@ -183,7 +185,9 @@ jobs:
             '${{ steps.package.outputs.installer }}',
             '${{ steps.package.outputs.installer_checksum }}',
             '${{ steps.package.outputs.notices }}',
-            '${{ steps.package.outputs.source_bundle }}'
+            '${{ steps.package.outputs.notices_checksum }}',
+            '${{ steps.package.outputs.source_bundle }}',
+            '${{ steps.package.outputs.source_bundle_checksum }}'
           )
           $heading = if ($env:DRY_RUN -eq 'true') { "Dry run: would release $env:TAG" } else { "Releasing $env:TAG" }
           $lines = @(
@@ -216,7 +220,9 @@ jobs:
             '${{ steps.package.outputs.installer }}' `
             '${{ steps.package.outputs.installer_checksum }}' `
             '${{ steps.package.outputs.notices }}' `
+            '${{ steps.package.outputs.notices_checksum }}' `
             '${{ steps.package.outputs.source_bundle }}' `
+            '${{ steps.package.outputs.source_bundle_checksum }}' `
             --repo $env:GITHUB_REPOSITORY `
             --draft `
             --target $env:GITHUB_SHA `

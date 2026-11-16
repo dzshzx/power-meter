@@ -27,7 +27,7 @@ gh workflow run release.yml --ref master -f bump=patch
 3. 在 Linux runner 上跑门禁 `bash scripts/check.sh`；在 Windows runner 上把新版本写进 manifest，
    安装固定版本的 Inno Setup 7，运行 `scripts/test.ps1 -RequireInstaller`（含 `--self-test` 等烟测与
    真实安装/卸载验收）和依赖许可检查。
-4. 生成便携 EXE、当前用户安装包及各自的 SHA-256 校验文件、第三方通知与对应源码包，
+4. 生成便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产旁各带一个 `.sha256` 校验文件，
    再用 `scripts/assert-release-version.ps1` 核对 EXE 内嵌 manifest 与安装包文件版本都是新版本。
 5. 全部通过后先建含全部资产的草稿 Release，再在该提交上打附注 tag `vX.Y.Z` 并推送，最后发布草稿；
    Release 说明写明 `source_commit`。
@@ -58,7 +58,7 @@ Release 完成后，在 Windows 交互桌面上从本仓库 checkout 复验公�
 pwsh -NoProfile -File .\scripts\verify-release.ps1 -Version X.Y.Z
 ```
 
-脚本下载该版本全部资产，核对 SHA-256 文件、manifest 与安装包版本、`asInvoker`、
+脚本下载该版本全部资产，核对每个资产的 `.sha256` 文件、manifest 与安装包版本、`asInvoker`、
 自检、导出通知及对应源码包，并在下载目录写出 `verification.json` 与窗口截图。
 
 发布产物只存在于 GitHub Release，不直接提交到仓库。

@@ -22,7 +22,8 @@ and the logon-startup security invariants in
   project `tests/PowerMeter.Tests`; `--self-test` is the release EXE smoke.
 - Portable EXE and per-user installer are equal release options. Preserve the
   replaceable `IntelMSR.bin` sidecar, LGPL notice/licence and exact corresponding
-  source bundle; release assets include both formats and SHA-256 files.
+  source bundle; release assets include both formats, and every asset has a
+  `.sha256` file.
 - Gate: `bash scripts/check.sh` (Linux checks; `wt land` runs it). Before
   landing, run `pwsh -NoProfile -File .\scripts\test.ps1` and the UI acceptance
   in `docs/testing/ui-localization.md` from a Windows-local checkout; neither

@@ -26,14 +26,15 @@ $sourceBundle = $sourceBundles[0]
 $portableName = "PowerMeter-v$Version-windows.exe"
 $setupName = "PowerMeter-v$Version-windows-setup.exe"
 $noticeName = 'PowerMeter-THIRD-PARTY-NOTICES.txt'
-$assets = @($portableName, "$portableName.sha256", $setupName, "$setupName.sha256", $noticeName, $sourceBundle.Name)
+$checked = @($portableName, $setupName, $noticeName, $sourceBundle.Name)
+$assets = $checked + @($checked | ForEach-Object { "$_.sha256" })
 foreach ($name in $assets) {
     $uri = "https://github.com/$Repository/releases/download/v$Version/$name"
     Invoke-WebRequest -Uri $uri -OutFile (Join-Path $Directory $name) -UseBasicParsing
 }
 
 $hashes = [ordered]@{}
-foreach ($name in @($portableName, $setupName)) {
+foreach ($name in $checked) {
     $checksum = (Get-Content -LiteralPath (Join-Path $Directory "$name.sha256") -Raw).Trim()
     if ($checksum -notmatch '^([a-fA-F0-9]{64})  (.+)$' -or $Matches[2] -ne $name) { throw "Invalid checksum entry for $name" }
     $expected = $Matches[1].ToLowerInvariant()

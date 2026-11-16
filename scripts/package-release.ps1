@@ -40,22 +40,27 @@ foreach ($requiredPath in $requiredPaths) {
     }
 }
 
+# Writes <asset>.sha256 beside the asset in sha256sum format and returns its path.
+function Write-Checksum([string]$AssetPath) {
+    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $AssetPath).Hash.ToLowerInvariant()
+    $checksum = "$AssetPath.sha256"
+    "$hash  $(Split-Path -Leaf $AssetPath)" | Set-Content -LiteralPath $checksum -Encoding ascii
+    $checksum
+}
+
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $resolvedOutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 
 $binaryName = "PowerMeter-$Tag-windows.exe"
 $binaryPath = Join-Path $resolvedOutputDirectory $binaryName
-$checksumPath = "$binaryPath.sha256"
 $installerName = "PowerMeter-$Tag-windows-setup.exe"
 $installerPath = Join-Path $resolvedOutputDirectory $installerName
-$installerChecksumPath = "$installerPath.sha256"
 $noticesPath = Join-Path $resolvedOutputDirectory 'PowerMeter-THIRD-PARTY-NOTICES.txt'
 $sourceBundlePath = Join-Path $resolvedOutputDirectory 'PawnIO.Modules-0.2.10-source.zip'
 
 if ($includePortable) {
     Copy-Item -LiteralPath $resolvedExecutable -Destination $binaryPath -Force
-    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $binaryPath).Hash.ToLowerInvariant()
-    "$hash  $binaryName" | Set-Content -LiteralPath $checksumPath -Encoding ascii
+    $checksumPath = Write-Checksum $binaryPath
 }
 
 $noticeProcess = Start-Process `
@@ -71,6 +76,8 @@ if ($noticeProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $noticesPath)
     throw "The application failed to export third-party notices (exit $($noticeProcess.ExitCode))."
 }
 Copy-Item -LiteralPath $sourceBundleSource -Destination $sourceBundlePath -Force
+$noticesChecksumPath = Write-Checksum $noticesPath
+$sourceBundleChecksumPath = Write-Checksum $sourceBundlePath
 
 if ($includeInstaller) {
     if ($InstallerCompilerPath) {
@@ -111,9 +118,7 @@ if ($includeInstaller) {
         throw "Inno Setup did not create the expected installer: $installerPath"
     }
 
-    $installerHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installerPath).Hash.ToLowerInvariant()
-    "$installerHash  $installerName" |
-        Set-Content -LiteralPath $installerChecksumPath -Encoding ascii
+    $installerChecksumPath = Write-Checksum $installerPath
 }
 
 [pscustomobject]@{
@@ -122,5 +127,7 @@ if ($includeInstaller) {
     InstallerPath = if ($includeInstaller) { $installerPath } else { $null }
     InstallerChecksumPath = if ($includeInstaller) { $installerChecksumPath } else { $null }
     NoticesPath = $noticesPath
+    NoticesChecksumPath = $noticesChecksumPath
     SourceBundlePath = $sourceBundlePath
+    SourceBundleChecksumPath = $sourceBundleChecksumPath
 }
