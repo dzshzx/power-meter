@@ -262,7 +262,7 @@ C# 与 PowerShell 不在重排范围内。`third_party/`（上游许可证与按
 `scripts/format.sh --lint` 对同一份文件清单跑 shellcheck，用 lizard 查 C# 函数圈复杂度上限（15，测试代码也查，不接受豁免注释），
 并检查代码文件（含 C# 与 PowerShell）不超过 2000 行。
 按需 Windows validation 同时在 Linux runner 上运行门禁 `bash scripts/check.sh`
-（Python 文件只许是 `scripts/python-allowlist.txt` 列出的，现为空；`scripts/format.sh --check` 与 `--lint`），有问题即失败。
+（仓内不许有 Python 文件；`scripts/format.sh --check` 与 `--lint`），有问题即失败。
 纯格式重排提交登记在 `.git-blame-ignore-revs`，本地可用
 `git config blame.ignoreRevsFile .git-blame-ignore-revs` 让 blame 跳过它们。
 

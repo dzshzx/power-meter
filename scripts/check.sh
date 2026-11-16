@@ -5,23 +5,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# 仓内的 Python 文件只许是 scripts/python-allowlist.txt 列出的（# 起注释，以 / 结尾的行是目录前缀）。
-mapfile -t allowed < <(sed -e 's/#.*//' -e 's/[[:space:]]*$//' scripts/python-allowlist.txt | grep -v '^$' || true)
-stray=0
-while IFS= read -r -d '' f; do
-  ok=0
-  for a in "${allowed[@]}"; do
-    if [[ "$f" == "$a" || ("$a" == */ && "$f" == "$a"*) ]]; then
-      ok=1
-      break
-    fi
-  done
-  if [ "$ok" -eq 0 ]; then
-    echo "check: $f 不在 scripts/python-allowlist.txt 里" >&2
-    stray=1
-  fi
-done < <(git ls-files -z -- '*.py')
-[ "$stray" -eq 0 ]
+# 仓内不放 Python 文件，有就列出并拒绝。
+py=$(git ls-files '*.py')
+if [ -n "$py" ]; then
+  printf 'check: 仓内不放 Python 文件：\n%s\n' "$py" >&2
+  exit 1
+fi
 
 bash scripts/format.sh --check
 bash scripts/format.sh --lint

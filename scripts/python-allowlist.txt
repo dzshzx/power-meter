@@ -1,2 +1,0 @@
-# 仓内允许存在的 Python 文件，一行一个路径；以 / 结尾的行表示目录前缀。scripts/check.sh 核对 git ls-files '*.py' 只含这里列出的文件。
-# 本仓不留 Python，清单为空。
