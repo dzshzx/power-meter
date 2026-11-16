@@ -242,23 +242,27 @@ AntdUI 2.4.17、TaskScheduler 2.12.2（登录自启任务）、System.CommandLin
 便携版改名后如移动了文件，请在新程序中重新启用自启。
 安装包构建需要 Inno Setup 7，固定版本与安装包 SHA-256 写在 `scripts/inno-setup.ps1`；在已提权的
 PowerShell 中 dot-source 该脚本后运行 `Install-InnoSetup` 即可安装。简体中文使用 Inno Setup 自带的官方翻译。
-应用图标源文件为 `src/BatteryChargeMeter.svg`，使用 Lucide 的电池图形。
-运行 `uv run --script --locked scripts/make-icon.py`（依赖在脚本头部声明，锁定于 `scripts/make-icon.py.lock`）
-生成多尺寸 `src/BatteryChargeMeter.ico`；修改 SVG 后重跑并连同 ICO 一起提交。
+应用图标源文件为 `src/BatteryChargeMeter.svg`，使用 Lucide 的电池图形；`src/BatteryChargeMeter.ico`
+由它生成，含 16、20、24、32、40、48、64、128、256 九种尺寸。修改 SVG 后用 ImageMagick 7 重新生成，连同 ICO 一起提交：
+
+```bash
+magick -background none -density 1536 src/BatteryChargeMeter.svg \
+  -define icon:auto-resize=256,128,64,48,40,32,24,20,16 src/BatteryChargeMeter.ico
+```
+
 `dist/` 是本地构建目录，不纳入版本控制。
 
 ### 格式化与检查
 
-`scripts/format.sh` 用 ruff format 重排 Python，用 prettier 重排 Markdown、YAML 与 JSON，
+`scripts/format.sh` 用 prettier 重排 Markdown、YAML 与 JSON，
 用 shfmt 重排 Shell；`scripts/format.sh --check` 只检查。工具版本固定在脚本常量里
-（ruff 经 uvx，缺 uv 时用 pipx；prettier 经 npx；shfmt 优先用本机同版本，否则经 uvx 或 pipx 取 PyPI 包 shfmt-py）。
+（prettier 经 npx；shfmt 优先用本机同版本，否则经 uvx 或 pipx 取 PyPI 包 shfmt-py）。
 C# 与 PowerShell 不在重排范围内。`third_party/`（上游许可证与按哈希固定的文件）、锁文件与
 `dist/` 保持原字节，不参与重排。
-`scripts/format.sh --lint` 对同一份文件清单跑 ruff check、Python 函数认知复杂度上限（15，用 complexipy 查，
-不接受豁免注释、基线快照或配置文件里的放宽）与 shellcheck，用 lizard 查 C# 函数圈复杂度上限（同为 15，测试代码也查，不接受豁免注释），
+`scripts/format.sh --lint` 对同一份文件清单跑 shellcheck，用 lizard 查 C# 函数圈复杂度上限（15，测试代码也查，不接受豁免注释），
 并检查代码文件（含 C# 与 PowerShell）不超过 2000 行。
 按需 Windows validation 同时在 Linux runner 上运行门禁 `bash scripts/check.sh`
-（脚本锁校验、`scripts/format.sh --check` 与 `--lint`），有问题即失败。
+（Python 文件只许是 `scripts/python-allowlist.txt` 列出的，现为空；`scripts/format.sh --check` 与 `--lint`），有问题即失败。
 纯格式重排提交登记在 `.git-blame-ignore-revs`，本地可用
 `git config blame.ignoreRevsFile .git-blame-ignore-revs` 让 blame 跳过它们。
 
