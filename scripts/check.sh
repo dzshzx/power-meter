@@ -5,12 +5,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# shellcheck source=scripts/gatelib.sh
+source scripts/gatelib.sh
 # 仓内不放 Python 文件，有就列出并拒绝。
-py=$(git ls-files '*.py')
-if [ -n "$py" ]; then
-  printf 'check: 仓内不放 Python 文件：\n%s\n' "$py" >&2
-  exit 1
-fi
+gate_python_allowlist
 
 bash scripts/format.sh --check
 bash scripts/format.sh --lint
