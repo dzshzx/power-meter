@@ -12,7 +12,7 @@ $forbidden = 'CopyFrom' + 'Screen'
 $hits = @(
     foreach ($directory in @('scripts', 'src')) {
         Get-ChildItem -LiteralPath (Join-Path $repoRoot $directory) -Recurse -File |
-            Where-Object { $_.FullName -notmatch '[\\/](bin|obj|__pycache__)[\\/]' } |
+            Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } |
             Select-String -SimpleMatch -Pattern $forbidden
     }
 )

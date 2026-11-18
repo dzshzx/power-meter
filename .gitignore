@@ -2,13 +2,9 @@
 bin/
 obj/
 dist/
-.packages/
 work/
 *.pdb
 *.suo
 *.user
 *.tmp
 *.log
-__pycache__/
-*.pyc
-.venv/
