@@ -278,7 +278,7 @@ C# 与 PowerShell 不在重排范围内。`third_party/`（上游许可证与按
 ```text
 .
 ├── .github/     # CI 与 Release 工作流
-├── docs/        # 发布流程、测试验收与功率数据源研究记录
+├── docs/        # 发布流程、测试验收、功率数据源研究记录与 Go 重写路线图（roadmap.md）
 ├── installer/   # Inno Setup 安装包定义
 ├── scripts/     # 构建、测试与发布打包脚本
 ├── src/         # C# 源码与 DPI manifest

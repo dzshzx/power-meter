@@ -10,6 +10,11 @@ power source. Manual laptop checks are in `docs/testing/host-acceptance.md`,
 and the logon-startup security invariants in
 `docs/testing/protected-autostart.md`.
 
+The app is being rewritten in Go with mygo native UI; the plan, phase
+acceptance and progress are in `docs/roadmap.md`. Until the switch release
+the C# app is the only shipped product, and any behaviour change to it must
+also land in the Go port.
+
 - Keep the manifest `asInvoker`: GUI startup requests elevation once, with
   cancellation falling back to ordinary mode. CLI commands never request UAC.
   PawnIO/Psys requires a user-installed official driver and elevated launch;
