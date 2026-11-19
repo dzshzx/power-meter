@@ -146,28 +146,30 @@ func titleBarView(c *ui.Context, p *palette, m *Model) {
 }
 
 // segments is COUI's capsule segmented control choosing the headline's
-// boundary.
+// boundary: equal segments, the same face in both, the choice shown by a
+// raised capsule and the ink.
 func segments(c *ui.Context, p *palette, m *Model) {
-	const h = 28
+	const h, pad = 30, 3
 	selected := int(m.Mode)
 	parts := ui.SegmentedBase(c.Key("mode"), &selected, 2)
-	parts.Track.Height(h).Width(144).Padding(2).Radius(h / 2).Background(p.track).Label(i18n.Get("功率显示口径")).
+	parts.Track.Height(h).Width(176).Padding(pad).Radius(h / 2).Background(p.track).Label(i18n.Get("功率显示口径")).
 		Children(func() {
 			for i, key := range []string{"整机功率", "电池端"} {
-				seg := parts.Segment(i).Grow(1).Basis(0).Radius(h/2 - 2).Justify(ui.Center).AlignItems(ui.Center).FocusRing(false)
-				font, color := textFont, p.ink2
+				seg := parts.Segment(i).Grow(1).Basis(0).Radius(h/2 - pad).Justify(ui.Center).AlignItems(ui.Center).
+					FocusRing(false)
+				color := p.ink2
 				switch {
 				case i == selected:
 					seg.Background(p.indicator)
 					if !p.dark {
-						seg.Shadow(0, 1, 3, 0, argb(0x1A000000))
+						seg.Shadow(0, 1, 4, 0, argb(0x1F000000))
 					}
-					font, color = mediumFont, p.ink
+					color = p.ink
 				case seg.Hovered():
 					color = p.ink
 				}
 				seg.Children(func() {
-					ui.Text(c, i18n.Get(key)).Font(font).FontSize(13).TextColor(color).SingleLine()
+					ui.Text(c, i18n.Get(key)).Font(mediumFont).FontSize(13).TextColor(color).SingleLine()
 				})
 			}
 		})
