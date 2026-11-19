@@ -14,10 +14,10 @@ file would then start elevated at the next sign-in without a UAC prompt.
 - Only an elevated process writes the copy, and it copies only its own image
   plus an `IntelMSR.bin` beside it. A process running from a protected copy
   never copies from its recorded source (`source.txt`).
-- A task that still runs a user-writable file (older versions, including the
-  `BatteryChargeMeter.exe` compatibility launcher) is never reported as working
-  startup. Setup migrates it with one UAC prompt or deletes it when elevation
-  is declined; an elevated launch of the new version also migrates it.
+- A task in this program's shape that runs a user-writable file is never
+  reported as working startup. This program never registers one; setup moves
+  it to the protected copy with one UAC prompt or deletes it when elevation is
+  declined, and an elevated launch also moves it.
 - A confirmation to replace another installation's startup covers the task
   definition and the copy's recorded owner.
 - The task ACL allows the ordinary token to read, run and delete it,
@@ -30,24 +30,24 @@ file would then start elevated at the next sign-in without a UAC prompt.
 
 ## Testing
 
-`tests/PowerMeter.Tests` covers the `AutostartPolicy` decision table and task
-inspection; `scripts/test-installer-uninstall.ps1` (inside `scripts/test.ps1`,
-elevated token required) covers real install, upgrade, ACL and uninstall.
-
-`scripts/test-autostart.ps1 -CheckOrdinaryClient` is manual and needs an
-elevated interactive session. From an elevated but non-interactive SSH session,
-run it through a one-off scheduled task whose principal is the signed-in
-user's SID with `-LogonType Interactive -RunLevel Highest`, since the account
-name does not map there, and unregister the task afterwards.
+`internal/autostart/policy_test.go` and `task_test.go` cover the decision
+table and the task shape on every platform. With `POWERMETER_LIVE=1` and an
+elevated token, `go test ./internal/autostart` on Windows registers, reads,
+replaces and removes real tasks and protected copies under isolated names,
+and checks the ordinary token's attempts on them through a helper process
+(`probe_windows_test.go`); the `Windows validation` workflow runs it.
+`tools/release install-test` covers real install, reinstall and uninstall.
 
 The UAC prompt raised by an unelevated setup or uninstaller cannot be answered
-by automation, so that branch (and its declined fallback) is covered only by
-code review.
+by automation, so that branch (and its declined fallback) is checked in the
+physical acceptance (`host-acceptance.md`) and by code review.
 
 ## Host results
 
-Observed on a real installation, with the real AppId, task name and protected
-root:
+Observed with Power Meter 1.5 (the C# program, whose task and installer
+followed the same rules under its old names) on a real installation, with the
+real AppId, task name and protected root. The Go program is checked again in
+the physical acceptance before its first release replaces 1.5:
 
 - Upgrading over an older version whose task ran the user-writable
   `%LOCALAPPDATA%\Programs\Battery Charge Meter\BatteryChargeMeter.exe` moves

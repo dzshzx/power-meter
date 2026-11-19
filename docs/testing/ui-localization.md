@@ -1,152 +1,98 @@
-# Compact UI, localization and upgrade compatibility
+# Window, localization and installer
 
-The window uses one dark instrument theme (it does not follow the system
-light/dark setting). A diagnostic expands the client area, and clearing it
-removes both its space and the restart action. The system caption is replaced by a drawn title bar holding
-the application tile (Lucide zap), the display-mode segments, pin, minimize
-and close. The window keeps the native caption, system-menu and minimize
-styles while `WM_NCCALCSIZE` removes the frame, so dragging uses the system
-move loop, Alt+Space opens the system menu, the taskbar and minimize animation
-behave normally, and DWM supplies the shadow and rounded corners. Without a
-maximize style a caption double-click does nothing and maximize commands are
-ignored. Windows 11 is the only supported target; Windows 10 is not tested.
+## Window
 
-Below the boundary caption and supply state (with its Lucide glyph) the
-reading uses Bahnschrift Light SemiCondensed; other figures use
-Bahnschrift named instances and fall back to Segoe UI; interface text uses
-Microsoft YaHei UI. Display figures use the typographic minus (U+2212); CLI
-reports and logs keep ASCII. Battery voltage and current follow, then the
-30-minute trend, the 10-minute mean, 5-minute peak and a ten-segment battery
-level, and the three other boundaries joined to their values by dotted
-leaders. Estimates keep `≈` and a quieter colour.
+The window is one panel in a transparent, frameless window: the app draws
+the panel's continuous corners, hairline outline and shadow itself, and only
+the panel takes the mouse (the shadow margin lets clicks through). It follows
+the system's light or dark appearance. Windows 11 is the only supported
+target; Windows 10 is not tested.
+
+Geometry is in DIPs, which mygo scales to each monitor's DPI. The panel is
+360 wide with a corner radius of 32; the cards sit 12 inside it with a
+radius of 20, so the corners are concentric. Every corner is continuous
+(`internal/gui/shape.go`: Figma's corner smoothing at 0.6), not a circular
+arc. The title bar and the footer are each 48 high. The title is MiSans
+Semibold 16, set 1.5 below the bar's centre: centred by its box, the Chinese
+title looks higher than the thin icon buttons beside it.
+
+From the top:
+
+- Title bar: the app's name, then pin, minimize and close (close hovers red).
+  Dragging the bar moves the window.
+- Reading card: the display-mode tabs (整机功率 / 电池端, one face, the chosen
+  one in full ink) with the reading's exact boundary on the right; the
+  headline, with a smaller `≈` and unit; the supply state (Lucide glyph and
+  words) beside the battery's voltage, current and level; the 30-minute
+  trend; the 10-minute mean and 5-minute peak. Where a pair of lines does not
+  fit side by side (English is longer), the app measures them in MiSans and
+  stacks them, and the window grows to fit; nothing is cut off.
+- Rows card: the three boundaries the headline does not show.
+- Notice card, when needed: why a reading or setting is missing, and the
+  restart as administrator that would help.
+- Footer: the update time and the settings button. Its popover holds logon
+  startup, language, the current privilege with the administrator restart,
+  and the note that the interface uses MiSans (the font licence asks for it).
+
+Colours: neutral greys, one blue for data and actions, amber only to warn and
+red only for a sensor error. Estimates keep `≈` and a step lighter ink. The
+tray tile keeps solid state colours (green charging, amber discharging, grey
+otherwise) under white figures.
+
+Text uses MiSans Regular, Medium and Semibold, embedded in the executable
+(`internal/fonts`), with Microsoft YaHei UI as the fallback; changing figures
+use tabular digits. Display figures use the typographic minus (U+2212); CLI
+reports and logs keep ASCII.
 
 The trend records both display boundaries from the first reading, one point
 per second for 30 minutes, in memory only; switching mode keeps both. Until
 30 minutes are recorded the axis counts minutes from the first reading
 (0 … 30 分) and states the recorded time; the curve fills from the left and is
-never stretched. Afterwards the axis reads −30 分 … 现在. Each pixel column
-keeps the min, max and mean of its readings: the mean is the line, the
-min–max range a faint band, and three translucent wider strokes approximate a
-glow. The peak marker is the reading with the largest magnitude in the window,
-sign kept — the same rule as the 5-minute peak, so a discharge peak is the
-most negative reading. N/A readings, failed captures and timing gaps break
-the line instead of drawing zero. The current value has a cursor ring.
+never stretched. Afterwards the axis reads −30 分 … 现在. The line is the mean
+of each pixel column over a soft area, with the live point at its end. N/A
+readings, failed captures and timing gaps break the line instead of drawing
+zero.
 
 Language defaults to the Windows UI language (Chinese locales use Simplified
-Chinese, other locales use English). The window and tray language menus offer
-system default, Chinese and English. Explicit choices persist in the existing
-HKCU settings key. Cached hardware diagnostics are translated at presentation
-time, leaving OS exception details and user paths intact.
+Chinese, other locales use English). The settings popover and the tray's
+「语言 / Language」 menu offer system default, Chinese and English; an explicit
+choice persists in `HKCU\Software\PowerMeter`. Cached hardware diagnostics
+are translated at presentation time, leaving OS exception details and user
+paths intact.
 
 ## Verification
 
-Run from a Windows-local checkout:
-
-```powershell
-pwsh -NoProfile -File scripts/test.ps1
+```sh
+go run ./tools/fonts
+POWERMETER_PREVIEW_DIR=<dir> go test -run TestPreviews ./internal/gui
 ```
 
-It runs `scripts/test-ui.ps1`, which saves PNGs plus layout metadata under
-`dist/ui-preview/`; `-ShowcaseDirectory <dir>` adds the review set, including
-the settings popover composed over the window from the controls' own
-renderings (nothing is read from the screen). These use deterministic fixture
-measurements, not live laptop readings. Visual review covers the 175% Chinese
-and English idle previews, along with unavailable-source and small-icon
-renders.
+renders every fixture state (starting, warming, early, charging, idle,
+discharging, supplemented, unavailable, and the settings popover) in Chinese
+and English, light and dark, at 100% and 175%, plus the tray tiles. They use
+deterministic fixture readings, not live laptop readings, and run on Linux
+too. Visual review covers the 175% previews in both languages and both
+appearances. On Windows, `PowerMeter.exe --screenshot`, `--dpi-preview` and
+`--tray-preview` render through the real app; `tools/release smoke` runs
+them.
 
-Run the installer lifecycle on Windows hosts with legacy code pages and UTF-8.
-The Chinese shortcut name exercises target lookup outside an English process's
-ANSI code page; a UTF-8 host can hide failures in that lookup. With
-process-specific `activeCodePage` manifests selecting ACP 1252 and ACP 65001,
-the Unicode Shell reader preserves Chinese and Devanagari shortcut names,
-parent directories and executable targets across 32-bit and 64-bit processes.
+## Installer
 
-The installer regression fixture uses a short unique AppId: Inno Setup
-shortens long IDs in uninstall registry keys, so a test must not infer an
-unshortened key from an oversized ID.
+The installer is the NSIS installer `mygo build` makes, with the steps in
+`installer/installer.nsh`. It installs for the current user into
+`%LOCALAPPDATA%\Programs\Power Meter`, without administrator rights, adds the
+Start menu entry `Power Meter`, and writes `THIRD-PARTY-NOTICES.txt` beside
+the program. It stops (exit code 3) while Power Meter 1.5 or earlier is
+installed and asks for that to be uninstalled first; nothing of 1.5 is
+migrated.
 
-Readouts align the smaller `≈` and unit to the number by GDI ascent, because
-GDI+ family metrics differ for Bahnschrift's named instances. The settings
-popover uses AntdUI's popover and selector in AntdUI dark mode; the switch and
-buttons are drawn by the application.
-
-The fixture host adopts the application's Per-Monitor V2 thread context before
-creating controls. Screenshots use the visible DWM frame, excluding invisible
-resize margins that PrintWindow otherwise leaves black. Windows 11 captures
-apply DWM's 8-pixel (scaled) corner rounding, since PrintWindow returns the
-square bitmap.
-
-## Visual references and toolkit choice
-
-The official screenshots of [Twinkle Tray](https://github.com/xanderfrangos/twinkle-tray)
-and [EarTrumpet](https://github.com/File-New-Project/EarTrumpet) informed the
-compact utility layout: prominent live values, coherent groups, quiet surfaces,
-and secondary operations collected into settings. The Windows
-[type ramp](https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/typography)
-informed regular labels, semibold numeric values and a smaller watt unit.
-
-Further reference review covered [Stats](https://github.com/exelban/stats),
-[BatteryBoi](https://github.com/thebarbican19/BatteryBoi), and
-[EnergyStarX](https://github.com/JasonWei512/EnergyStarX). Stats' battery panel
-separates one primary figure from supporting measurements; BatteryBoi focuses a
-small surface on one state and value; EnergyStarX keeps Windows-native controls
-and a clear central focus. The resulting meter centers the watts reading,
-reduces repeated data and uses one quiet supporting group. No normalization ring
-is used for watts because the app has no measured maximum input capacity.
-The headline uses Bahnschrift (Segoe UI where absent). The watt unit is aligned
-by font ascent rather than line-box height, and estimates retain a neutral
-muted color and the approximation mark.
-
-[AntdUI](https://github.com/AntdUI/AntdUI) and
-[Krypton Toolkit](https://github.com/Krypton-Suite/Standard-Toolkit) were checked
-for existing .NET Framework support. AntdUI supplies the specific buttons,
-popover, panel and settings controls without replacing the WinForms lifecycle.
-Its net46 package has no additional NuGet runtime dependencies.
-The assembly is embedded and resolved before the GUI entry point is JIT-compiled;
-the existing isolated-EXE CLI/preview tests verify that no DLL sidecar is needed.
-The executable is approximately 3.3 MiB with the UI toolkit and notices.
-
-Lucide stroke geometry is wrapped in a group because AntdUI applies a root fill
-when tinting SVGs. Both states of the pin explicitly carry the same glyph.
-Settings bounds are already scaled by the application, so automatic content
-scaling inside the popover is disabled to avoid applying DPI twice.
-
-## Upgrade compatibility
-
-After the new files and the Start Menu entry selected by the installer language
-are installed, setup removes obsolete `Battery Charge Meter`, `Power Meter` and
-`功率计` shortcuts whose target is this installation's current or legacy
-executable. If the replacement entry is absent or does not target the installed
-`PowerMeter.exe`, setup retains the old entries. In particular, an upgrade that
-fails while copying the executable keeps the previous functioning entry.
-
-Target inspection uses the Windows Shell's Unicode
-[ShellLinkObject interface](https://learn.microsoft.com/en-us/windows/win32/shell/folderitem-getlink).
-This keeps localized shortcut filenames readable when they contain characters
-outside the process's ANSI code page. The installer lifecycle's target
-assertions use that Unicode interface too.
-
-This ownership check applies to obsolete-name cleanup during installation.
-That cleanup leaves shortcuts to other copies and unreadable shortcuts in place.
-The normal `[Icons]` entry can overwrite an existing shortcut with the selected
-language's name. Uninstall can also remove a repointed shortcut whose name was
-recorded by an earlier real installation: Inno Setup
-[appends upgrades to the existing uninstall log](https://jrsoftware.org/ishelp/topic_appendnotes.htm),
-including those earlier shortcut records.
-Changing the running application's language only updates its window and tray;
-Start Menu names follow the most recent installation language.
-
-A fresh installation contains `PowerMeter.exe`. When an old
-`BatteryChargeMeter.exe` exists in the same installation directory, setup
-replaces it with the small forwarding launcher. The launcher accepts GUI,
-ordinary GUI, logon startup and startup cleanup entry points; diagnostic CLI
-commands use `PowerMeter.exe`. Setup refreshes protected startup copies and
-migrates tasks that target user-writable legacy launchers. When synchronization
-needs elevation, setup requests UAC; declining keeps a stale protected copy
-running or removes an unprotected task. Uninstall removes the matching logon
-task and requests elevation to delete its protected copy before deleting the
-installed executables.
+After the files are in place, setup runs `--sync-autostart`: an outdated
+protected copy is refreshed with one UAC prompt, and a task that runs a
+user-writable file is moved to the copy or, when elevation is declined,
+turned off. The uninstaller first runs `--remove-autostart` and requests
+elevation to delete this installation's protected copy; a failed cleanup
+stops the uninstall and keeps the program. `tools/release install-test`
+checks the refusal over 1.5, install, reinstall and uninstall silently.
 
 Portable files that are moved or renamed need startup enabled again from the
-new location, with the existing replacement confirmation. Keeping the old
-launcher is an installation compatibility path, not a portable alias rule.
+new location, with the existing replacement confirmation.

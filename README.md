@@ -20,8 +20,9 @@ GitHub 仓库为 `dzshzx/power-meter`（2026-09-28 由 `battery-charge-meter` �
 - 最小化后隐藏到系统托盘，继续在后台监测
 - 托盘文字图标显示所选功率的整数瓦数（大于等于 99.5 W 显示 `99+`），悬停显示口径、估算标识和两位小数
 - 托盘数字为白色，充电时底色为绿色，放电时为琥珀色
-- 颜色只用来表示供电状态：充电绿、放电琥珀、出错红，闲置不上色；估算值始终用弱化色，分隔线、底带等结构不上色
-- 双击托盘图标恢复窗口，右键菜单可显示窗口或退出
+- 窗口按 ColorOS 的卡片样式绘制：整窗与卡片都是连续曲率的同心圆角，界面字体为内嵌的 MiSans，随系统切换浅色与深色
+- 窗口里只用一种蓝色表示数据和操作，琥珀色只用于提醒，红色只用于传感器出错；估算值带 `≈` 并用浅一档的颜色
+- 单击托盘图标恢复窗口；右键菜单可显示窗口、切换口径、开关开机自启、切换语言或退出
 - 支持 Per-Monitor V2 高 DPI，能够适配 100%–300% 缩放及跨屏切换
 
 ## 功率口径
@@ -83,11 +84,11 @@ PowerMeter.exe --power-probe report.txt 10
 | `--remove-autostart`                                      | 删除本程序的自启任务及受保护副本，供卸载器使用；不打开窗口或请求提权。失败退出码为 `1`；任务已删、副本需管理员权限删除时为 `3`；同名任务不属于本程序、已原样保留时为 `6`（本程序的自启与副本照常清理） |
 | `--sync-autostart`                                        | 供安装器升级时调用：已提权时迁移或刷新受保护副本（成功为 `0`），普通权限只报告需要做什么：`3` 副本过期，`4` 任务仍指向可被普通权限替换的文件，`5` 副本已无任务使用；失败为 `1`                         |
 | `--power-probe <report.txt> [秒数=5]`                     | 逐源探测并写出各口径的采样报告                                                                                                                                                                         |
-| `--self-test <report.txt>`                                | 发布物冒烟自检（内嵌库加载、窗口与托盘绑定），通过退出码 0、失败 1；规则单测在 `tests/PowerMeter.Tests`，CI 与 `scripts/test.ps1` 都会跑                                                               |
+| `--self-test <report.txt>`                                | 发布物冒烟自检（内嵌字体与模块、窗口与托盘绑定），通过退出码 0、失败 1；规则测试是 Go 测试，CI 与 `tools/release smoke` 都会跑                                                                         |
 | `--third-party-notices <out.txt>`                         | 导出内嵌的第三方通知全文                                                                                                                                                                               |
 | `--screenshot <out.png>`                                  | 渲染主窗口截图                                                                                                                                                                                         |
-| `--dpi-preview <out.png> <目标 DPI> [返回 DPI]`           | 渲染跨 DPI 切换预览（`scripts/test.ps1` 使用）                                                                                                                                                         |
-| `--tray-preview <out.png> <瓦数> <charging\|discharging>` | 渲染托盘文字图标预览（`scripts/test.ps1` 使用）                                                                                                                                                        |
+| `--dpi-preview <out.png> <目标 DPI> [返回 DPI]`           | 渲染跨 DPI 切换预览（`tools/release smoke` 使用）                                                                                                                                                      |
+| `--tray-preview <out.png> <瓦数> <charging\|discharging>` | 渲染托盘文字图标预览（`tools/release smoke` 使用）                                                                                                                                                     |
 
 诊断、自检和预览命令均不弹 UAC；需要探测 PawnIO 时，从已有管理员权限的终端运行。
 未知参数、缺失参数或非法组合以退出码 `2` 退出，不打开窗口。
@@ -108,9 +109,10 @@ PowerMeter.exe --power-probe report.txt 10
 趋势，并不提高硬件测量精度。诊断报告记录应用观察时间、供电状态、原始电池字段、
 权限、来源和采样窗口；电池管理系统内部采集时刻仍未知。
 
-显示模式保存在当前 Windows 账号的 `HKCU\Software\BatteryChargeMeter`。
+显示模式保存在当前 Windows 账号的 `HKCU\Software\PowerMeter`。
 语言选择保存在同一位置的 `Language` 值中，支持 `system`、`zh-CN`、`en`。
-沿用旧设置路径、安装 AppId 和自启任务身份，因此改名后仍能读取原有设置。
+1.6 起设置位置、安装位置和自启任务都换了新名字，不读 1.5 及更早版本的设置：升级后显示模式与
+语言回到默认，开机自启需要重新启用。
 同账号 UAC 确认后仍使用同一设置；输入另一管理员账号凭据时，使用该账号的设置。
 设置读取失败使用默认整机模式，写入失败不影响本次使用。
 
@@ -151,14 +153,13 @@ EXE manifest 使用 `asInvoker`，由界面启动流程主动请求提权，因�
   来刷新副本或迁移任务，并重启正在运行的自启实例。拒绝 UAC 时，过期副本继续运行旧
   版本；指向可写文件的旧任务则被直接删除并提示重新启用，不会原样保留。
 - 以管理员身份打开的程序每次启动都会做同样的同步，便携版替换新版本后退出托盘中的
-  旧实例、再以管理员身份打开新版本即可更新副本；旧版留下的任务也会在第一次以管理员
-  权限运行新版本时迁移。
+  旧实例、再以管理员身份打开新版本即可更新副本。
 - 便携版同样使用受保护副本；无法取得管理员权限时不能启用自启，也不会退回为直接运行
   可写位置的程序。
 
 不变量、自动测试范围与宿主验收记录见 `docs/testing/protected-autostart.md`。
 
-自启使用 Windows 任务计划程序，为当前用户注册 `BatteryChargeMeter.Logon.<SID>`，
+自启使用 Windows 任务计划程序，为当前用户注册 `PowerMeter.Logon.<SID>`，
 不保存密码；允许电池供电时启动，拔电不停止，也没有空闲、网络或运行时限条件。
 开关读取实际任务状态；任务条件被修改时会提示重新勾选修复。实现遵循 Windows 的
 [任务权限模型](https://learn.microsoft.com/en-us/windows/win32/taskschd/security-contexts-for-running-tasks)。
@@ -197,72 +198,48 @@ EXE manifest 使用 `asInvoker`，由界面启动流程主动请求提权，因�
 
 ## 配置文件
 
-程序不需要旁置 `.exe.config`：目标框架写入程序集，DPI awareness 由 EXE 内嵌 manifest
-声明，跨屏缩放由程序处理 `WM_DPICHANGED`；便携 EXE 与安装包使用同一个应用程序集。
-升级后残留的 `BatteryChargeMeter.exe.config` 不含用户设置。
+程序是单个 EXE：界面字体、图标、`IntelMSR.bin` 与第三方通知都内嵌其中，不需要旁置 DLL、
+运行时或配置文件。DPI awareness 与 `asInvoker` 由 EXE 内嵌的 manifest 声明，跨屏缩放由程序处理。
 
 ## 系统要求
 
-- Windows 11（不再兼容 Windows 10）
-- .NET Framework 4.8.1 或更高版本（Windows 11 22H2 起自带，更早的 Windows 11 可经 Windows 更新安装）
+- Windows 11（不再兼容 Windows 10），x64
 - 笔记本固件需要通过 ACPI/WMI 暴露电池充放电速率
 
 部分机型只报告充电状态，不报告实时功率；这种情况下界面会显示 `N/A`。
 
 ## 从源码构建
 
-在 Windows PowerShell 中运行：
+程序用 Go 与 [mygo](https://github.com/egoist/mygo) 原生界面编写，只发 windows/amd64，可以在
+Linux 或 Windows 上交叉编译。Go 版本写在 `go.mod`，mygo 作为 `go tool` 固定在同一处。
 
-```powershell
-.\scripts\build.ps1
+```sh
+go run ./tools/fonts                                   # 取 MiSans，按固定的 SHA-256 核对
+go tool mygo build -platform windows/amd64             # EXE 与安装包，输出到 dist/windows-amd64/
+go tool mygo build -platform windows/amd64 -skip-installer   # 只要 EXE
 ```
 
-从 Windows 本地路径运行 `pwsh -NoProfile -File .\scripts\test.ps1` 进行自动验证。
-它先构建并运行 xUnit 单元测试（`tests/PowerMeter.Tests`，与应用同为 .NET Framework 4.8.1），集成脚本的断言用
-Pester 6（需装在 Windows PowerShell 与 PowerShell 7 都能加载的
-`%ProgramFiles%\WindowsPowerShell\Modules`，例如
-`Save-PSResource -Name Pester -Version 6.2.0 -TrustRepository -Path "$env:ProgramFiles\WindowsPowerShell\Modules"`）。
-若没有 Inno Setup 7，脚本继续检查便携版与打包输入，并在 `dist/test-report.json`
-明确记录真实安装包安装/卸载验收未执行；该验收会在 Program Files 下写入并删除隔离的
-受保护副本，因此还需要已提权的终端，普通权限运行同样记为未执行。CI 与 Release 先安装固定版本的 Inno Setup 7，再以
-`-RequireInstaller` 运行，缺少 Inno Setup 7 或未提权即失败；报告包含 commit、宿主和工具版本、
-各项结果与耗时，并作为工作流 artifact 保存。真实电池状态、已安装驱动和管理员
-启动的宿主验收见 `docs/testing/host-acceptance.md`。
+MiSans 的许可不允许单独分发字体文件，所以字体不进仓库：`tools/fonts` 从小米官方的
+`MiSans.zip` 只取 Regular、Medium、Semibold 三个字重，核对固定的 SHA-256 后压缩存进
+`internal/fonts/misans/`（已忽略），构建时嵌入 EXE。已有且一致时不再下载。
+安装包由 mygo 用 NSIS 生成，安装步骤在 `installer/installer.nsh`；Linux 上需要 `makensis`，
+Windows 上缺少时 mygo 会自己下载。应用图标源文件为 `installer/icon.png`。
 
-构建需要 .NET SDK（建议当前 LTS 版本 10，8 及以上均可）：脚本以 `dotnet build`（锁定模式还原）构建
-`src/PowerMeter.csproj`（SDK 风格项目，目标 .NET Framework 4.8.1，引用程序集来自 NuGet），
-将应用 EXE 写入 `dist/`。依赖由 NuGet 按 `packages.lock.json` 锁定还原并校验内容哈希；
-升级依赖时改 csproj 后运行 `dotnet restore --force-evaluate` 刷新锁文件。
-AntdUI 2.4.19、TaskScheduler 2.12.2（登录自启任务）、System.CommandLine 2.0.15（命令行解析）
-及其依赖程序集都内嵌在 EXE 中，运行时无需旁置 DLL 或安装额外运行时。各库许可一并内嵌并随发布通知分发。
-主程序为 `PowerMeter.exe`。`dist/compat/BatteryChargeMeter.exe` 仅用于安装升级：
-覆盖旧版时保留一个转发入口，已有快捷方式继续启动 Power Meter。旧版自启任务运行的
-正是这个可写位置的文件，安装器会把它迁移到受保护副本（或在未获管理员授权时删除），
-不再以管理员权限运行此入口。全新安装不放置此入口。
-便携版改名后如移动了文件，请在新程序中重新启用自启。
-安装包构建需要 Inno Setup 7，固定版本与安装包 SHA-256 写在 `scripts/inno-setup.ps1`；在已提权的
-PowerShell 中 dot-source 该脚本后运行 `Install-InnoSetup` 即可安装。简体中文使用 Inno Setup 自带的官方翻译。
-应用图标源文件为 `src/BatteryChargeMeter.svg`，使用 Lucide 的电池图形；`src/BatteryChargeMeter.ico`
-由它生成，含 16、20、24、32、40、48、64、128、256 九种尺寸。修改 SVG 后用 ImageMagick 7 重新生成，连同 ICO 一起提交：
-
-```bash
-magick -background none -density 1536 src/BatteryChargeMeter.svg \
-  -define icon:auto-resize=256,128,64,48,40,32,24,20,16 src/BatteryChargeMeter.ico
-```
+`bash scripts/check.sh` 是门禁（Linux 上跑：格式、按 linux 与 windows 各跑一遍的 vet 与 staticcheck、
+Go 测试、函数认知复杂度不超过 30）。Windows 上的测试、可执行文件烟测与安装实测见
+`docs/testing/manual-ci.md`；真实电池状态、已安装驱动和管理员启动的宿主验收见
+`docs/testing/host-acceptance.md`。界面改动用
+`POWERMETER_PREVIEW_DIR=<目录> go test -run TestPreviews ./internal/gui` 渲染全部状态的预览图。
 
 `dist/` 是本地构建目录，不纳入版本控制。
 
 ### 格式化与检查
 
-`scripts/format.sh` 用 prettier 重排 Markdown、YAML 与 JSON，
+`scripts/format.sh` 用 gofmt 重排 Go，用 prettier 重排 Markdown、YAML 与 JSON，
 用 shfmt 重排 Shell；`scripts/format.sh --check` 只检查。工具版本固定在脚本常量里
 （prettier 经 npx；shfmt 优先用本机同版本，否则经 uvx 或 pipx 取 PyPI 包 shfmt-py）。
-C# 与 PowerShell 不在重排范围内。`third_party/`（上游许可证与按哈希固定的文件）、锁文件与
-`dist/` 保持原字节，不参与重排。
-`scripts/format.sh --lint` 对同一份文件清单跑 shellcheck，用 lizard 查 C# 函数圈复杂度上限（15，测试代码也查，不接受豁免注释），
-并检查代码文件（含 C# 与 PowerShell）不超过 2000 行。
-按需 Windows validation 同时在 Linux runner 上运行门禁 `bash scripts/check.sh`
-（仓内不许有 Python 文件；`scripts/format.sh --check` 与 `--lint`），有问题即失败。
+`third_party/`（上游许可证与按哈希固定的文件）、锁文件与 `dist/` 保持原字节，不参与重排。
+`scripts/format.sh --lint` 对同一份文件清单跑 shellcheck，并检查代码文件不超过 2000 行。
 纯格式重排提交登记在 `.git-blame-ignore-revs`，本地可用
 `git config blame.ignoreRevsFile .git-blame-ignore-revs` 让 blame 跳过它们。
 
@@ -271,26 +248,31 @@ C# 与 PowerShell 不在重排范围内。`third_party/`（上游许可证与按
 日常改动完成相应本地验证后合入并快进同步 `master`。发版手动触发 Release 工作流
 （`gh workflow run release.yml --ref master -f bump=patch`），它按已有 tag 算出新版本号，
 重新构建、验收并发布便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产都带 `.sha256` 校验文件。本地构建的版本是
-占位值 `0.0.0.0`。版本档位、dry_run、出错处理与公开产物复验见 `docs/release.md`。
+占位值 `0.0.0`。版本档位、dry_run、出错处理与公开产物复验见 `docs/release.md`。
 
 ## 项目结构
 
 ```text
 .
-├── .github/     # CI 与 Release 工作流
-├── docs/        # 发布流程、测试验收、功率数据源研究记录与 Go 重写路线图（roadmap.md）
-├── installer/   # Inno Setup 安装包定义
-├── scripts/     # 构建、测试与发布打包脚本
-├── src/         # C# 源码与 DPI manifest
-├── third_party/ # 内嵌模块、许可证、通知与对应源码
-├── LICENSE      # 本项目代码的 MIT 许可证（第三方组件见 third_party/）
-├── CLAUDE.md    # 修改与验证时必须保持的项目约束
-├── GLOSSARY.md  # 功率口径的统一术语
-└── dist/        # 本地构建输出（不纳入版本控制）
+├── .github/       # 手动触发的 Windows 验证与 Release 工作流
+├── cmd/powermeter # 程序入口
+├── internal/      # 传感器、口径与显示规则、开机自启、界面、语言、设置等 Go 包
+├── locales/       # 交给 mygo 的翻译：应用的中文名与安装包里的文字
+├── installer/     # 安装包步骤（NSIS 片段）与应用图标
+├── tools/         # 取字体（fonts）与发布打包、烟测、安装实测、复验（release）
+├── docs/          # 发布流程、测试验收、功率数据源研究记录与重写路线图（roadmap.md）
+├── scripts/       # 门禁与格式化
+├── third_party/   # 内嵌模块、许可证、通知与对应源码
+├── mygo.json      # 应用名、标识与打包配置
+├── LICENSE        # 本项目代码的 MIT 许可证（第三方组件见 third_party/）
+├── CLAUDE.md      # 修改与验证时必须保持的项目约束
+├── GLOSSARY.md    # 功率口径的统一术语
+└── dist/          # 本地构建输出（不纳入版本控制）
 ```
 
 ## 许可证
 
 本项目代码以 MIT 许可证发布（见 `LICENSE`）。内嵌的 PawnIO `IntelMSR.bin` 模块为 LGPL-2.1：其通知、许可证文本与对应源码包随 Release 资产和 `third_party/` 一并提供，见 `third_party/NOTICE.md`。
-界面使用 AntdUI（Apache-2.0）、其中包含的 SVG.NET（Ms-PL）及 Lucide 图标
-（ISC/MIT）；完整通知和许可见同一文件及 EXE 的 `--third-party-notices` 导出。
+界面使用 mygo（MIT）、Lucide 图标（ISC）与 MiSans 字体（[MiSans 字体知识产权许可协议](https://hyperos.mi.com/font/)，
+可免费商用，须在软件中注明使用了 MiSans，不得单独分发字体文件）；Go 标准库与各模块的许可同在
+`third_party/NOTICE.md`，完整通知和许可可用 EXE 的 `--third-party-notices` 导出。

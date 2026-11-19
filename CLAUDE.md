@@ -10,30 +10,40 @@ power source. Manual laptop checks are in `docs/testing/host-acceptance.md`,
 and the logon-startup security invariants in
 `docs/testing/protected-autostart.md`.
 
-The app is being rewritten in Go with mygo native UI; the plan, phase
-acceptance and progress are in `docs/roadmap.md`. Until the switch release
-the C# app is the only shipped product, and any behaviour change to it must
-also land in the Go port.
+The app is Go with mygo native UI (`go tool mygo`, version pinned in
+`go.mod`); it ships for windows/amd64 only. Power Meter 1.5 and earlier was
+a C# program; the installer refuses to run while it is installed, and nothing
+of it is migrated (settings key, task name and install folder are new).
 
 - Keep the manifest `asInvoker`: GUI startup requests elevation once, with
   cancellation falling back to ordinary mode. CLI commands never request UAC.
   PawnIO/Psys requires a user-installed official driver and elevated launch;
   the app must not silently install it.
-- Display rules (`≈`/N/A, tones, statistics, tray text) live in `MeterSession`,
-  which returns a `MeterView` that `MainForm` only binds; snapshots come only
-  from `PowerSnapshot.Compose`. Startup decisions (exit codes, steps, switch
-  state) live in the pure `AutostartPolicy`; `AutostartManager` gathers facts
-  and executes. Cover new rules through these interfaces in the xUnit
-  project `tests/PowerMeter.Tests`; `--self-test` is the release EXE smoke.
+- Display rules (`≈`/N/A, tones, statistics, tray text) live in
+  `meter.Session`, which returns a `meter.View` that `internal/gui` only
+  draws; snapshots come only from `power.Compose`. Startup decisions (exit
+  codes, steps, switch state) are pure functions in
+  `internal/autostart/policy.go`; the Windows files gather facts and carry
+  out the plans. Cover new rules through these interfaces with Go tests;
+  `--self-test` is the release EXE smoke.
+- The window draws everything itself in a transparent frameless window:
+  continuous corners (`internal/gui/shape.go`), MiSans, palette and metrics
+  in `internal/gui/theme.go`. Check a UI change with the previews
+  (`POWERMETER_PREVIEW_DIR=<dir> go test -run TestPreviews ./internal/gui`)
+  and show them before committing; the maintainer judges the look.
+- MiSans is not in the repository (its licence forbids separate
+  distribution): `go run ./tools/fonts` fetches the pinned faces into
+  `internal/fonts/misans/`, and the gate runs it first. The app must keep
+  saying it uses MiSans (settings popover and notices).
 - Portable EXE and per-user installer are equal release options. Preserve the
   replaceable `IntelMSR.bin` sidecar, LGPL notice/licence and exact corresponding
   source bundle; release assets include both formats, and every asset has a
   `.sha256` file.
-- Gate: `bash scripts/check.sh` (Linux checks; `wt land` runs it). Before
-  landing, run `pwsh -NoProfile -File .\scripts\test.ps1` and the UI acceptance
-  in `docs/testing/ui-localization.md` from a Windows-local checkout; neither
-  runs in WSL (.NET Framework rejects WSL UNC paths). A pushed task branch that
-  ran manual CI lands the same way; see `docs/testing/manual-ci.md`.
+- Gate: `bash scripts/check.sh` (Linux: format, vet and staticcheck for linux
+  and windows, Go tests, cognitive complexity; `wt land` runs it). Windows-only
+  tests, the smoke run and the installer test run on Windows: the manually
+  dispatched `Windows validation` workflow, or by hand as in
+  `docs/testing/manual-ci.md`.
 - Dependency updates are verified by an agent on the Windows host and then
   landed; they go to the maintainer only when evidence shows the update breaks
   the program.

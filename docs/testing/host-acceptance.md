@@ -1,18 +1,17 @@
 # Physical laptop acceptance
 
-The automated Windows-local suite exercises the portable executable, package
-assets, and an isolated per-user installer lifecycle. A laptop with a real
-battery and an optional user-installed PawnIO driver needs separate observation.
-Record these checks against the exact candidate commit and built executable;
-pending checks do not count as passed. Use `dist/test-report.json` for the
-automated pass/fail/not-run results.
+The automated Windows suite (`go test` on Windows, `tools/release smoke` and
+`tools/release install-test`, run by the `Windows validation` workflow)
+exercises the portable executable, package assets, and an isolated per-user
+installer lifecycle. A laptop with a real battery and an optional
+user-installed PawnIO driver needs separate observation. Record these checks
+against the exact candidate commit and built executable; pending checks do not
+count as passed.
 
 ## Checks
 
-- **Identity**: record `git rev-parse HEAD`, Windows build (`winver`),
-  PowerShell version, .NET Framework 4.x Release registry value, Inno Setup
-  version, and SHA-256 of the tested EXE/setup. Match the report's commit and
-  tool versions.
+- **Identity**: record `git rev-parse HEAD`, Windows build (`winver`), and
+  SHA-256 of the tested EXE/setup. Match the workflow run's commit.
 - **Battery operation**: on battery power, run
   `PowerMeter.exe --power-probe report.txt 10` and observe the GUI. The battery
   terminal value is negative, System Load Power is its positive magnitude, and
@@ -50,7 +49,7 @@ Use a separately copied development EXE; keep the installed release intact.
    cancellation preserves the window, successful handoff leaves one development
    window/tray, and the new process has an elevated token. Driver absence must
    produce an explicit reason without another elevation loop.
-3. Change modes through both the selector and tray menu. Check the labels, number,
+3. Change modes through the tabs in the reading card and the tray menu. Check the labels, number,
    menu checkmark, statistics reset and saved mode after relaunch. When using another
    administrator's credentials, preferences belong to that Windows account.
 4. Check 100%, 175% and 300% scaling and a return to 100%. Controls remain reachable
