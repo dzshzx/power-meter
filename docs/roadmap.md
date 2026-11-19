@@ -15,9 +15,11 @@
 ## 决定
 
 - **行为对齐。** 功率口径、数据源及探测顺序、显示规则（`≈`、`N/A`、托盘 `--`、色调、统计窗口、托盘文字）、
-  命令行开关与退出码、设置位置 `HKCU\Software\BatteryChargeMeter`、自启任务名
-  `BatteryChargeMeter.Logon.<SID>`、受保护副本路径及 `docs/testing/protected-autostart.md` 的不变量全部沿用。
-  重写期间不顺带改功能。
+  命令行开关与退出码、受保护副本路径及 `docs/testing/protected-autostart.md` 的不变量全部沿用。重写期间不顺带
+  改功能；名字与路径例外，见下一条。
+- **新名字。** Go 版只用新名字，不读旧版的设置、任务和副本：显示名 Power Meter（中文界面「功率计」），程序
+  `PowerMeter.exe`，设置在 `HKCU\Software\PowerMeter`，自启任务 `PowerMeter.Logon.<SID>`，安装目录
+  `%LOCALAPPDATA%\Programs\Power Meter`。
 - **数据源与现版本相同。** 电池读 WMI `root\WMI` 的 `BatteryStatus`；CPU 包功率读 EMI；平台功率经 PawnIO 的
   `IntelMSR` 模块读 Psys。WMI 与任务计划程序这两处 COM 调用用纯 Go 的 `github.com/go-ole/go-ole`。
 - **切换方式。** 重写期间 C# 版是唯一的发布物，发版流程不变。Go 版通过全部阶段验收后，用一次发版切换，并在同一
@@ -26,8 +28,9 @@
 - **两边一致。** 重写期间 C# 版若改了行为，同一改动也要进 Go 版，切换前两边一致。
 - **固定 mygo 版本。** mygo 在 `go.mod` 里固定版本，命令行工具用 `go tool mygo`。升级 mygo 单独做，升级后重跑
   阶段 3 的界面验收。
-- **升级起点。** 只支持从最后一个 C# 版本升级。旧版留下的、指向普通权限可写文件的任务，仍按不变量迁移或删除；
-  `BatteryChargeMeter.exe` 兼容入口不再提供。
+- **旧版。** 安装包发现旧版（C# 1.x，装在 `Battery Charge Meter` 目录）还装着就停下，提示先在「设置 > 应用」
+  卸载旧版；旧卸载器会清掉它的自启任务和副本。不写迁移代码，设置不迁移，自启在新版里重新勾选。
+- **切换版本号。** 切换版发 v1.6.0（minor）。
 - **发布目标与资产。** 仍只支持 Windows 11 x64（`windows/amd64`）。资产名不变：
   `PowerMeter-vX.Y.Z-windows.exe`、`PowerMeter-vX.Y.Z-windows-setup.exe`、第三方通知、PawnIO 对应源码包，
   各带 `.sha256`。
@@ -100,7 +103,6 @@
   `RequestSingleInstanceLock` 满足不了这些时自己实现。
 - 计划任务的注册、读取与任务 ACL；受保护副本的复制、DACL 与所有者、`source.txt`；`--sync-autostart` 与
   `--remove-autostart` 的退出码 0、1、3、4、5、6；同名的外来任务不修改、不接管。
-- Go 版直接接管 C# 版注册的任务和副本，用户不用重新启用。
 - **验收**：`docs/testing/protected-autostart.md` 的不变量与「Host results」各项在目标机重跑通过；
   「Interactive acceptance」第 7、8 条通过。
 
@@ -109,12 +111,13 @@
 - **安装包**：改用 mygo 生成的 NSIS 当前用户安装包。`windows.installerInclude` 的 `customInstall` 跑
   `--sync-autostart`，需要时请求一次 UAC；`customUnInstall` 跑 `--remove-autostart`，再请求一次 UAC 删副本。
   取消、失败和外来任务的处理与现版本相同。
-- **从 C# 版升级**：从最后一个 C# 版本的安装升级时，设置、自启任务与受保护副本保留并刷新；旧安装的文件和
-  「应用」列表里的卸载项清掉。
+- **旧版拦截**：`customInit` 发现旧版的卸载项还在就停下，提示先卸载旧版。
 - **发布工作流**：Linux 上跑门禁，构建 EXE 与安装包。Windows runner 跑 Windows 包的 Go 测试、`--self-test`，
   以及用 Go 写的真实安装、升级、卸载验收（取代 Pester）。Go 依赖的许可检查取代 NuGet 许可检查。
   `scripts/verify-release.ps1` 的公开产物复验改成 Go 命令。
-- **切换**：以上全部通过，并在目标机做完 `docs/testing/host-acceptance.md` 的全部检查后，发切换版。同一阶段删掉
+- **切换**：以上全部通过，并在目标机做完 `docs/testing/host-acceptance.md` 的全部检查后，发切换版。需要本人在笔记本前
+  操作的项（UAC 的取消与确认、插拔电源、睡眠唤醒、改显示缩放）在其余验收做完后集中做一次。发版后把目标机上的
+  旧版卸载、装上切换版并重新启用自启。同一阶段删掉
   `src/`、`tests/`、`installer/`、`scripts/` 下的 PowerShell 脚本与 C# 夹具、`nuget.config`、
   `Directory.Build.props`、`.config/dotnet-tools.json`；把 README、CLAUDE.md 和 `docs/` 改写为 Go 版；
   系统要求去掉 .NET Framework。
@@ -125,7 +128,8 @@
   向上游报告，本仓先绕开。
 - **文字度量。** 现版本按 GDI ascent 对齐 `≈`、单位与数字，mygo 在 Windows 上用 DirectWrite，对齐要按新引擎
   重做。阶段 3 的并排比对兜底。
-- **安装包换成 NSIS。** 升级和卸载路径最容易出错。阶段 5 用真实安装的最后一个 C# 版本做升级测试。
+- **安装包换成 NSIS。** 升级和卸载路径最容易出错。阶段 5 用 Go 版的两个版本做覆盖升级测试，并用真实安装的
+  最后一个 C# 版本测旧版拦截。
 - **COM 封装换成 go-ole。** 计划任务的读取和外来任务判定，要用现有用例全部覆盖。
 
 ## 进度
