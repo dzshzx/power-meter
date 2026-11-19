@@ -44,7 +44,8 @@
 //     precedence over the notice of the last change.
 //
 // Toggling calls Change(enable, confirm) and shows the notice it returns
-// the same way (nothing when it returns ""), then reads the switch again.
+// the same way (nothing when it returns ""), then reads the switch again;
+// its done result tells a confirmation from a problem.
 // Enabling needs an elevated process: under an ordinary token Change returns
 // a notice that points at the "restart as administrator" button. When
 // enabling would replace another installation's startup (its task, or the

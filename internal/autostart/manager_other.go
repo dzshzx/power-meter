@@ -20,4 +20,6 @@ func SyncOnStart() {}
 func ReadStatus() Status { return readFailed(unsupported) }
 
 // Change fails outside Windows.
-func Change(bool, func(title, question string) bool) string { return changeFailed + unsupported }
+func Change(bool, func(title, question string) bool) (string, bool) {
+	return changeFailed + unsupported, false
+}

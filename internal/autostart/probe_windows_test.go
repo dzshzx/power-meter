@@ -88,10 +88,11 @@ func probeInstance(mode string) int {
 // probeEnable turns startup on from the window's switch, confirming any
 // replacement, and exits 0 when the switch then reads on.
 func probeEnable() int {
-	fmt.Println("outcome:", Change(true, func(title, question string) bool {
+	notice, _ := Change(true, func(title, question string) bool {
 		fmt.Printf("confirm: %s | %s\n", title, strings.ReplaceAll(question, "\n", " "))
 		return true
-	}))
+	})
+	fmt.Println("outcome:", notice)
 	if probeStatus() != int(SwitchOn) {
 		return 1
 	}

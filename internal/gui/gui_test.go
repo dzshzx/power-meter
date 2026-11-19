@@ -215,6 +215,30 @@ func TestElevatedWindowOffersNoRestart(t *testing.T) {
 	}
 }
 
+// startupEnabled is the notice after the switch turned startup on.
+const startupEnabled = "已启用开机自启：登录后以管理员权限运行受保护副本，在托盘显示。"
+
+func TestNoticeWarnsUnlessItOnlyConfirms(t *testing.T) {
+	confirmed := newRecorder("charging")
+	confirmed.model.Elevated = true
+	confirmed.model.StartupNotice, confirmed.model.StartupConfirmed = startupEnabled, true
+	if !confirmed.model.confirmsOnly() {
+		t.Error("a confirmed startup change alone shows no warning")
+	}
+	failed := newRecorder("charging")
+	failed.model.StartupNotice = "自启设置未完成：拒绝访问。"
+	withReason := newRecorder("charging")
+	withReason.model.StartupNotice, withReason.model.StartupConfirmed = startupEnabled, true
+	withReason.model.ElevationNotice = "已取消管理员权限请求。"
+	withProblem := newRecorder("unavailable")
+	withProblem.model.StartupNotice, withProblem.model.StartupConfirmed = startupEnabled, true
+	for name, r := range map[string]*recorder{"failed change": failed, "elevation reason": withReason, "diagnostics": withProblem} {
+		if r.model.confirmsOnly() {
+			t.Errorf("%s: the card keeps its warning", name)
+		}
+	}
+}
+
 func TestDisabledAutostartIgnoresClicks(t *testing.T) {
 	r := newRecorder("idle")
 	r.model.Autostart = Autostart{Enabled: false, Tooltip: "why"}
@@ -261,9 +285,28 @@ func TestTrayIcons(t *testing.T) {
 	}
 }
 
+// previewRecorder is the recorder for a preview: a fixture scenario, or
+// the charging window with the settings popover open ("settings") or a
+// confirmed startup change ("startup").
+func previewRecorder(scenario string) *recorder {
+	switch scenario {
+	case "settings":
+		r := newRecorder("charging")
+		r.model.SettingsOpen = true
+		return r
+	case "startup":
+		r := newRecorder("charging")
+		r.model.Elevated = true
+		r.model.StartupNotice, r.model.StartupConfirmed = startupEnabled, true
+		return r
+	}
+	return newRecorder(scenario)
+}
+
 // TestPreviews writes every scenario in both languages and appearances at
 // two scales to $POWERMETER_PREVIEW_DIR, for review beside the previous
-// release's captures. Run it on Windows for the real fonts.
+// release's captures. The faces are embedded, so a run on Linux draws the
+// same MiSans as Windows once `go run ./tools/fonts` has fetched them.
 func TestPreviews(t *testing.T) {
 	dir := os.Getenv("POWERMETER_PREVIEW_DIR")
 	if dir == "" {
@@ -274,15 +317,10 @@ func TestPreviews(t *testing.T) {
 		if !i18n.IsChinese() {
 			lang = "en"
 		}
-		for _, scenario := range append(scenarios, "settings") {
+		for _, scenario := range append(scenarios, "settings", "startup") {
 			for _, dark := range []bool{false, true} {
 				for _, scale := range []float32{1, 1.75} {
-					name := scenario
-					if scenario == "settings" {
-						name = "charging"
-					}
-					r := newRecorder(name)
-					r.model.SettingsOpen = scenario == "settings"
+					r := previewRecorder(scenario)
 					tt := r.tester(dark)
 					tt.SetScale(scale)
 					tt.Frame()

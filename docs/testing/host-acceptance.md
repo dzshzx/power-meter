@@ -93,8 +93,11 @@ Power Meter 1.6.0, the first Go release, replaced 1.5.5 on the same notebook:
   is amber; on external power it shows the estimate with `≈` and a green
   tray. Statistics start again after the supply change.
 - Scaling 100%, 300% and back to 175%: no overlapping or clipped text. At
-  300% the window (585 DIPs) is taller than the work area (552 DIPs), so
-  its footer overlaps the taskbar.
+  300% 1.6.0 kept the window (585 DIPs) taller than the work area (552
+  DIPs), so its footer overlapped the taskbar. Later builds refit the window
+  to the work area whenever the scaling or work area changes, also at
+  startup, and scroll the rest; checked on the notebook switching 175% to
+  300%, starting at 300% and returning to 175%.
 - Readings continue after resuming from modern standby. In the first minutes
   after one resume the trend broke several times (sample gaps over 5 s);
   the cause is not known yet.

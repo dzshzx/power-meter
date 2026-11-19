@@ -44,7 +44,10 @@ type Model struct {
 	// to say. Both show above the view's diagnostics.
 	ElevationNotice string
 	StartupNotice   string
-	Actions         Actions
+	// StartupConfirmed: StartupNotice confirms a startup change that took
+	// effect, rather than reporting a problem.
+	StartupConfirmed bool
+	Actions          Actions
 	// SettingsOpen shows the settings popover.
 	SettingsOpen bool
 }
@@ -59,6 +62,12 @@ func (m *Model) notice() string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// confirmsOnly: the notice card holds nothing but the confirmation of a
+// startup change, so it shows no warning.
+func (m *Model) confirmsOnly() bool {
+	return m.StartupConfirmed && m.ElevationNotice == "" && len(m.View.Diagnostics) == 0
 }
 
 // offersElevation: restarting as administrator would help, and this window
@@ -348,9 +357,13 @@ func notice(c *ui.Context, p *palette, m *Model, text string) {
 	if m.offersElevation() {
 		h += noticeActionHeight
 	}
+	glyph, tone := iconTriangleAlert, p.warn
+	if m.confirmsOnly() {
+		glyph, tone = iconCircleCheck, p.ink2
+	}
 	group(c, p).Height(h).Padding(10, groupPadding, 10, 16).Justify(ui.Center).Gap(4).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Start).Children(func() {
-			ui.Icon(c, icon(iconTriangleAlert, 1.75)).Size(14, 14).TextColor(p.warn).Margin(2, 0, 0, 0)
+			ui.Icon(c, icon(glyph, 1.75)).Size(14, 14).TextColor(tone).Margin(2, 0, 0, 0)
 			ui.Text(c, text).Font(textFont).FontSize(captionSize).LineHeight(1.5).TextColor(p.ink2).MaxLines(2).
 				Ellipsis("…").Grow(1).Shrink(1).Tooltip(text)
 		})

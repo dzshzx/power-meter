@@ -326,7 +326,9 @@ func ReadStatus() Status {
 
 // Change turns this installation's startup on or off and returns the notice
 // for the diagnostics area (a Chinese source string, shown through
-// i18n.Diagnostic), or "" when the user declined a replacement.
+// i18n.Diagnostic), or "" when the user declined a replacement. done is true
+// when startup now stands as asked: the notice then confirms the change
+// rather than reporting a problem.
 //
 // Enabling needs an elevated process; otherwise it returns the notice that
 // asks for the "restart as administrator" button. When enabling would
@@ -334,35 +336,35 @@ func ReadStatus() Status {
 // it recorded), Change first calls confirm with a localized title and
 // question and goes on only on true. confirm runs on the calling goroutine;
 // a nil confirm declines.
-func Change(enable bool, confirm func(title, question string) bool) string {
+func Change(enable bool, confirm func(title, question string) bool) (notice string, done bool) {
 	m, err := forCurrentProcess()
 	if err != nil {
-		return changeFailed + err.Error()
+		return changeFailed + err.Error(), false
 	}
 	if !enable {
 		r, err := m.Disable()
 		if err != nil {
-			return changeFailed + err.Error()
+			return changeFailed + err.Error(), false
 		}
-		return outcome(false, r)
+		return outcome(false, r), true
 	}
 	return m.change(confirm)
 }
 
-func (m *manager) change(confirm func(title, question string) bool) string {
+func (m *manager) change(confirm func(title, question string) bool) (string, bool) {
 	// Refuse before asking about replacement.
 	if !m.elevated {
-		return changeFailed + ElevationRequired
+		return changeFailed + ElevationRequired, false
 	}
 	st, err := m.Read()
 	if err != nil {
-		return changeFailed + err.Error()
+		return changeFailed + err.Error(), false
 	}
 	if other := replaces(st); other != "" && (confirm == nil || !confirm(confirmation(other, m.identity))) {
-		return ""
+		return "", false
 	}
 	if err := m.Enable(st); err != nil {
-		return changeFailed + err.Error()
+		return changeFailed + err.Error(), false
 	}
-	return outcome(true, removed)
+	return outcome(true, removed), true
 }

@@ -41,12 +41,22 @@ type app struct {
 	tray    *mygo.Tray
 	menu    *mygo.Menu
 	done    chan struct{}
-	height  int
+	fitted  fit
 	glyph   string
 	accent  power.Accent
-	// startupBusy: a startup change is running; lastChange is its notice.
+	// startupBusy: a startup change is running; lastChange is its notice,
+	// and lastDone says the change took effect.
 	startupBusy bool
 	lastChange  string
+	lastDone    bool
+}
+
+// fit is what the window was last fitted to: the content height, the height
+// it got within the work area of its display, and that display's scale.
+type fit struct {
+	content, height int
+	area            mygo.Rectangle
+	scale           float64
 }
 
 // Run shows the meter until the user exits, and returns the exit code.
@@ -94,12 +104,11 @@ func (a *app) stop() {
 }
 
 func (a *app) start() {
-	a.height = gui.Height(&a.model)
 	a.win = mygo.NewWindow(mygo.WindowOptions{
 		Title:             i18n.AppName(),
 		Content:           ui.View(func(c *ui.Context) { gui.Build(c, &a.model) }),
 		Width:             gui.Width,
-		Height:            a.height,
+		Height:            gui.Height(&a.model),
 		UseContentSize:    true,
 		Hidden:            a.opts.StartHidden,
 		Frameless:         true,
@@ -111,7 +120,7 @@ func (a *app) start() {
 		AlwaysOnTop:       true,
 	})
 	_ = a.win.SetIcon(gui.AppIcon(256))
-	a.setInputRegion()
+	a.resize()
 	a.win.OnMinimize(a.hide)
 	a.win.OnFocus(a.refreshStartup)
 	a.buildTray()
@@ -163,24 +172,45 @@ func (a *app) present(v *meter.View) {
 	a.updateTray()
 }
 
-// resize fits the window to its content, within the work area; the content
-// scrolls where the screen is shorter.
+// resize fits the window to its content, within the work area of its
+// display; the content scrolls where the screen is shorter. It runs with
+// every view but acts only when the content height, the work area or the
+// display's scale changed, so a new scaling refits the window within a
+// second while a window the user moved stays where it is.
 func (a *app) resize() {
-	h := gui.Height(&a.model)
-	if h == a.height || a.win == nil {
+	if a.win == nil {
 		return
 	}
-	a.height = h
 	x, y := a.win.Position()
 	d := mygo.Screen.DisplayNearestPoint(mygo.Point{X: x, Y: y})
-	if limit := d.WorkArea.Height - 16; limit > 0 && h > limit {
-		h = limit
+	content := gui.Height(&a.model)
+	f := fit{content: content, height: fitHeight(content, d.WorkArea.Height), area: d.WorkArea, scale: d.ScaleFactor}
+	if f == a.fitted {
+		return
 	}
-	a.win.SetContentSize(gui.Width, h)
+	a.fitted = f
+	a.win.SetContentSize(gui.Width, f.height)
 	a.setInputRegion()
-	if _, wh := a.win.Size(); y+wh > d.WorkArea.Y+d.WorkArea.Height {
-		a.win.SetPosition(x, max(d.WorkArea.Y, d.WorkArea.Y+d.WorkArea.Height-wh))
+	_, wh := a.win.Size()
+	if top := fitTop(y, wh, d.WorkArea.Y, d.WorkArea.Height); top != y {
+		a.win.SetPosition(x, top)
 	}
+}
+
+// fitTop is where a window wh tall puts its top edge to stay inside a work
+// area from top, height tall: moved up when it runs past the bottom, down
+// when it starts above the top. A taller window keeps its title bar.
+func fitTop(y, wh, top, height int) int {
+	return max(top, min(y, top+height-wh))
+}
+
+// fitHeight is the window's content height for content on a work area
+// workHeight tall: all of it, or the work area less a small margin.
+func fitHeight(content, workHeight int) int {
+	if limit := workHeight - 16; limit > 0 && content > limit {
+		return limit
+	}
+	return content
 }
 
 // setInputRegion lets the mouse through the transparent room around the
@@ -261,11 +291,11 @@ func (a *app) setStartup(on bool) {
 	a.startupBusy = true
 	a.model.Autostart.Enabled = false
 	go func() {
-		notice := autostart.Change(on, a.confirm)
+		notice, done := autostart.Change(on, a.confirm)
 		status := autostart.ReadStatus()
 		a.win.Update(func() {
 			a.startupBusy = false
-			a.lastChange = notice
+			a.lastChange, a.lastDone = notice, done
 			a.applyStartup(status)
 		})
 	}()
@@ -294,9 +324,9 @@ func (a *app) applyStartup(s autostart.Status) {
 		Enabled: !a.startupBusy,
 		Tooltip: s.Tooltip,
 	}
-	a.model.StartupNotice = s.Notice
+	a.model.StartupNotice, a.model.StartupConfirmed = s.Notice, false
 	if a.model.StartupNotice == "" {
-		a.model.StartupNotice = a.lastChange
+		a.model.StartupNotice, a.model.StartupConfirmed = a.lastChange, a.lastDone
 	}
 	if a.menu != nil {
 		item := a.menu.ItemByID("autostart")
