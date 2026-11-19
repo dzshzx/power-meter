@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -127,16 +128,34 @@ type remote struct {
 	zip  *zip.Reader
 }
 
+// openRemote reads the package's directory. The size comes from the
+// Content-Range of a one-byte range request, not from a HEAD request: some
+// of the CDN's edges answer HEAD without a length.
 func openRemote(url string) (*remote, error) {
-	resp, err := client.Head(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK || resp.ContentLength <= 0 {
-		return nil, fmt.Errorf("HEAD %s: %s", url, resp.Status)
+	req.Header.Set("Range", "bytes=-1")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
 	}
-	r := &remote{url: url, size: resp.ContentLength}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusPartialContent {
+		return nil, fmt.Errorf("GET %s with a range: %s; the server must answer range requests", url, resp.Status)
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 16))
+	cr := resp.Header.Get("Content-Range")
+	i := strings.LastIndexByte(cr, '/')
+	size := int64(-1)
+	if i >= 0 {
+		size, _ = strconv.ParseInt(cr[i+1:], 10, 64)
+	}
+	if size <= 0 {
+		return nil, fmt.Errorf("GET %s with a range: no size in Content-Range %q", url, cr)
+	}
+	r := &remote{url: url, size: size}
 	r.zip, err = zip.NewReader(r, r.size)
 	return r, err
 }
