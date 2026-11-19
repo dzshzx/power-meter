@@ -224,8 +224,8 @@ MiSans 的许可不允许单独分发字体文件，所以字体不进仓库：`
 `internal/fonts/misans/`（已忽略），构建时嵌入 EXE。已有且一致时不再下载。没取字体也能编译和测试，
 这样门禁与 CodeQL 只取决于提交、不联网；这种构建用系统字体绘制，`--self-test` 不通过，所以发不出去。
 CI 里只有 Windows 验证与发版取字体。
-安装包由 mygo 用 NSIS 生成，安装步骤在 `installer/installer.nsh`；Linux 上需要 `makensis`，
-Windows 上缺少时 mygo 会自己下载。应用图标源文件为 `installer/icon.png`。
+安装包由 mygo 用 NSIS 生成，安装步骤在 `installer/installer.nsh`；构建需要 `makensis`（CI 从 apt 安装）。
+发版与 Windows 验证都在 Linux 上构建，Windows 只测试这份产物。应用图标源文件为 `installer/icon.png`。
 
 `bash scripts/check.sh` 是门禁（Linux 上跑：格式、按 linux 与 windows 各跑一遍的 vet 与 staticcheck、
 Go 测试、函数认知复杂度不超过 30）。Windows 上的测试、可执行文件烟测与安装实测见

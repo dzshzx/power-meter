@@ -4,14 +4,20 @@ The Windows part of the checks runs on Windows only: Windows-only Go tests,
 the live autostart tests, the smoke run of the built executable and the
 installer test. The manually dispatched `Windows validation` workflow
 (`.github/workflows/ci.yml`) and the Release workflow
-(`.github/workflows/release.yml`) both run them on a hosted Windows runner,
-which is elevated and thrown away afterwards:
+(`.github/workflows/release.yml`) both build the executable and the
+installer on Linux (`ubuntu-24.04`, NSIS from apt), as a local build does:
 
 ```sh
 go run ./tools/fonts
+go tool mygo build -platform windows/amd64
+```
+
+and hand these exact files to a hosted Windows runner, which is elevated and
+thrown away afterwards, to run:
+
+```sh
 go test -count=1 ./...
 POWERMETER_LIVE=1 go test -count=1 ./internal/autostart
-go tool mygo build -platform windows/amd64
 go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work <dir>
 go run ./tools/release install-test -version 0.0.0 -setup dist/windows-amd64/power-meter-setup-0.0.0-amd64.exe
 ```

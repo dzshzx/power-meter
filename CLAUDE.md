@@ -46,8 +46,9 @@ only those upgraded from 1.4 or earlier stayed in `Battery Charge Meter`.
   source bundle; release assets include both formats, and every asset has a
   `.sha256` file.
 - Gate: `bash scripts/check.sh` (Linux: format, vet and staticcheck for linux
-  and windows, Go tests, cognitive complexity; `wt land` runs it). Windows-only
-  tests, the smoke run and the installer test run on Windows: the manually
-  dispatched `Windows validation` workflow, or by hand as in
+  and windows, Go tests, cognitive complexity; `wt land` runs it). Everything
+  is built on Linux, in CI as locally; Windows only tests. Windows-only tests,
+  the smoke run and the installer test run there on the Linux-built files:
+  the manually dispatched `Windows validation` workflow, or by hand as in
   `docs/testing/manual-ci.md`.
 - `dist/` is generated; binaries belong in GitHub Releases.

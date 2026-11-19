@@ -25,9 +25,10 @@ gh workflow run release.yml --ref master -f bump=patch
    Release 已发布，才算发过版，非 dry_run 直接失败并说明「这个提交已发过版」。提交上只有 tag、
    同名 Release 没有发布时，视为上次发版没做完，沿用这个版本继续发布，不再升档。这一步在门禁之前。
 2. 算出新版本号（见下节）。
-3. 在 Linux runner 上跑门禁 `bash scripts/check.sh`；在 Windows runner 上取 MiSans 字体，跑 Windows 上的
-   `go test`（含提权的自启实测），再用 `go run ./tools/release set-version` 把新版本写进 `mygo.json`
-   （测试要求仓里是占位版本，所以写在测试之后），`go tool mygo build` 构建 EXE 与安装包，再跑
+3. 在 Linux runner 上跑门禁 `bash scripts/check.sh`。另一个 Linux 作业（`ubuntu-24.04`，NSIS 取自
+   apt）取 MiSans 字体，用 `go run ./tools/release set-version` 把新版本写进它自己检出的 `mygo.json`，
+   `go tool mygo build` 构建 EXE 与安装包，交给 Windows runner。Windows runner 跑 Windows 上的
+   `go test`（含提权的自启实测；它的检出保持仓里的占位版本），再对收到的这两个文件跑
    `tools/release smoke`（`--self-test`、通知导出、截图与预览等烟测）和 `tools/release install-test`
    （拒绝覆盖 1.5 及更早的版本、安装、覆盖安装、卸载）。
 4. `tools/release package` 生成便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产旁各带
@@ -66,5 +67,18 @@ go run ./tools/release verify -version X.Y.Z -out <空目录>
 
 它下载该版本全部资产，核对每个资产的 `.sha256` 文件、EXE 文件版本、`asInvoker`、烟测、导出的
 通知与发布的通知一致及对应源码包，并在输出目录写出 `verification.json` 与窗口截图。
+
+公开的 EXE 在 Linux 上可逐字节复现：在不带 tag 的克隆里检出 Release 说明写的 `source_commit`，取字体、
+写入版本、构建，得到的 `PowerMeter.exe` 与资产的 SHA-256 相同（v1.6.0 实测）。tag 会改变嵌入的模块版本，
+所以克隆时不带 tag；安装包内含打包时间，不能逐字节复现。
+
+```sh
+git clone --no-tags https://github.com/dzshzx/power-meter.git && cd power-meter
+git checkout <source_commit>
+go run ./tools/fonts
+go run ./tools/release set-version -version X.Y.Z
+go tool mygo build -platform windows/amd64 -skip-installer
+sha256sum dist/windows-amd64/PowerMeter.exe
+```
 
 发布产物只存在于 GitHub Release，不直接提交到仓库。
