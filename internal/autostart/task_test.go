@@ -89,9 +89,9 @@ func TestSchedulerDeclarationIsRead(t *testing.T) {
 	}
 }
 
-func TestUnprotectedTaskNeedsMigration(t *testing.T) {
+func TestUnprotectedTaskIsNotStartup(t *testing.T) {
 	s := inspect(t, registered(t, installedPath, nil), installedPath)
-	if !s.exists || !s.thisCopy || s.protected || s.enabled || s.repairReason == "" || s.executable != installedPath {
+	if !s.exists || !s.thisCopy || s.protected || s.enabled || s.executable != installedPath {
 		t.Errorf("elevated task running a user-writable file is never reported as working startup: %+v", s)
 	}
 	other := inspect(t, registered(t, `C:\Other\PowerMeter.exe`, nil), installedPath)

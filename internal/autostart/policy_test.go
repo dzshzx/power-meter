@@ -45,9 +45,6 @@ func steps(p plan) string {
 func TestSynchronize(t *testing.T) {
 	fromCopy := fact(true, true, false, true, false, true, false, true)
 	fromCopy.runningFromCopy = true
-	unprotected := fact(true, true, false, true, false, false, false, true)
-	unprotectedOrdinary := unprotected
-	unprotectedOrdinary.elevated = false
 	cases := []struct {
 		name  string
 		facts facts
@@ -56,9 +53,8 @@ func TestSynchronize(t *testing.T) {
 		steps string
 	}{
 		{"protected copy process never synchronizes", fromCopy, true, syncCurrent, "none"},
-		{"report-only sync names an unprotected task without acting", unprotected, false, syncUnprotected, "none"},
-		{"elevated sync migrates an unprotected task to the protected copy", unprotected, true, syncCurrent, "install+register+restart"},
-		{"sync without elevation refuses to write the copy", unprotectedOrdinary, true, syncUnprotected, "refuse"},
+		{"a task that runs the user-writable file leaves an owned copy unused", fact(true, true, false, false, false, true, false, false), false, syncOrphanCopy, "none"},
+		{"a task that runs the user-writable file needs nothing without a copy", fact(true, true, false, false, false, false, false, true), true, syncCurrent, "none"},
 		{"matching protected copy is current", fact(true, true, true, true, false, true, true, true), true, syncCurrent, "none"},
 		{"report-only sync names an outdated copy", fact(true, true, true, false, false, true, false, false), false, syncStaleCopy, "none"},
 		{"outdated copy of disabled startup is refreshed without restart", fact(true, true, true, false, false, true, false, true), true, syncCurrent, "install"},
@@ -205,7 +201,7 @@ func TestNoticesTranslate(t *testing.T) {
 		ElevationRequired, elevationRequiredForCopy, changedElsewhere,
 		outcome(true, removed), outcome(false, removed), outcome(false, removalCopyNeedsElevation),
 		errForeignTask.Error(), errBusy.Error(),
-		repairReason(false, true, true), repairReason(true, true, false),
+		repairReason(false, true),
 	}
 	for _, text := range texts {
 		if i18n.Diagnostic(text) == text {

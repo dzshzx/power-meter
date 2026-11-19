@@ -15,9 +15,9 @@ file would then start elevated at the next sign-in without a UAC prompt.
   plus an `IntelMSR.bin` beside it. A process running from a protected copy
   never copies from its recorded source (`source.txt`).
 - A task in this program's shape that runs a user-writable file is never
-  reported as working startup. This program never registers one; setup moves
-  it to the protected copy with one UAC prompt or deletes it when elevation is
-  declined, and an elevated launch also moves it.
+  reported as working startup and is not migrated. This program never
+  registers one, and an ordinary token cannot register an elevated task
+  (the scheduler denies it), so only an elevated process could have.
 - A confirmation to replace another installation's startup covers the task
   definition and the copy's recorded owner.
 - The task ACL allows the ordinary token to read, run and delete it,
@@ -50,10 +50,6 @@ Observed with Power Meter 1.5 (the C# program, whose task and installer
 followed the same rules under its old names) on a real installation, with the
 real AppId, task name and protected root:
 
-- Upgrading over an older version whose task ran the user-writable
-  `%LOCALAPPDATA%\Programs\Battery Charge Meter\BatteryChargeMeter.exe` moves
-  the task action and working folder to the protected copy; its SHA-256
-  matches the installed EXE.
 - Under the ordinary token, replacing the user-folder EXEs succeeds, while
   opening the copy for write, creating a file beside it, renaming or deleting
   it, renaming its folder, adding an ACE and rewriting the task action are all
@@ -63,7 +59,7 @@ real AppId, task name and protected root:
   `--sync-autostart` returns 3 and leaves the copy unchanged. Upgrading while
   the logon instance runs refreshes the copy, keeps the task definition
   byte-identical, and restarts the instance from the refreshed copy, elevated.
-- Ordinary `--remove-autostart` on a migrated task returns 3 (task deleted,
+- Ordinary `--remove-autostart` on an enabled task returns 3 (task deleted,
   copy kept); an elevated `--sync-autostart` then removes the unused copy and
   folders. Uninstall removes task, copy and `Program Files\Power Meter`.
 
@@ -85,3 +81,6 @@ notebook:
   token then brings that window back without UAC.
 - Sign-out and sign-in: the task started the protected copy elevated in the
   tray right after logon, with no UAC.
+- Under the ordinary token the scheduler denies registering a task at the
+  highest run level (`Register-ScheduledTask` and `schtasks /rl HIGHEST`
+  both get access denied), while a task at the limited level registers.

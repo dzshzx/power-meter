@@ -271,8 +271,7 @@ func (m *manager) Describe() (Status, error) {
 
 // RunSync is --sync-autostart. Elevated, it applies and returns 0. Under an
 // ordinary token it only reports what an elevated run would change: 3 an
-// outdated copy, 4 a task that runs a user-writable file, 5 an unused copy.
-// 1 is a failure. It never asks for UAC.
+// outdated copy, 5 an unused copy. 1 is a failure. It never asks for UAC.
 func RunSync() int {
 	m, err := forCurrentProcess()
 	if err != nil {
@@ -301,9 +300,8 @@ func RunRemove() int {
 	return int(r)
 }
 
-// SyncOnStart is for an elevated GUI launch: it migrates a task that runs
-// a user-writable file, refreshes this installation's protected copy and
-// removes an unused one. Failures leave the state for the settings panel
+// SyncOnStart is for an elevated GUI launch: it refreshes this
+// installation's protected copy and removes an unused one. Failures leave the state for the settings panel
 // to report.
 func SyncOnStart() {
 	if m, err := forCurrentProcess(); err == nil && m.elevated {

@@ -87,9 +87,7 @@ installed and asks for that to be uninstalled first; nothing of 1.5 is
 migrated.
 
 After the files are in place, setup runs `--sync-autostart`: an outdated
-protected copy is refreshed with one UAC prompt, and a task that runs a
-user-writable file is moved to the copy or, when elevation is declined,
-turned off. The uninstaller first runs `--remove-autostart` and requests
+protected copy is refreshed with one UAC prompt. The uninstaller first runs `--remove-autostart` and requests
 elevation to delete this installation's protected copy; a failed cleanup
 stops the uninstall and keeps the program. `tools/release install-test`
 checks the refusal over 1.5, install, reinstall and uninstall silently.

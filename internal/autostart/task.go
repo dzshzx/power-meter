@@ -205,7 +205,7 @@ func inspectTask(text, identity, sid, protectedExe, protectedSource string, acco
 		executable:   target,
 		protected:    isProtected,
 		registration: text,
-		repairReason: repairReason(policy, settings, isProtected),
+		repairReason: repairReason(policy, settings),
 	}
 	if isProtected {
 		s.thisCopy = protectedSource != "" && winapp.SamePath(protectedSource, identity)
@@ -215,8 +215,9 @@ func inspectTask(text, identity, sid, protectedExe, protectedSource string, acco
 	} else {
 		s.thisCopy = winapp.SamePath(target, identity)
 	}
-	// An elevated task that runs a user-writable file is never reported as
-	// working startup, even if its policy is intact.
+	// Only a task that runs the protected copy is working startup: one
+	// that runs a user-writable file can only have been registered by an
+	// elevated process other than this program.
 	s.enabled = valueOr(d.Settings.Enabled, true) && policy && settings && isProtected
 	return s, nil
 }
@@ -277,12 +278,9 @@ func zeroDuration(text string) bool {
 	return ok && digits
 }
 
-func repairReason(policy, settings, isProtected bool) string {
-	switch {
-	case !policy || !settings:
+func repairReason(policy, settings bool) string {
+	if !policy || !settings {
 		return "自启任务设置已变化（权限、触发条件或运行限制），请重新勾选以修复。"
-	case !isProtected:
-		return "自启仍指向普通权限可替换的程序文件，请以管理员身份重新勾选，改用受保护副本。"
 	}
 	return ""
 }

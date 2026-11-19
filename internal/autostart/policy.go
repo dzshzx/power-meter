@@ -34,9 +34,6 @@ const (
 	syncCurrent syncResult = 0
 	// syncStaleCopy: this installation's task runs an outdated protected copy.
 	syncStaleCopy syncResult = 3
-	// syncUnprotected: a task in this program's shape for this installation
-	// runs a user-writable file. This program never registers one.
-	syncUnprotected syncResult = 4
 	// syncOrphanCopy: no task runs this installation's protected copy.
 	syncOrphanCopy syncResult = 5
 )
@@ -117,22 +114,20 @@ const (
 	changeFailed      = "自启设置未完成："
 )
 
-// synchronize migrates a task that runs a user-writable file, refreshes an
-// outdated copy, and removes a copy no task uses. Without apply it only
-// reports what an elevated run would change.
+// synchronize refreshes an outdated copy and removes a copy no task uses.
+// Without apply it only reports what an elevated run would change.
 func synchronize(f facts, apply bool) plan {
 	var p plan
 	if f.runningFromCopy {
 		return p
 	}
 	t := f.task
+	runsCopy := t.exists && t.thisCopy && t.protected
 	var needed syncResult
 	switch {
-	case t.exists && t.thisCopy && !t.protected:
-		needed = syncUnprotected
-	case t.exists && t.thisCopy && f.copyMatches:
+	case runsCopy && f.copyMatches:
 		needed = syncCurrent
-	case t.exists && t.thisCopy:
+	case runsCopy:
 		needed = syncStaleCopy
 	case f.copyOwned:
 		needed = syncOrphanCopy
@@ -148,12 +143,9 @@ func synchronize(f facts, apply bool) plan {
 		return p
 	}
 	p.sync = syncCurrent
-	switch needed {
-	case syncUnprotected:
-		p.installCopy, p.registerTask, p.restartIfStopped = true, true, true
-	case syncStaleCopy:
+	if needed == syncStaleCopy {
 		p.installCopy, p.restartIfStopped = true, t.enabled
-	default:
+	} else {
 		p.removeCopy = true
 	}
 	return p

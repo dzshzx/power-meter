@@ -231,7 +231,6 @@ func TestLiveIntegration(t *testing.T) {
 	live(t)
 	f := newFixture(t)
 	check(t, !f.read(f.a).exists, "a unique test task starts absent")
-	f.unprotectedTaskIsMigrated()
 	absent := f.read(f.a)
 	f.enableRegistersTheProtectedShape()
 	f.replacementNeedsConfirmation(absent)
@@ -245,27 +244,6 @@ func TestLiveIntegration(t *testing.T) {
 	}
 	_, statErr := os.Stat(f.parent)
 	check(t, !f.read(f.a).exists && errors.Is(statErr, os.ErrNotExist), "final removal reads back absent task, copy and empty folders: %v", statErr)
-}
-
-// A task in this program's shape that runs the user-writable file is
-// reported as needing migration and moved to the protected copy.
-func (f *fixture) unprotectedTaskIsMigrated() {
-	t := f.t
-	text, err := definition(f.pathA, f.sid).marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.registerXML(text)
-	s := f.read(f.a)
-	check(t, s.thisCopy && !s.protected && !s.enabled && s.repairReason != "", "a task running the user-writable file needs migration: %+v", s)
-	r, err := f.a.Synchronize(false)
-	check(t, err == nil && r == syncUnprotected, "report-only synchronization flags the unprotected task: %d %v", r, err)
-	r, err = f.a.Synchronize(true)
-	check(t, err == nil && r == syncCurrent && f.command() == f.exe, "elevated synchronization migrates the task to the protected copy: %d %v %s", r, err, f.command())
-	if _, err := f.a.Disable(); err != nil {
-		t.Fatal(err)
-	}
-	check(t, !f.read(f.a).exists && !exists(f.exe), "elevated disable removes task and protected copy")
 }
 
 func (f *fixture) enableRegistersTheProtectedShape() {

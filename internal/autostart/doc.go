@@ -16,9 +16,6 @@
 //
 //	--sync-autostart    0  current, or applied (elevated)
 //	                    3  this installation's copy is outdated (ordinary token)
-//	                    4  a task in this program's shape for this installation runs a
-//	                       user-writable file (ordinary token); this program never
-//	                       registers one, the elevated run moves it to the copy
 //	                    5  this installation's copy has no task any more (ordinary token)
 //	                    1  failure
 //	--remove-autostart  0  removed, or there was nothing to remove

@@ -72,7 +72,6 @@ var table = []entry{
 	{"已启用开机自启：登录后以管理员权限运行受保护副本，在托盘显示。", "Startup enabled: the protected copy runs elevated in the tray at sign-in."},
 	{"已关闭此程序的开机自启。", "Startup disabled for this copy."},
 	{"已关闭此程序的开机自启；受保护副本将在下次以管理员身份启动时删除。", "Startup disabled. The protected copy is removed the next time the app runs as administrator."},
-	{"自启仍指向普通权限可替换的程序文件，请以管理员身份重新勾选，改用受保护副本。", "Startup still runs a file that standard processes can replace. Enable startup again as administrator to use the protected copy."},
 	{"写入或删除自启副本需要管理员权限。", "Administrator access is required to change the protected startup copy."},
 	{"只能从正在运行的程序本身创建自启副本。", "The protected startup copy can only be created from the running application itself."},
 	{"自启副本写入后的校验失败。", "Protected startup copy verification failed after writing."},
