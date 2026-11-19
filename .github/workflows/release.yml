@@ -124,8 +124,9 @@ jobs:
   # files on Windows before it packages and publishes them.
   build:
     needs: [version, gate]
-    # A fixed image keeps the NSIS package that builds the installer fixed.
-    runs-on: ubuntu-24.04
+    # The development machine's release: the same NSIS package builds the
+    # installer here and locally, and a fixed image keeps it fixed.
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
 
     steps:

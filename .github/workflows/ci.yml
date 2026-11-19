@@ -14,8 +14,9 @@ jobs:
   # The executable and the installer are built on Linux, as a release builds
   # them; Windows only tests these exact files.
   build:
-    # A fixed image keeps the NSIS package that builds the installer fixed.
-    runs-on: ubuntu-24.04
+    # The development machine's release: the same NSIS package builds the
+    # installer here and locally, and a fixed image keeps it fixed.
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
 
     steps:

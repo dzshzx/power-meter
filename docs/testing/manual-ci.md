@@ -5,7 +5,8 @@ the live autostart tests, the smoke run of the built executable and the
 installer test. The manually dispatched `Windows validation` workflow
 (`.github/workflows/ci.yml`) and the Release workflow
 (`.github/workflows/release.yml`) both build the executable and the
-installer on Linux (`ubuntu-24.04`, NSIS from apt), as a local build does:
+installer on Linux (`ubuntu-26.04` like the development machine, NSIS from
+apt), as a local build does:
 
 ```sh
 go run ./tools/fonts
