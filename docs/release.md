@@ -25,12 +25,10 @@ gh workflow run release.yml --ref master -f bump=patch
    Release 已发布，才算发过版，非 dry_run 直接失败并说明「这个提交已发过版」。提交上只有 tag、
    同名 Release 没有发布时，视为上次发版没做完，沿用这个版本继续发布，不再升档。这一步在门禁之前。
 2. 算出新版本号（见下节）。
-3. 在 Linux runner 上跑门禁 `bash scripts/check.sh`。另一个 Linux 作业（`ubuntu-26.04`，NSIS 取自
-   apt）取 MiSans 字体，用 `go run ./tools/release set-version` 把新版本写进它自己检出的 `mygo.json`，
-   `go tool mygo build` 构建 EXE 与安装包，交给 Windows runner。Windows runner 跑 Windows 上的
-   `go test`（含提权的自启实测；它的检出保持仓里的占位版本），再对收到的这两个文件跑
-   `tools/release smoke`（`--self-test`、通知导出、截图与预览等烟测）和 `tools/release install-test`
-   （拒绝覆盖 1.5 及更早的版本、安装、覆盖安装、卸载）。
+3. 调用 `Windows validation` 工作流（`.github/workflows/ci.yml`，做法见 `docs/testing/manual-ci.md`）：
+   门禁、在 Linux 上构建 EXE 与安装包、在 Windows 上测试这两个文件。发版时它在构建前用
+   `go run ./tools/release set-version` 把新版本写进构建作业自己检出的 `mygo.json`；测试的检出保持仓里
+   的占位版本。
 4. `tools/release package` 生成便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产旁各带
    一个 `.sha256` 校验文件，全部放在一个只放发布资产的目录里，并核对 EXE 的文件版本是新版本、
    每个校验文件都对、源码包是 `third_party/NOTICE.md` 固定的那一份。

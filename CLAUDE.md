@@ -38,9 +38,8 @@ only those upgraded from 1.4 or earlier stayed in `Battery Charge Meter`.
   distribution): `go run ./tools/fonts` fetches the pinned faces into
   `internal/fonts/misans/`. The program compiles and tests without them, so
   the gate and CodeQL depend only on the commit; such a build draws with
-  system fonts and fails `--self-test`. Fetch them before rendering
-  previews; only Windows validation and Release fetch them in CI. The app
-  must keep saying it uses MiSans (settings popover and notices).
+  system fonts and fails `--self-test`. The app must keep saying it uses
+  MiSans (settings popover and notices).
 - Portable EXE and per-user installer are equal release options. Preserve the
   replaceable `IntelMSR.bin` sidecar, LGPL notice/licence and exact corresponding
   source bundle; release assets include both formats, and every asset has a

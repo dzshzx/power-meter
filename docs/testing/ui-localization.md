@@ -71,8 +71,7 @@ renders every fixture state (starting, warming, early, charging, idle,
 discharging, supplemented, unavailable, and the settings popover) in Chinese
 and English, light and dark, at 100% and 175%, plus the tray tiles. They use
 deterministic fixture readings, not live laptop readings, and run on Linux
-too. Fetch the fonts first: without them the previews fall back to system
-fonts and do not show the shipped look. Visual review covers the 175%
+too, once `go run ./tools/fonts` has fetched the fonts. Visual review covers the 175%
 previews in both languages and both appearances. On Windows, `PowerMeter.exe --screenshot`, `--dpi-preview` and
 `--tray-preview` render through the real app; `tools/release smoke` runs
 them.

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dzshzx/power-meter/internal/fonts"
 	"github.com/dzshzx/power-meter/internal/i18n"
 	"github.com/dzshzx/power-meter/internal/meter"
 	"github.com/dzshzx/power-meter/internal/power"
@@ -219,16 +220,12 @@ func TestElevatedWindowOffersNoRestart(t *testing.T) {
 const startupEnabled = "已启用开机自启：登录后以管理员权限运行受保护副本，在托盘显示。"
 
 func TestNoticeWarnsUnlessItOnlyConfirms(t *testing.T) {
-	confirmed := newRecorder("charging")
-	confirmed.model.Elevated = true
-	confirmed.model.StartupNotice, confirmed.model.StartupConfirmed = startupEnabled, true
-	if !confirmed.model.confirmsOnly() {
+	if !previewRecorder("startup").model.confirmsOnly() {
 		t.Error("a confirmed startup change alone shows no warning")
 	}
 	failed := newRecorder("charging")
 	failed.model.StartupNotice = "自启设置未完成：拒绝访问。"
-	withReason := newRecorder("charging")
-	withReason.model.StartupNotice, withReason.model.StartupConfirmed = startupEnabled, true
+	withReason := previewRecorder("startup")
 	withReason.model.ElevationNotice = "已取消管理员权限请求。"
 	withProblem := newRecorder("unavailable")
 	withProblem.model.StartupNotice, withProblem.model.StartupConfirmed = startupEnabled, true
@@ -306,11 +303,15 @@ func previewRecorder(scenario string) *recorder {
 // TestPreviews writes every scenario in both languages and appearances at
 // two scales to $POWERMETER_PREVIEW_DIR, for review beside the previous
 // release's captures. The faces are embedded, so a run on Linux draws the
-// same MiSans as Windows once `go run ./tools/fonts` has fetched them.
+// same MiSans as Windows; without them the previews would not show the
+// shipped look, so the test refuses to run.
 func TestPreviews(t *testing.T) {
 	dir := os.Getenv("POWERMETER_PREVIEW_DIR")
 	if dir == "" {
 		t.Skip("POWERMETER_PREVIEW_DIR is not set")
+	}
+	if !fonts.Embedded() {
+		t.Fatal("MiSans is missing: run go run ./tools/fonts first")
 	}
 	eachLanguage(t, func(t *testing.T) {
 		lang := "zh-CN"

@@ -98,76 +98,18 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "tag=v$version" >> $env:GITHUB_OUTPUT
 
-  gate:
+  # Builds on Linux and tests on Windows the files this run publishes, with
+  # the gate beside them; a manual Windows validation runs the same jobs.
+  validate:
     needs: version
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-
-      - name: Gate (scripts/check.sh)
-        run: bash scripts/check.sh
-
-  # The release assets are built on Linux; the release job tests these exact
-  # files on Windows before it packages and publishes them.
-  build:
-    needs: [version, gate]
-    # The development machine's release: the same NSIS package builds the
-    # installer here and locally, and a fixed image keeps it fixed.
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-
-      - name: Install NSIS
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends nsis
-          makensis -VERSION
-
-      - name: Fetch MiSans (pinned SHA-256)
-        run: go run ./tools/fonts
-
-      # mygo.json carries the 0.0.0 placeholder, which the tests check; this
-      # checkout only builds, so stamping the version here leaves every
-      # test's checkout as committed.
-      - name: Write release version into mygo.json
-        run: go run ./tools/release set-version -version ${{ needs.version.outputs.version }}
-
-      - name: Build executable and installer
-        run: go tool mygo build -platform windows/amd64
-
-      - name: Save the build
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: build
-          path: dist/windows-amd64
-          if-no-files-found: error
-          retention-days: 7
+    uses: ./.github/workflows/ci.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
 
   release:
-    needs: [version, build]
+    needs: [version, validate]
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     permissions:
       contents: write
 
@@ -180,33 +122,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Test on Windows
-        run: go test -count=1 ./...
-
-      - name: Test autostart against Task Scheduler
-        env:
-          POWERMETER_LIVE: "1"
-        run: go test -count=1 ./internal/autostart
-
       - name: Fetch the build
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: build
           path: dist/windows-amd64
-
-      - name: Smoke-test the executable
-        run: go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work "${{ runner.temp }}/smoke"
-
-      - name: Install, reinstall and uninstall
-        run: go run ./tools/release install-test -version ${{ needs.version.outputs.version }} -setup dist/windows-amd64/power-meter-setup-${{ needs.version.outputs.version }}-amd64.exe
-
-      - name: Save smoke outputs
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: smoke
-          path: ${{ runner.temp }}/smoke
-          if-no-files-found: warn
 
       # The asset directory holds exactly the Release assets; the summary and
       # the Release both take every file in it. package also checks the

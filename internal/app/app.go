@@ -51,12 +51,12 @@ type app struct {
 	lastDone    bool
 }
 
-// fit is what the window was last fitted to: the content height, the height
-// it got within the work area of its display, and that display's scale.
+// fit is what the window was last fitted to: the content height and the
+// work area and scale of its display.
 type fit struct {
-	content, height int
-	area            mygo.Rectangle
-	scale           float64
+	content int
+	area    mygo.Rectangle
+	scale   float64
 }
 
 // Run shows the meter until the user exits, and returns the exit code.
@@ -183,13 +183,12 @@ func (a *app) resize() {
 	}
 	x, y := a.win.Position()
 	d := mygo.Screen.DisplayNearestPoint(mygo.Point{X: x, Y: y})
-	content := gui.Height(&a.model)
-	f := fit{content: content, height: fitHeight(content, d.WorkArea.Height), area: d.WorkArea, scale: d.ScaleFactor}
+	f := fit{content: gui.Height(&a.model), area: d.WorkArea, scale: d.ScaleFactor}
 	if f == a.fitted {
 		return
 	}
 	a.fitted = f
-	a.win.SetContentSize(gui.Width, f.height)
+	a.win.SetContentSize(gui.Width, fitHeight(f.content, f.area.Height))
 	a.setInputRegion()
 	_, wh := a.win.Size()
 	if top := fitTop(y, wh, d.WorkArea.Y, d.WorkArea.Height); top != y {

@@ -1,7 +1,16 @@
 name: Windows validation
 
+# Builds the executable and the installer on Linux and tests these exact
+# files on Windows. Dispatched by hand, it builds the 0.0.0 placeholder;
+# Release calls it with the release version and publishes what it built.
 on:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version stamped on the build; empty keeps the 0.0.0 placeholder
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -11,8 +20,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The executable and the installer are built on Linux, as a release builds
-  # them; Windows only tests these exact files.
   build:
     # The development machine's release: the same NSIS package builds the
     # installer here and locally, and a fixed image keeps it fixed.
@@ -28,14 +35,23 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # The image's package lists usually still name NSIS; refreshing them
+      # only when the install fails skips a slow update.
       - name: Install NSIS
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends nsis
+          install() { sudo apt-get install -y -qq --no-install-recommends nsis; }
+          install || { sudo apt-get update -qq && install; }
           makensis -VERSION
 
       - name: Fetch MiSans (pinned SHA-256)
         run: go run ./tools/fonts
+
+      # mygo.json carries the 0.0.0 placeholder, which the tests check; this
+      # checkout only builds, so stamping the version here leaves every
+      # test's checkout as committed.
+      - name: Write release version into mygo.json
+        if: inputs.version
+        run: go run ./tools/release set-version -version ${{ inputs.version }}
 
       - name: Build executable and installer
         run: go tool mygo build -platform windows/amd64
@@ -82,7 +98,9 @@ jobs:
         run: go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work "${{ runner.temp }}/smoke"
 
       - name: Install, reinstall and uninstall
-        run: go run ./tools/release install-test -version 0.0.0 -setup dist/windows-amd64/power-meter-setup-0.0.0-amd64.exe
+        env:
+          VERSION: ${{ inputs.version || '0.0.0' }}
+        run: go run ./tools/release install-test -version ${{ env.VERSION }} -setup dist/windows-amd64/power-meter-setup-${{ env.VERSION }}-amd64.exe
 
       - name: Save smoke outputs
         if: always()
