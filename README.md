@@ -214,21 +214,23 @@ EXE manifest 使用 `asInvoker`，由界面启动流程主动请求提权，因�
 Linux 或 Windows 上交叉编译。Go 版本写在 `go.mod`，mygo 作为 `go tool` 固定在同一处。
 
 ```sh
-go run ./tools/fonts                                   # 取 MiSans，按固定的 SHA-256 核对
+go run ./tools/fonts                                   # 取 MiSans，按固定的 SHA-256 核对（要发出去的构建必须先取）
 go tool mygo build -platform windows/amd64             # EXE 与安装包，输出到 dist/windows-amd64/
 go tool mygo build -platform windows/amd64 -skip-installer   # 只要 EXE
 ```
 
 MiSans 的许可不允许单独分发字体文件，所以字体不进仓库：`tools/fonts` 从小米官方的
 `MiSans.zip` 只取 Regular、Medium、Semibold 三个字重，核对固定的 SHA-256 后压缩存进
-`internal/fonts/misans/`（已忽略），构建时嵌入 EXE。已有且一致时不再下载。
+`internal/fonts/misans/`（已忽略），构建时嵌入 EXE。已有且一致时不再下载。没取字体也能编译和测试，
+这样门禁与 CodeQL 只取决于提交、不联网；这种构建用系统字体绘制，`--self-test` 不通过，所以发不出去。
+CI 里只有 Windows 验证与发版取字体。
 安装包由 mygo 用 NSIS 生成，安装步骤在 `installer/installer.nsh`；Linux 上需要 `makensis`，
 Windows 上缺少时 mygo 会自己下载。应用图标源文件为 `installer/icon.png`。
 
 `bash scripts/check.sh` 是门禁（Linux 上跑：格式、按 linux 与 windows 各跑一遍的 vet 与 staticcheck、
 Go 测试、函数认知复杂度不超过 30）。Windows 上的测试、可执行文件烟测与安装实测见
 `docs/testing/manual-ci.md`；真实电池状态、已安装驱动和管理员启动的宿主验收见
-`docs/testing/host-acceptance.md`。界面改动用
+`docs/testing/host-acceptance.md`。界面改动先取字体，再用
 `POWERMETER_PREVIEW_DIR=<目录> go test -run TestPreviews ./internal/gui` 渲染全部状态的预览图。
 
 `dist/` 是本地构建目录，不纳入版本控制。

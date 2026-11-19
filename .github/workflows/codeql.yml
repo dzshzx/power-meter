@@ -1,9 +1,9 @@
 name: CodeQL
 
-# Replaces GitHub's default code scanning setup, which builds Go on Linux
-# without the MiSans faces the program embeds and so would neither compile
-# nor see the Windows-only packages. Go is analysed as built for
-# windows/amd64, the only platform the program ships for.
+# Replaces GitHub's default code scanning setup, which builds Go for Linux
+# and so would not see the Windows-only packages. Go is analysed as built
+# for windows/amd64, the only platform the program ships for. The build
+# needs no MiSans download: the program compiles without the faces.
 on:
   push:
     branches: [master]
@@ -45,10 +45,6 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-
-      - name: Fetch MiSans (pinned SHA-256)
-        if: matrix.language == 'go'
-        run: go run ./tools/fonts
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3

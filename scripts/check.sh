@@ -16,8 +16,7 @@ bash scripts/format.sh --lint
 # Go：版本只写在 go.mod 的 go 行；之后都用这份工具链的绝对路径。
 gate_go_version .
 GO="$(go env GOROOT)/bin/go"
-# 界面内嵌的 MiSans 不进仓库：先按固定的校验和取到 internal/fonts/misans（已有且一致就不下载）。
-"$GO" run ./tools/fonts
+# 门禁不取 MiSans：没有字体也能编译和测试，结果只取决于提交；字体只在 Windows 验证与发版里取。
 # 程序只发 windows/amd64，Windows 专属的包（带 windows 构建约束）在 Linux 上也要类型检查和静态检查，
 # 所以 vet 与 staticcheck 按 linux 与 windows 各跑一遍；它们的测试在 Windows 上跑。
 "$GO" vet ./...

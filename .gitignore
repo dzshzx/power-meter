@@ -9,4 +9,5 @@ work/
 *.tmp
 *.log
 locales/catalog_gen.go
-internal/fonts/misans/
+internal/fonts/misans/*.ttf.gz
+internal/fonts/misans/*.tmp

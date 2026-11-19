@@ -11,6 +11,7 @@ import (
 	"github.com/dzshzx/power-meter/internal/app"
 	"github.com/dzshzx/power-meter/internal/autostart"
 	"github.com/dzshzx/power-meter/internal/cli"
+	"github.com/dzshzx/power-meter/internal/fonts"
 	"github.com/dzshzx/power-meter/internal/gui"
 	"github.com/dzshzx/power-meter/internal/i18n"
 	"github.com/dzshzx/power-meter/internal/meter"
@@ -91,7 +92,13 @@ func (selfTestFailed) Error() string { return "self-test failed" }
 func runCommand(route cli.Route) error {
 	switch route.Command {
 	case cli.SelfTest:
-		report, passed := selftest.Run(append(selftest.Core(), gui.SelfTest()...))
+		cases := append(selftest.Core(), gui.SelfTest()...)
+		// Only a release build carries the faces; the gate compiles without
+		// them, so this case is the one that keeps them in what ships.
+		cases = append(cases, selftest.Case{Name: "MiSans faces are embedded and register", Pass: func() bool {
+			return fonts.Embedded() && fonts.Register() == nil
+		}})
+		report, passed := selftest.Run(cases)
 		if err := os.WriteFile(route.Path, []byte(report), 0o644); err != nil {
 			return err
 		}

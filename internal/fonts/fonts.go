@@ -6,7 +6,10 @@
 // The faces are not in the repository (the MiSans licence forbids
 // distributing them on their own); go generate ./internal/fonts, or
 // go run ./tools/fonts, puts them in misans/ from Xiaomi's official
-// package, checked against pinned SHA-256 sums.
+// package, checked against pinned SHA-256 sums. The package compiles
+// without them, so the gate and code scanning need no download: such a
+// build draws with the system's fonts, and its --self-test fails, so a
+// release cannot ship without the faces.
 package fonts
 
 //go:generate go run ../../tools/fonts
@@ -15,7 +18,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"embed"
+	"errors"
 	"io"
+	"io/fs"
 	"sync"
 
 	"github.com/egoist/mygo/ui"
@@ -28,7 +33,10 @@ const (
 	Semibold = "MiSans Semibold"
 )
 
-//go:embed misans/*.ttf.gz
+// misans/ holds a README in the repository, so the directory always embeds;
+// the faces are there once fetched.
+//
+//go:embed misans
 var files embed.FS
 
 var faces = []struct{ file, family string }{
@@ -42,13 +50,19 @@ var (
 	err  error
 )
 
-// Register registers the faces once; text then finds them by family. On
-// failure the window falls back to the system's fonts.
+// Register registers the faces this build embeds, once; text then finds
+// them by family. A build without them registers none and returns nil: the
+// window falls back to the system's fonts. An error means an embedded face
+// could not be read or registered.
 func Register() error {
 	once.Do(func() {
 		for _, f := range faces {
-			var data []byte
-			if data, err = read(f.file); err != nil {
+			data, readErr := read(f.file)
+			if errors.Is(readErr, fs.ErrNotExist) {
+				continue
+			}
+			if readErr != nil {
+				err = readErr
 				return
 			}
 			if err = ui.RegisterFont(data, f.family); err != nil {
@@ -57,6 +71,17 @@ func Register() error {
 		}
 	})
 	return err
+}
+
+// Embedded reports whether this build carries all three faces: a release
+// must, and its --self-test checks it.
+func Embedded() bool {
+	for _, f := range faces {
+		if _, err := fs.Stat(files, f.file); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func read(name string) ([]byte, error) {
