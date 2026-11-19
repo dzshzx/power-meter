@@ -27,8 +27,7 @@ const (
 )
 
 // scheduler is a connection to the root folder of the Task Scheduler,
-// through its scripting interface (the same COM API the TaskScheduler
-// library wraps for the C# app). No service, password or external
+// through its scripting COM interface. No service, password or external
 // executable is needed.
 type scheduler struct {
 	folder *ole.IDispatch

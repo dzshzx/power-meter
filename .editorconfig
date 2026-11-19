@@ -1,5 +1,4 @@
 # 编辑器通用设置；shfmt 与 prettier 读取本文件（shfmt 选项仅在 [*.sh] 段）。
-# C# 与 PowerShell 不由 scripts/format.sh 处理。
 root = true
 
 [*]

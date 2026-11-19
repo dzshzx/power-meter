@@ -226,8 +226,7 @@ func check(t *testing.T, ok bool, format string, args ...any) {
 }
 
 // TestLiveIntegration registers, reads, replaces and removes real tasks and
-// protected copies under isolated names, the Go counterpart of
-// scripts/test-autostart.ps1.
+// protected copies under isolated names.
 func TestLiveIntegration(t *testing.T) {
 	live(t)
 	f := newFixture(t)

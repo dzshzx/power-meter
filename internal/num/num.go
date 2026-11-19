@@ -1,5 +1,6 @@
-// Package num formats numbers for display and reports the way the C# app
-// did, so readings, captions and probe reports keep their exact text.
+// Package num formats numbers for display and reports with fixed rules, so
+// readings, captions and probe reports keep the exact text of 1.5, which
+// people compare across versions.
 package num
 
 import (
