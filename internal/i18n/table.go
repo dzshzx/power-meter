@@ -150,5 +150,4 @@ var table = []entry{
 	{"是", "Yes"},
 	{"否", "No"},
 	{"界面字体：MiSans", "Interface font: MiSans"},
-	{"近 30 分钟", "Last 30 min"},
 }

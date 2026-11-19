@@ -200,7 +200,7 @@ func panelShape(p *palette) func(*ui.Painter, ui.Rect) {
 }
 
 func titleBarView(c *ui.Context, p *palette, m *Model) {
-	ui.Row(c).Height(titleBar).Padding(4, 14, 0, 22).AlignItems(ui.Center).Gap(4).DragWindow().Children(func() {
+	ui.Row(c).Height(titleBar).Padding(2, 14, 0, 22).AlignItems(ui.Center).Gap(4).DragWindow().Children(func() {
 		ui.Text(c, i18n.AppName()).Font(figureFont).FontSize(titleSize).TextColor(p.ink).SingleLine()
 		ui.Spacer(c)
 		pin := iconButton(c, p, iconPin, i18n.Get("置顶"), m.Pinned, false).Checked(m.Pinned)

@@ -130,7 +130,7 @@ const (
 	inset        = 12 // the panel's edge to a group, and between groups
 	groupRadius  = panelRadius - inset
 	groupPadding = 18
-	titleBar     = 60
+	titleBar     = 52
 	footerHeight = 46
 	rowHeight    = 46
 	chartHeight  = 96
@@ -138,7 +138,7 @@ const (
 	captionSize = 12
 	bodySize    = 14
 	tabSize     = 15
-	titleSize   = 24
+	titleSize   = 18
 	headSize    = 44
 	axisSize    = 11
 )
