@@ -110,9 +110,11 @@ func runCommand(route cli.Route) error {
 	case cli.PowerProbe:
 		return os.WriteFile(route.Path, []byte(sensors.Probe(route.Seconds)), 0o644)
 	case cli.Screenshot:
-		return screenshot(route.Path, systemDPI())
-	case cli.DPIPreview:
-		return screenshot(route.Path, route.DPIs[len(route.DPIs)-1])
+		dpi := route.DPI
+		if dpi == 0 {
+			dpi = systemDPI()
+		}
+		return screenshot(route.Path, dpi)
 	case cli.TrayPreview:
 		accent := power.AccentCharging
 		if route.TrayDischarging {

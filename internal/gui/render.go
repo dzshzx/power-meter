@@ -12,7 +12,7 @@ import (
 )
 
 // Render draws the window for m at scale without opening it, in the light
-// or dark appearance, for --screenshot and --dpi-preview.
+// or dark appearance, for --screenshot.
 func Render(m *Model, scale float32, dark bool) []byte {
 	h := Height(m)
 	tt := ui.NewTesterWith(func(c *ui.Context) { Build(c, m) }, Width, h, ui.TesterOptions{Dark: dark})

@@ -19,7 +19,6 @@ const (
 	ThirdPartyNotices = "--third-party-notices"
 	Screenshot        = "--screenshot"
 	PowerProbe        = "--power-probe"
-	DPIPreview        = "--dpi-preview"
 	TrayPreview       = "--tray-preview"
 )
 
@@ -42,9 +41,10 @@ type Route struct {
 	// Handoff: this process was started by the elevation request.
 	Handoff bool
 	// Path is the output file of the CLI commands that write one.
-	Path            string
-	Seconds         int
-	DPIs            []int
+	Path    string
+	Seconds int
+	// DPI is the screenshot's DPI; 0 means the primary display's.
+	DPI             int
 	TrayGlyph       string
 	TrayDischarging bool
 }
@@ -58,9 +58,8 @@ var commands = map[string]argument{
 	SyncAutostart:     none,
 	SelfTest:          output,
 	ThirdPartyNotices: output,
-	Screenshot:        output,
+	Screenshot:        screenshot,
 	PowerProbe:        probe,
-	DPIPreview:        dpiPreview,
 	TrayPreview:       trayPreview,
 }
 
@@ -102,30 +101,22 @@ func setPath(r *Route, path string) bool {
 	return strings.TrimSpace(path) != ""
 }
 
-func probe(r *Route, values []string) bool {
+func probe(r *Route, values []string) bool { return pathAndInteger(r, values, 1, 3600, &r.Seconds) }
+
+func screenshot(r *Route, values []string) bool { return pathAndInteger(r, values, 96, 768, &r.DPI) }
+
+// pathAndInteger parses an output path and an optional integer in [lo, hi]
+// into n.
+func pathAndInteger(r *Route, values []string, lo, hi int, n *int) bool {
 	if len(values) < 1 || len(values) > 2 || !setPath(r, values[0]) {
 		return false
 	}
-	if len(values) == 2 {
-		seconds, ok := integer(values[1], 1, 3600)
-		r.Seconds = seconds
-		return ok
+	if len(values) == 1 {
+		return true
 	}
-	return true
-}
-
-func dpiPreview(r *Route, values []string) bool {
-	if len(values) < 2 || len(values) > 3 || !setPath(r, values[0]) {
-		return false
-	}
-	for _, v := range values[1:] {
-		dpi, ok := integer(v, 96, 768)
-		if !ok {
-			return false
-		}
-		r.DPIs = append(r.DPIs, dpi)
-	}
-	return true
+	v, ok := integer(values[1], lo, hi)
+	*n = v
+	return ok
 }
 
 func trayPreview(r *Route, values []string) bool {

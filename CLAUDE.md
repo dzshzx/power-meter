@@ -30,7 +30,8 @@ only those upgraded from 1.4 or earlier stayed in `Battery Charge Meter`.
   `--self-test` is the release EXE smoke.
 - The window draws everything itself in a transparent frameless window:
   continuous corners (`internal/gui/shape.go`), MiSans, palette and metrics
-  in `internal/gui/theme.go`. Check a UI change with the previews
+  in `internal/gui/theme.go`; its layout, localization and the installer's
+  behaviour are described in `docs/testing/ui-localization.md`. Check a UI change with the previews
   (`POWERMETER_PREVIEW_DIR=<dir> go test -run TestPreviews ./internal/gui`)
   and show them before committing; the maintainer judges the look. mygo
   draws the window, so upgrading it is such a change: do it on its own.

@@ -86,8 +86,7 @@ PowerMeter.exe --power-probe report.txt 10
 | `--power-probe <report.txt> [秒数=5]`                     | 逐源探测并写出各口径的采样报告                                                                                                                                                                         |
 | `--self-test <report.txt>`                                | 发布物冒烟自检（内嵌字体与模块、窗口与托盘绑定），通过退出码 0、失败 1；规则测试是 Go 测试，CI 与 `tools/release smoke` 都会跑                                                                         |
 | `--third-party-notices <out.txt>`                         | 导出内嵌的第三方通知全文                                                                                                                                                                               |
-| `--screenshot <out.png>`                                  | 渲染主窗口截图                                                                                                                                                                                         |
-| `--dpi-preview <out.png> <目标 DPI> [返回 DPI]`           | 渲染跨 DPI 切换预览（`tools/release smoke` 使用）                                                                                                                                                      |
+| `--screenshot <out.png> [DPI]`                            | 渲染主窗口截图，默认按主显示器的 DPI（`tools/release smoke` 使用）                                                                                                                                     |
 | `--tray-preview <out.png> <瓦数> <charging\|discharging>` | 渲染托盘文字图标预览（`tools/release smoke` 使用）                                                                                                                                                     |
 
 诊断、自检和预览命令均不弹 UAC；需要探测 PawnIO 时，从已有管理员权限的终端运行。
@@ -228,7 +227,8 @@ MiSans 的许可不允许单独分发字体文件，所以字体不进仓库：`
 `bash scripts/check.sh` 是门禁（Linux 上跑：格式、按 linux 与 windows 各跑一遍的 vet 与 staticcheck、
 Go 测试、函数认知复杂度不超过 30）。Windows 上的测试、可执行文件烟测与安装实测见
 `docs/testing/manual-ci.md`；真实电池状态、已安装驱动和管理员启动的宿主验收见
-`docs/testing/host-acceptance.md`。界面改动先取字体，再用
+`docs/testing/host-acceptance.md`。窗口布局、界面语言与安装包的行为见
+`docs/testing/ui-localization.md`。界面改动先取字体，再用
 `POWERMETER_PREVIEW_DIR=<目录> go test -run TestPreviews ./internal/gui` 渲染全部状态的预览图。
 
 `dist/` 是本地构建目录，不纳入版本控制。

@@ -35,7 +35,7 @@ func smoke(exe, work string) error {
 		{"third-party notices", smokeNotices},
 		{"power probe", smokeProbe},
 		{"window screenshot", smokeScreenshot},
-		{"DPI preview", smokeDPI},
+		{"window screenshot at 175%", smokeDPI},
 		{"tray preview", smokeTray},
 		{"self-test", smokeSelfTest},
 	}
@@ -102,7 +102,7 @@ func smokeScreenshot(exe, work string) error {
 
 func smokeDPI(exe, work string) error {
 	path := filepath.Join(work, "dpi.png")
-	if err := run(exe, "--dpi-preview", path, "96", "168"); err != nil {
+	if err := run(exe, "--screenshot", path, "168"); err != nil {
 		return err
 	}
 	meta, err := os.ReadFile(path + ".txt")
@@ -110,7 +110,7 @@ func smokeDPI(exe, work string) error {
 		return err
 	}
 	if !strings.HasPrefix(string(meta), "Dpi=168;") {
-		return fmt.Errorf("the last DPI is not the one rendered: %s", meta)
+		return fmt.Errorf("the screenshot is not at the DPI asked for: %s", meta)
 	}
 	return checkImage(path, 0)
 }

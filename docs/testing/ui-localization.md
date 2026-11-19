@@ -72,7 +72,7 @@ discharging, supplemented, unavailable, and the settings popover) in Chinese
 and English, light and dark, at 100% and 175%, plus the tray tiles. They use
 deterministic fixture readings, not live laptop readings, and run on Linux
 too, once `go run ./tools/fonts` has fetched the fonts. Visual review covers the 175%
-previews in both languages and both appearances. On Windows, `PowerMeter.exe --screenshot`, `--dpi-preview` and
+previews in both languages and both appearances. On Windows, `PowerMeter.exe --screenshot` and
 `--tray-preview` render through the real app; `tools/release smoke` runs
 them.
 

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"errors"
-	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -28,8 +27,7 @@ func TestRoutes(t *testing.T) {
 		{"--self-test", "x"},
 		{"--power-probe", "x", "2"},
 		{"--third-party-notices", "x"},
-		{"--screenshot", "x"},
-		{"--dpi-preview", "x", "168"},
+		{"--screenshot", "x", "168"},
 		{"--tray-preview", "x", "42", "charging"},
 	}
 	for _, args := range commands {
@@ -53,13 +51,13 @@ func TestRoutes(t *testing.T) {
 		{"--power-probe", "x", "0"},
 		{"--power-probe", "x", "3601"},
 		{"--power-probe", "x", "2", "3"},
-		{"--dpi-preview", "x", "bad"},
-		{"--dpi-preview", "x"},
-		{"--dpi-preview", "x", "95"},
+		{"--screenshot", "x", "bad"},
+		{"--screenshot", "x", "95"},
+		{"--screenshot", "x", "769"},
 		{"--tray-preview", "x", "42"},
 		{"--tray-preview", "x", "42", "bogus"},
 		{"--tray-preview", "x", " ", "charging"},
-		{"--dpi-preview", "x", "96", "96", "96"},
+		{"--screenshot", "x", "96", "96"},
 		{"--self-test", " "},
 		{"--self-test", "x", "y"},
 		{"--no-elevate", "--self-test", "x"},
@@ -86,10 +84,11 @@ func TestRoutes(t *testing.T) {
 func TestParsedArgumentsReachDispatch(t *testing.T) {
 	probe := Parse([]string{"--POWER-PROBE", "out.txt", "12"})
 	defaultProbe := Parse([]string{"--power-probe", "out.txt"})
-	dpi := Parse([]string{"--dpi-preview", "shot.png", "168", "96"})
+	dpi := Parse([]string{"--screenshot", "shot.png", "168"})
+	systemDPI := Parse([]string{"--screenshot", "shot.png"})
 	tray := Parse([]string{"--tray-preview", "icon.png", "99+", "Discharging"})
 	if !probe.Valid || probe.Command != PowerProbe || probe.Path != "out.txt" || probe.Seconds != 12 ||
-		defaultProbe.Seconds != 5 || dpi.Path != "shot.png" || !slices.Equal(dpi.DPIs, []int{168, 96}) ||
+		defaultProbe.Seconds != 5 || dpi.Path != "shot.png" || dpi.DPI != 168 || systemDPI.DPI != 0 ||
 		tray.Path != "icon.png" || tray.TrayGlyph != "99+" || !tray.TrayDischarging {
 		t.Errorf("CLI routes carry parsed arguments: %+v %+v %+v %+v", probe, defaultProbe, dpi, tray)
 	}
