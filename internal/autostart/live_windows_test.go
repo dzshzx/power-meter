@@ -311,8 +311,22 @@ func (f *fixture) checkTaskSecurity() {
 	f.t.Logf("task security: %s", sddl)
 	_, dacl, _ := strings.Cut(sddl, "D:")
 	flags, aces, _ := strings.Cut(dacl, "(")
-	check(f.t, strings.HasPrefix(flags, "P") && "("+aces == "(A;;FA;;;SY)(A;;FA;;;BA)(A;;0x1300a9;;;"+f.sid+")",
+	user, fixed := strings.CutPrefix("("+aces, "(A;;FA;;;SY)(A;;FA;;;BA)(A;;0x1300a9;;;")
+	user, closed := strings.CutSuffix(user, ")")
+	check(f.t, strings.HasPrefix(flags, "P") && fixed && closed && sameAccount(user, f.sid),
 		"task ACL lets the user only read, run and delete: %s", sddl)
+}
+
+// sameAccount reports whether an SDDL trustee is the account sid names.
+// SDDL writes some accounts by an abbreviation, such as LA for the built-in
+// Administrator a CI runner signs in as.
+func sameAccount(trustee, sid string) bool {
+	a, err := windows.StringToSid(trustee)
+	if err != nil {
+		return false
+	}
+	b, err := windows.StringToSid(sid)
+	return err == nil && a.Equals(b)
 }
 
 // checkProtected: owned by Administrators, protected DACL, writable only by
