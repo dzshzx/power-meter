@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 门禁（wt land 合入前与 ci.yml 的 format job 都跑它）：只含能在 Linux 上跑的检查。
-# Windows 部分（scripts/test.ps1 与 UI 验收）见 CLAUDE.md。
+# 门禁（wt land 合入前与 ci.yml 都跑它）：只含能在 Linux 上跑的检查。
+# Windows 部分（Windows 上的 go test 与 tools/release 的烟测、安装实测）见 CLAUDE.md。
 # 用法：bash scripts/check.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -16,6 +16,8 @@ bash scripts/format.sh --lint
 # Go：版本只写在 go.mod 的 go 行；之后都用这份工具链的绝对路径。
 gate_go_version .
 GO="$(go env GOROOT)/bin/go"
+# 界面内嵌的 MiSans 不进仓库：先按固定的校验和取到 internal/fonts/misans（已有且一致就不下载）。
+"$GO" run ./tools/fonts
 # 程序只发 windows/amd64，Windows 专属的包（带 windows 构建约束）在 Linux 上也要类型检查和静态检查，
 # 所以 vet 与 staticcheck 按 linux 与 windows 各跑一遍；它们的测试在 Windows 上跑。
 "$GO" vet ./...

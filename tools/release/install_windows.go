@@ -15,14 +15,17 @@ import (
 const (
 	uninstallRoot = `Software\Microsoft\Windows\CurrentVersion\Uninstall\`
 	uninstallKey  = uninstallRoot + "io.github.dzshzx.powermeter"
-	// oldUninstallKey is Power Meter 1.x's Inno Setup entry.
+	// oldUninstallKey is the Inno Setup entry of Power Meter 1.5 and earlier.
 	oldUninstallKey = uninstallRoot + "{FDDC9FC9-109E-4B41-AE4A-BA30420295D0}_is1"
 	shortcutName    = "Power Meter.lnk"
+	// installedNotices is the notices file the installer writes beside the
+	// program.
+	installedNotices = "THIRD-PARTY-NOTICES.txt"
 )
 
 // runInstallTest installs, upgrades and uninstalls the installer silently
 // for the current user, after checking that it refuses to install over
-// Power Meter 1.x. It refuses to run where Power Meter is installed.
+// Power Meter 1.5 or earlier. It refuses to run where Power Meter is installed.
 func runInstallTest(args []string) error {
 	fs := flag.NewFlagSet("install-test", flag.ContinueOnError)
 	version := fs.String("version", "", "the installer's version X.Y.Z")
@@ -31,13 +34,13 @@ func runInstallTest(args []string) error {
 		return err
 	}
 	if installLocation() != "" || keyExists(oldUninstallKey) {
-		return errors.New("Power Meter is installed here; uninstall it before the test")
+		return errors.New("found an installed Power Meter; uninstall it before the test")
 	}
 	steps := []struct {
 		name string
 		run  func() error
 	}{
-		{"refuses to install over 1.x", func() error { return blockedByOldVersion(*setup) }},
+		{"refuses to install over 1.5", func() error { return blockedByOldVersion(*setup) }},
 		{"installs", func() error { return install(*setup, *version) }},
 		{"installs over itself", func() error { return install(*setup, *version) }},
 		{"uninstalls", uninstall},
@@ -92,6 +95,13 @@ func install(setup, version string) error {
 	}
 	if _, err := os.Stat(filepath.Join(os.Getenv("APPDATA"), `Microsoft\Windows\Start Menu\Programs`, shortcutName)); err != nil {
 		return fmt.Errorf("no Start menu shortcut: %w", err)
+	}
+	notices, err := os.ReadFile(filepath.Join(dir, installedNotices))
+	if err != nil {
+		return fmt.Errorf("no notices beside the program: %w", err)
+	}
+	if !strings.Contains(string(notices), "GNU LESSER GENERAL PUBLIC LICENSE") {
+		return errors.New("the installed notices lack the LGPL-2.1 text")
 	}
 	return smokeSelfTest(exe, os.TempDir())
 }

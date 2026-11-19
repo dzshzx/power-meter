@@ -11,53 +11,56 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  windows:
     runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Fetch MiSans (pinned SHA-256)
+        run: go run ./tools/fonts
+
+      - name: Test on Windows
+        run: go test -count=1 ./...
+
+      # The runner is elevated and thrown away afterwards: the live tests may
+      # register tasks and write below Program Files.
+      - name: Test autostart against Task Scheduler
+        env:
+          POWERMETER_LIVE: "1"
+        run: go test -count=1 ./internal/autostart
+
+      - name: Build executable and installer
+        run: go tool mygo build -platform windows/amd64
+
+      - name: Smoke-test the executable
+        run: go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work "${{ runner.temp }}/smoke"
+
+      - name: Install, reinstall and uninstall
+        run: go run ./tools/release install-test -version 0.0.0 -setup dist/windows-amd64/power-meter-setup-0.0.0-amd64.exe
+
+      - name: Save smoke outputs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: smoke
+          path: ${{ runner.temp }}/smoke
+          if-no-files-found: warn
+
+  gate:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install Inno Setup 7 (pinned, SHA-256 verified)
-        shell: pwsh
-        run: . ./scripts/inno-setup.ps1; Install-InnoSetup
-
-      - name: Install Pester (test scripts need 6.x in both PowerShell editions)
-        shell: pwsh
-        run: Save-PSResource -Name Pester -Version 6.2.0 -Repository PSGallery -TrustRepository -Path "$env:ProgramFiles\WindowsPowerShell\Modules"
-
-      - name: Test application and Release packages
-        shell: pwsh
-        run: ./scripts/test.ps1 -RequireInstaller
-
-      - name: Check NuGet dependency licenses (SPDX allowlist)
-        shell: pwsh
-        run: ./scripts/check-licenses.ps1
-
-      - name: Save verification report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: verification-report
-          path: |
-            dist/test-report.json
-            dist/ui-preview/
-          if-no-files-found: warn
-
-  format:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          version: "0.13.8"
-          enable-cache: true
 
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

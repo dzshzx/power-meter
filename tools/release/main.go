@@ -1,6 +1,7 @@
 // Command release packages, smoke-tests and verifies Power Meter's Windows
 // release assets. It runs on Windows, where the program it checks runs.
 //
+//	release set-version -version X.Y.Z
 //	release package -version X.Y.Z -build dist/windows-amd64 -out <empty dir>
 //	release smoke -exe <PowerMeter.exe> -work <dir>
 //	release install-test -version X.Y.Z -setup <setup.exe>
@@ -21,6 +22,8 @@ func main() {
 	var err error
 	args := os.Args[2:]
 	switch os.Args[1] {
+	case "set-version":
+		err = runSetVersion(args)
 	case "package":
 		err = runPackage(args)
 	case "smoke":
@@ -39,7 +42,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: release package|smoke|install-test|verify [flags]")
+	fmt.Fprintln(os.Stderr, "usage: release set-version|package|smoke|install-test|verify [flags]")
 	os.Exit(2)
 }
 

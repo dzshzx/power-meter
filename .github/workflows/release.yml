@@ -88,9 +88,9 @@ jobs:
               }
               Write-Host "Baseline v$($base.ToString(3)), bump $env:BUMP"
           }
-          # Each manifest version field is a 16-bit number.
+          # Each field of a Windows file version is a 16-bit number.
           if ($next.Major -gt 65535 -or $next.Minor -gt 65535 -or $next.Build -gt 65535) {
-              throw "Version $next does not fit the Windows manifest."
+              throw "Version $next does not fit a Windows file version."
           }
           $version = $next.ToString(3)
 
@@ -101,17 +101,11 @@ jobs:
   gate:
     needs: version
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          version: "0.13.8"
-          enable-cache: true
 
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -137,66 +131,57 @@ jobs:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Write release version into the manifest
-        shell: pwsh
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # mygo.json carries the 0.0.0 placeholder; only this build stamps the
+      # release version on the executable and the installer.
+      - name: Write release version into mygo.json
+        run: go run ./tools/release set-version -version ${{ needs.version.outputs.version }}
+
+      - name: Fetch MiSans (pinned SHA-256)
+        run: go run ./tools/fonts
+
+      - name: Test on Windows
+        run: go test -count=1 ./...
+
+      - name: Test autostart against Task Scheduler
         env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          $path = 'src/BatteryChargeMeter.manifest'
-          $text = [IO.File]::ReadAllText($path)
-          $pattern = '(<assemblyIdentity\s+version=")0\.0\.0\.0(")'
-          if ([regex]::Matches($text, $pattern).Count -ne 1) {
-              throw 'The manifest must carry the 0.0.0.0 development placeholder exactly once.'
-          }
-          $text = [regex]::Replace($text, $pattern, "`${1}$env:VERSION.0`${2}")
-          [IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))
+          POWERMETER_LIVE: "1"
+        run: go test -count=1 ./internal/autostart
 
-      - name: Install Inno Setup 7 (pinned, SHA-256 verified)
-        shell: pwsh
-        run: . ./scripts/inno-setup.ps1; Install-InnoSetup
+      - name: Build executable and installer
+        run: go tool mygo build -platform windows/amd64
 
-      - name: Install Pester (test scripts need 6.x in both PowerShell editions)
-        shell: pwsh
-        run: Save-PSResource -Name Pester -Version 6.2.0 -Repository PSGallery -TrustRepository -Path "$env:ProgramFiles\WindowsPowerShell\Modules"
+      - name: Smoke-test the executable
+        run: go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work "${{ runner.temp }}/smoke"
 
-      - name: Test application and Release packages
-        shell: pwsh
-        run: ./scripts/test.ps1 -RequireInstaller
+      - name: Install, reinstall and uninstall
+        run: go run ./tools/release install-test -version ${{ needs.version.outputs.version }} -setup dist/windows-amd64/power-meter-setup-${{ needs.version.outputs.version }}-amd64.exe
 
-      - name: Check NuGet dependency licenses (SPDX allowlist)
-        shell: pwsh
-        run: ./scripts/check-licenses.ps1
-
-      - name: Save verification report
+      - name: Save smoke outputs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-report
-          path: |
-            dist/test-report.json
-            dist/ui-preview/
+          name: smoke
+          path: ${{ runner.temp }}/smoke
           if-no-files-found: warn
 
       # The asset directory holds exactly the Release assets; the summary and
-      # the Release both take every file in it.
-      - name: Package and check artifact versions
+      # the Release both take every file in it. package also checks the
+      # executable's file version and every checksum.
+      - name: Package release assets
         id: package
         shell: pwsh
         env:
-          TAG: ${{ needs.version.outputs.tag }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
-          $package = ./scripts/package-release.ps1 `
-            -Tag $env:TAG `
-            -ExecutablePath 'dist/PowerMeter.exe' `
-            -OutputDirectory (Join-Path $env:RUNNER_TEMP 'release-assets') `
-            -Formats 'Portable', 'Installer'
-          ./scripts/assert-release-version.ps1 `
-            -Version $env:VERSION `
-            -PortablePath $package.BinaryPath `
-            -InstallerPath $package.InstallerPath |
-            Format-List
-          "dir=$($package.Directory)" >> $env:GITHUB_OUTPUT
+          $dir = Join-Path $env:RUNNER_TEMP 'release-assets'
+          go run ./tools/release package -version $env:VERSION -build dist/windows-amd64 -out $dir
+          if ($LASTEXITCODE -ne 0) { throw "release package exited with $LASTEXITCODE." }
+          "dir=$dir" >> $env:GITHUB_OUTPUT
 
       - name: Summarize release
         shell: pwsh
