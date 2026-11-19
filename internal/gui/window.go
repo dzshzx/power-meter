@@ -200,8 +200,9 @@ func panelShape(p *palette) func(*ui.Painter, ui.Rect) {
 }
 
 func titleBarView(c *ui.Context, p *palette, m *Model) {
-	ui.Row(c).Height(titleBar).Padding(2, 14, 0, 22).AlignItems(ui.Center).Gap(4).DragWindow().Children(func() {
-		ui.Text(c, i18n.AppName()).Font(figureFont).FontSize(titleSize).TextColor(p.ink).SingleLine()
+	ui.Row(c).Height(titleBar).Padding(0, 14, 0, 22).AlignItems(ui.Center).Gap(4).DragWindow().Children(func() {
+		ui.Text(c, i18n.AppName()).Font(figureFont).FontSize(titleSize).TextColor(p.ink).SingleLine().
+			Margin(2*titleDrop, 0, 0, 0)
 		ui.Spacer(c)
 		pin := iconButton(c, p, iconPin, i18n.Get("置顶"), m.Pinned, false).Checked(m.Pinned)
 		if pin.Clicked() && m.Actions.SetPinned != nil {
@@ -369,7 +370,7 @@ func notice(c *ui.Context, p *palette, m *Model, text string) {
 }
 
 func footer(c *ui.Context, p *palette, m *Model) {
-	ui.Row(c).Height(footerHeight).Padding(0, 14, 2, 22).AlignItems(ui.Center).Gap(6).Children(func() {
+	ui.Row(c).Height(footerHeight).Padding(0, 14, 0, 22).AlignItems(ui.Center).Gap(6).Children(func() {
 		if m.View.Updated != "" {
 			label(c, i18n.Get("更新于"), captionSize, p.ink3)
 			label(c, m.View.Updated, captionSize, p.ink3).FontFeatures(tabular)

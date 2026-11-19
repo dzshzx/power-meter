@@ -131,9 +131,13 @@ const (
 	groupRadius  = panelRadius - inset
 	groupPadding = 18
 	titleBar     = 48
-	footerHeight = 46
-	rowHeight    = 46
-	chartHeight  = 96
+	footerHeight = titleBar // the footer mirrors the title bar
+	// titleDrop moves the title below the centre of its bar: centred by its
+	// box, the Chinese title in Semibold looks higher than the thin icon
+	// buttons beside it.
+	titleDrop   = 1.5
+	rowHeight   = 46
+	chartHeight = 96
 
 	captionSize = 12
 	bodySize    = 14
