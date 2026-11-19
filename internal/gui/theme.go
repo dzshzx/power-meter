@@ -1,41 +1,42 @@
 // Package gui draws the meter window, its settings popover and the tray icon
-// with mygo's native UI, in the COUI 17 (ColorOS 17) design language:
-// rounded cards on a grey or black window, COUI's label opacities, blue
-// primary and semantic hues. It only shows what a meter.View says; display
-// rules live in package meter. Geometry is in DIPs, which mygo scales to the
-// window's DPI.
+// with mygo's native UI, after COUI 17 (ColorOS 17): one rounded panel with
+// rounded groups of rows on it, MiSans throughout, neutral greys, one blue
+// for data and actions, amber only to warn and red only for a sensor error.
+// It only shows what a meter.View says; display rules live in package meter.
+// Geometry is in DIPs, which mygo scales to the window's DPI.
 package gui
 
 import (
+	"github.com/dzshzx/power-meter/internal/fonts"
 	"github.com/dzshzx/power-meter/internal/meter"
 	"github.com/dzshzx/power-meter/internal/power"
 	"github.com/egoist/mygo/ui"
 )
 
-// palette holds the COUI 17 colour tokens of one appearance. The window
-// follows the system's light or dark appearance, as ColorOS does.
+// palette holds the colours of one appearance. The window follows the
+// system's light or dark appearance.
 type palette struct {
-	dark       bool
-	background ui.Color // the window, under the cards
-	card       ui.Color
-	popup      ui.Color // popovers and menus above the cards
-	label1     ui.Color // primary text
-	label1v    ui.Color // primary text, a step quieter: estimated figures
-	label2     ui.Color // secondary text
-	label3     ui.Color // tertiary text and placeholders
-	label4     ui.Color // quaternary: tracks and faint strokes
-	divider    ui.Color
-	hover      ui.Color
-	press      ui.Color
-	primary    ui.Color
-	green      ui.Color
-	orange     ui.Color
-	red        ui.Color
-	segment    ui.Color // the segmented control's track
-	indicator  ui.Color // its selected segment
-	switchOff  ui.Color
-	button     ui.Color // a secondary button's fill
-	shadow     ui.Color
+	dark      bool
+	page      ui.Color // the panel, under the groups
+	group     ui.Color // a rounded group of rows
+	popup     ui.Color // popovers above the panel
+	border    ui.Color // the panel's outline
+	ink       ui.Color // primary text
+	inkSoft   ui.Color // an estimated headline: a step lighter than ink
+	ink2      ui.Color // captions, units, secondary values
+	ink3      ui.Color // placeholders and axis labels
+	faint     ui.Color // the chart's scale lines
+	divider   ui.Color
+	hover     ui.Color
+	press     ui.Color
+	accent    ui.Color // the trend, links, the switch: data and actions
+	warn      ui.Color // the notice's sign
+	danger    ui.Color // a sensor error
+	track     ui.Color // the segmented control's track
+	indicator ui.Color // its selected segment
+	switchOff ui.Color
+	button    ui.Color // a secondary button's fill
+	shadow    ui.Color
 }
 
 func argb(v uint32) ui.Color {
@@ -43,50 +44,50 @@ func argb(v uint32) ui.Color {
 }
 
 var lightPalette = palette{
-	background: argb(0xFFF0F1F2),
-	card:       argb(0xFFFFFFFF),
-	popup:      argb(0xFFFFFFFF),
-	label1:     argb(0xE6000000),
-	label1v:    argb(0xB8000000),
-	label2:     argb(0x8A000000),
-	label3:     argb(0x42000000),
-	label4:     argb(0x14000000),
-	divider:    argb(0x1F000000),
-	hover:      argb(0x0F000000),
-	press:      argb(0x1F000000),
-	primary:    argb(0xFF0080FF),
-	green:      argb(0xFF00BD13),
-	orange:     argb(0xFFFF7700),
-	red:        argb(0xFFDB382C),
-	segment:    argb(0x0F000000),
-	indicator:  argb(0xFFFFFFFF),
-	switchOff:  argb(0x29000000),
-	button:     argb(0xFFEBEBEB),
-	shadow:     argb(0x1A000000),
+	page:      argb(0xFFF0F1F3),
+	group:     argb(0xFFFFFFFF),
+	popup:     argb(0xFFFFFFFF),
+	border:    argb(0x14000000),
+	ink:       argb(0xE6000000),
+	inkSoft:   argb(0xC2000000),
+	ink2:      argb(0x8F000000),
+	ink3:      argb(0x5C000000),
+	faint:     argb(0x12000000),
+	divider:   argb(0x14000000),
+	hover:     argb(0x0A000000),
+	press:     argb(0x14000000),
+	accent:    argb(0xFF0A72E8),
+	warn:      argb(0xFFD98E04),
+	danger:    argb(0xFFD93025),
+	track:     argb(0x0D000000),
+	indicator: argb(0xFFFFFFFF),
+	switchOff: argb(0x29000000),
+	button:    argb(0x0D000000),
+	shadow:    argb(0x29000000),
 }
 
 var darkPalette = palette{
-	dark:       true,
-	background: argb(0xFF000000),
-	card:       argb(0xFF1E1E1E),
-	popup:      argb(0xFF333333),
-	label1:     argb(0xE6FFFFFF),
-	label1v:    argb(0xB8FFFFFF),
-	label2:     argb(0x8AFFFFFF),
-	label3:     argb(0x4DFFFFFF),
-	label4:     argb(0x26FFFFFF),
-	divider:    argb(0x1FFFFFFF),
-	hover:      argb(0x1AFFFFFF),
-	press:      argb(0x33FFFFFF),
-	primary:    argb(0xFF1A8CFF),
-	green:      argb(0xFF24B232),
-	orange:     argb(0xFFF08222),
-	red:        argb(0xFFFF6C61),
-	segment:    argb(0x1FFFFFFF),
-	indicator:  argb(0x33FFFFFF),
-	switchOff:  argb(0x40FFFFFF),
-	button:     argb(0x1FFFFFFF),
-	shadow:     argb(0x66000000),
+	dark:      true,
+	page:      argb(0xFF161616),
+	group:     argb(0xFF262626),
+	popup:     argb(0xFF303030),
+	border:    argb(0x1FFFFFFF),
+	ink:       argb(0xEBFFFFFF),
+	inkSoft:   argb(0xC7FFFFFF),
+	ink2:      argb(0x99FFFFFF),
+	ink3:      argb(0x61FFFFFF),
+	faint:     argb(0x14FFFFFF),
+	divider:   argb(0x1AFFFFFF),
+	hover:     argb(0x0FFFFFFF),
+	press:     argb(0x1AFFFFFF),
+	accent:    argb(0xFF4DA6FF),
+	warn:      argb(0xFFF2B33D),
+	danger:    argb(0xFFFF6B5E),
+	track:     argb(0x14FFFFFF),
+	indicator: argb(0x2EFFFFFF),
+	switchOff: argb(0x40FFFFFF),
+	button:    argb(0x17FFFFFF),
+	shadow:    argb(0x8C000000),
 }
 
 func paletteFor(dark bool) *palette {
@@ -97,84 +98,67 @@ func paletteFor(dark bool) *palette {
 }
 
 // The tray tile keeps solid colours dark enough for white figures at 16 px
-// on either taskbar.
+// on either taskbar: there the state shows at a glance.
 var (
 	trayCharging    = argb(0xFF059669)
 	trayDischarging = argb(0xFFD97706)
 	trayNeutral     = argb(0xFF6B7280)
 	appTile         = argb(0xFF059669)
+	closeHover      = argb(0xFFC42B1C)
 	white           = argb(0xFFFFFFFF)
 )
 
-// Fonts: Segoe UI Variable where Windows 11 has it, Microsoft YaHei UI for
-// Chinese, and tabular figures for numbers that change every second.
+// Fonts: MiSans in three faces, Microsoft YaHei UI where MiSans could not
+// be registered, and tabular figures for numbers that change every second.
 const (
-	textFont   = "Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI"
-	figureFont = "Segoe UI Variable Display, Segoe UI Variable Text, Segoe UI"
-	trayFont   = "Segoe UI"
+	textFont   = fonts.Regular + ", Microsoft YaHei UI, Segoe UI"
+	mediumFont = fonts.Medium + ", Microsoft YaHei UI, Segoe UI"
+	figureFont = fonts.Semibold + ", Microsoft YaHei UI, Segoe UI"
 	tabular    = "tnum"
 )
 
-// Metrics, after COUI 17's type scale and corner radii, tightened for a
-// desktop window.
+// Metrics. The window is the panel and, around it, the room its shadow
+// takes; the groups sit inset from the panel's edge, their corners
+// concentric with its.
 const (
-	windowWidth   = 380
-	margin        = 12 // the window's edge and the gap between cards
-	cardPadding   = 16
-	cardRadius    = 20
-	titleBar      = 48
-	segmentHeight = 36
-	heroHeight    = 186
-	trendHeight   = 196
-	rowHeight     = 44
-	footerHeight  = 40
-	settingsWidth = 288
+	panelWidth   = 360
+	panelRadius  = 28
+	shadowSide   = 16
+	shadowTop    = 10
+	shadowBottom = 24
+	inset        = 12 // the panel's edge to a group, and between groups
+	groupRadius  = panelRadius - inset
+	groupPadding = 16
+	titleBar     = 48
+	footerHeight = 44
+	heroHeight   = 310
+	rowHeight    = 44
+	chartHeight  = 88
 
-	captionSize = 12 // COUI BodyXS
-	bodySize    = 14 // COUI BodyM
+	captionSize = 12
+	bodySize    = 14
 	titleSize   = 15
-	statSize    = 18
-	heroSize    = 44
-	axisSize    = 10 // COUI Caption
+	headSize    = 40
+	axisSize    = 11
 )
 
-// accent is the supply state's hue: green while charging, orange while the
-// battery discharges, red for an error and the primary label when idle.
-func (p *palette) accent(a power.Accent) ui.Color {
-	switch a {
-	case power.AccentCharging:
-		return p.green
-	case power.AccentDischarging:
-		return p.orange
-	case power.AccentError:
-		return p.red
-	default:
-		return p.label1
-	}
-}
-
-// chartAccent is the trend line's hue; an idle supply draws in the primary
-// blue rather than a grey line.
-func (p *palette) chartAccent(a power.Accent) ui.Color {
-	if a == power.AccentIdle {
-		return p.primary
-	}
-	return p.accent(a)
-}
-
+// tone is a reading's colour: ink, a step lighter for an estimated
+// headline, quieter for supporting text, faint without a value, and red for
+// a sensor error.
 func (p *palette) tone(t meter.Tone, a power.Accent) ui.Color {
 	switch t {
 	case meter.ToneMuted:
-		return p.label2
+		return p.ink2
 	case meter.ToneUnavailable:
-		return p.label3
+		return p.ink3
 	case meter.ToneNumericMuted:
-		return p.label1v
+		return p.inkSoft
 	case meter.ToneAccent:
-		return p.accent(a)
-	default:
-		return p.label1
+		if a == power.AccentError {
+			return p.danger
+		}
 	}
+	return p.ink
 }
 
 // trayTile is the tray icon's tile colour.

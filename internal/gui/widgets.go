@@ -26,46 +26,53 @@ func splitFigure(text string) figure {
 	return f
 }
 
-// figureText shows a reading at size in color, with its sign and unit in
-// the palette's quieter labels.
-func figureText(c *ui.Context, p *palette, text string, size float32, color ui.Color, weight int) ui.Element {
+// figureText sets a reading: the number at size in font and color, the sign
+// and the unit in the regular face at unitSize, quieter, on one baseline.
+func figureText(c *ui.Context, p *palette, text string, size, unitSize float32, font string, color ui.Color) ui.Element {
 	f := splitFigure(text)
-	row := ui.Row(c).AlignItems(ui.Baseline).Gap(size * 0.08).FontFeatures(tabular)
-	row.Children(func() {
+	gap := max(unitSize*0.3, 3)
+	return ui.Row(c).AlignItems(ui.Baseline).FontFeatures(tabular).Children(func() {
 		if f.prefix != "" {
-			ui.Text(c, f.prefix).Font(figureFont).LineHeight(1.15).FontSize(size * 0.55).TextColor(p.label3).SingleLine()
+			ui.Text(c, f.prefix).Font(textFont).FontSize(unitSize).TextColor(p.ink3).SingleLine().Margin(0, gap, 0, 0)
 		}
-		ui.Text(c, f.number).Font(figureFont).LineHeight(1.15).FontSize(size).FontWeight(weight).TextColor(color).SingleLine()
+		ui.Text(c, f.number).Font(font).FontSize(size).LineHeight(1.15).TextColor(color).SingleLine()
 		if f.unit != "" {
-			ui.Text(c, f.unit).Font(figureFont).LineHeight(1.15).FontSize(max(size*0.42, captionSize)).FontWeight(500).
-				TextColor(p.label2).SingleLine().Margin(0, 0, 0, size*0.06)
+			ui.Text(c, f.unit).Font(textFont).FontSize(unitSize).TextColor(p.ink2).SingleLine().Margin(0, 0, 0, gap)
 		}
 	})
-	return row
 }
 
-// card is a COUI card: a rounded surface on the window background.
-func card(c *ui.Context, p *palette) ui.Element {
-	return ui.Column(c).Background(p.card).Radius(cardRadius)
+// label is a line of text in the regular face.
+func label(c *ui.Context, text string, size float32, color ui.Color) ui.Element {
+	return ui.Text(c, text).Font(textFont).FontSize(size).TextColor(color).SingleLine()
 }
 
-// iconButton is COUI's circular icon button: a press highlight and no
-// border. danger turns the hover red, for the window's close button.
-func iconButton(c *ui.Context, p *palette, body string, label string, size float32, danger bool) ui.Element {
+// group is a COUI card: a rounded group of rows on the panel.
+func group(c *ui.Context, p *palette) ui.Element {
+	return ui.Column(c).Background(p.group).Radius(groupRadius)
+}
+
+// iconButton is a round icon button: a press highlight and no border. on
+// keeps it highlighted, as a toggle that is on; close turns its hover red,
+// as Windows does for the close button.
+func iconButton(c *ui.Context, p *palette, body string, name string, on, close bool) ui.Element {
+	const size = 30
 	b := ui.ButtonBase(c).Size(size, size).Radius(size / 2).Justify(ui.Center).AlignItems(ui.Center).
-		Label(label).Tooltip(label).TextColor(p.label1).FocusRing(false)
+		Label(name).Tooltip(name).TextColor(p.ink2).FocusRing(false)
 	switch {
-	case danger && b.Pressed():
-		b.Background(withAlpha(p.red, 0.8)).TextColor(white)
-	case danger && b.Hovered():
-		b.Background(p.red).TextColor(white)
+	case close && b.Pressed():
+		b.Background(withAlpha(closeHover, 0.8)).TextColor(white)
+	case close && b.Hovered():
+		b.Background(closeHover).TextColor(white)
 	case b.Pressed():
-		b.Background(p.press)
+		b.Background(p.press).TextColor(p.ink)
+	case on:
+		b.Background(p.track).TextColor(p.ink)
 	case b.Hovered():
-		b.Background(p.hover)
+		b.Background(p.hover).TextColor(p.ink)
 	}
 	b.Children(func() {
-		ui.Icon(c, icon(body, 2)).Size(18, 18)
+		ui.Icon(c, icon(body, 1.75)).Size(16, 16)
 	})
 	return b
 }

@@ -102,15 +102,16 @@ func (a *app) start() {
 		Height:            a.height,
 		UseContentSize:    true,
 		Hidden:            a.opts.StartHidden,
-		TitleBarStyle:     mygo.TitleBarHidden,
-		HideWindowButtons: true,
+		Frameless:         true,
+		Transparent:       true,
+		DisableShadow:     true,
 		DisableResize:     true,
 		DisableMaximize:   true,
 		DisableFullScreen: true,
 		AlwaysOnTop:       true,
-		BackgroundColor:   "light-dark(#F0F1F2, #000000)",
 	})
 	_ = a.win.SetIcon(gui.AppIcon(256))
+	a.setInputRegion()
 	a.win.OnMinimize(a.hide)
 	a.win.OnFocus(a.refreshStartup)
 	a.buildTray()
@@ -176,9 +177,17 @@ func (a *app) resize() {
 		h = limit
 	}
 	a.win.SetContentSize(gui.Width, h)
+	a.setInputRegion()
 	if _, wh := a.win.Size(); y+wh > d.WorkArea.Y+d.WorkArea.Height {
 		a.win.SetPosition(x, max(d.WorkArea.Y, d.WorkArea.Y+d.WorkArea.Height-wh))
 	}
+}
+
+// setInputRegion lets the mouse through the transparent room around the
+// panel, where its shadow is, to the windows behind.
+func (a *app) setInputRegion() {
+	x, y, w, h := gui.Panel(&a.model)
+	a.win.SetInputRegion([]mygo.Rectangle{{X: x, Y: y, Width: w, Height: h}})
 }
 
 func (a *app) setMode(m meter.Mode) {

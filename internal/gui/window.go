@@ -69,17 +69,16 @@ func (m *Model) offersElevation() bool {
 
 // Fixed section heights: the window is sized from them, not measured.
 const (
-	noticeHeight       = 60
-	noticeActionHeight = 28
+	noticeHeight       = 56 // two lines of text
+	noticeActionHeight = 24
 	rowsCount          = 3
 )
 
-// Height is the window's content height for m: the notice card adds to it.
-func Height(m *Model) int {
-	h := titleBar + segmentHeight + margin + heroHeight + margin + trendHeight + margin +
-		rowsCount*rowHeight + footerHeight
+// panelHeight is the panel's height for m: the notice group adds to it.
+func panelHeight(m *Model) int {
+	h := titleBar + heroHeight + inset + rowsCount*rowHeight + footerHeight
 	if m.notice() != "" {
-		h += margin + noticeHeight
+		h += inset + noticeHeight
 		if m.offersElevation() {
 			h += noticeActionHeight
 		}
@@ -87,76 +86,88 @@ func Height(m *Model) int {
 	return h
 }
 
-// Width is the window's content width.
-const Width = windowWidth
+// Height is the window's content height for m: the panel and the room for
+// its shadow.
+func Height(m *Model) int { return shadowTop + panelHeight(m) + shadowBottom }
+
+// Width is the window's content width: the panel and the room for its
+// shadow.
+const Width = shadowSide + panelWidth + shadowSide
+
+// Panel is the panel's rectangle in the window, in DIPs: the part that
+// takes the mouse. The rest is the shadow, which lets clicks through.
+func Panel(m *Model) (x, y, w, h int) {
+	return shadowSide, shadowTop, panelWidth, panelHeight(m)
+}
 
 // Build builds the window for m; the app gives it to mygo as the window's
-// view.
+// view. The window is transparent: the panel rounds its own corners and
+// draws its own shadow.
 func Build(c *ui.Context, m *Model) {
+	ensureFonts()
 	p := paletteFor(c.Theme().Dark)
 	t := *c.Theme()
-	t.Background, t.Text, t.TextMuted, t.Accent, t.Font = p.background, p.label1, p.label2, p.primary, textFont
-	t.Inverse, t.InverseText = p.popup, p.label1
+	t.Background, t.Text, t.TextMuted, t.Accent, t.Font = ui.Transparent, p.ink, p.ink2, p.accent, textFont
+	t.Inverse, t.InverseText = p.popup, p.ink
 	c.SetTheme(&t)
-	ui.Column(c).Fill().Background(p.background).Font(textFont).Children(func() {
-		titleBarView(c, p, m)
-		ui.Scroll(c.Key("page")).Grow(1).Children(func() {
-			ui.Column(c).Padding(0, margin, 0, margin).Gap(margin).Children(func() {
-				segments(c, p, m)
-				hero(c, p, m.View)
-				trend(c, p, m.View)
-				rows(c, p, m)
-				if text := m.notice(); text != "" {
-					notice(c, p, m, text)
-				}
+	ui.Column(c).Fill().Background(ui.Transparent).Padding(shadowTop, shadowSide, shadowBottom, shadowSide).Children(func() {
+		ui.Column(c).Grow(1).Background(p.page).Radius(panelRadius).Border(1, p.border).
+			Shadow(0, 8, 22, 0, p.shadow).Font(textFont).TextColor(p.ink).Children(func() {
+			titleBarView(c, p, m)
+			ui.Scroll(c.Key("page")).Grow(1).Children(func() {
+				ui.Column(c).Padding(0, inset, 0, inset).Gap(inset).Children(func() {
+					hero(c, p, m)
+					rows(c, p, m)
+					if text := m.notice(); text != "" {
+						notice(c, p, m, text)
+					}
+				})
 			})
+			footer(c, p, m)
 		})
-		footer(c, p, m)
 	})
 }
 
 func titleBarView(c *ui.Context, p *palette, m *Model) {
-	ui.Row(c).Height(titleBar).Padding(0, 8, 0, 14).AlignItems(ui.Center).Gap(4).DragWindow().Children(func() {
-		appTileView(c, 20)
-		ui.Text(c, i18n.AppName()).FontSize(titleSize).FontWeight(500).TextColor(p.label1).SingleLine().Margin(0, 0, 0, 6)
+	ui.Row(c).Height(titleBar).Padding(0, 12, 0, 22).AlignItems(ui.Center).Gap(4).DragWindow().Children(func() {
+		ui.Text(c, i18n.AppName()).Font(mediumFont).FontSize(titleSize).TextColor(p.ink).SingleLine()
 		ui.Spacer(c)
-		pin := iconButton(c, p, iconPin, i18n.Get("置顶"), 32, false).Checked(m.Pinned)
-		if m.Pinned {
-			pin.TextColor(p.primary).Background(withAlpha(p.primary, 0.12))
-		}
+		pin := iconButton(c, p, iconPin, i18n.Get("置顶"), m.Pinned, false).Checked(m.Pinned)
 		if pin.Clicked() && m.Actions.SetPinned != nil {
 			m.Actions.SetPinned(!m.Pinned)
 		}
-		if iconButton(c, p, iconMinus, i18n.Get("最小化"), 32, false).Clicked() && m.Actions.Minimize != nil {
+		if iconButton(c, p, iconMinus, i18n.Get("最小化"), false, false).Clicked() && m.Actions.Minimize != nil {
 			m.Actions.Minimize()
 		}
-		if iconButton(c, p, iconX, i18n.Get("关闭"), 32, true).Clicked() && m.Actions.Close != nil {
+		if iconButton(c, p, iconX, i18n.Get("关闭"), false, true).Clicked() && m.Actions.Close != nil {
 			m.Actions.Close()
 		}
 	})
 }
 
-// appTileView is the app's mark, as its icon.
-func appTileView(c *ui.Context, size float32) ui.Element {
-	return ui.Column(c).Size(size, size).Draw(drawAppMark)
-}
-
-// segments is COUI's segmented control choosing the headline's boundary.
+// segments is COUI's capsule segmented control choosing the headline's
+// boundary.
 func segments(c *ui.Context, p *palette, m *Model) {
+	const h = 28
 	selected := int(m.Mode)
 	parts := ui.SegmentedBase(c.Key("mode"), &selected, 2)
-	parts.Track.Height(segmentHeight).Padding(3).Radius(segmentHeight / 2).Background(p.segment).Label(i18n.Get("功率显示口径")).
+	parts.Track.Height(h).Width(144).Padding(2).Radius(h / 2).Background(p.track).Label(i18n.Get("功率显示口径")).
 		Children(func() {
 			for i, key := range []string{"整机功率", "电池端"} {
-				seg := parts.Segment(i).Grow(1).Radius((segmentHeight - 6) / 2).Justify(ui.Center).AlignItems(ui.Center).FocusRing(false)
+				seg := parts.Segment(i).Grow(1).Basis(0).Radius(h/2 - 2).Justify(ui.Center).AlignItems(ui.Center).FocusRing(false)
+				font, color := textFont, p.ink2
 				switch {
 				case i == selected:
-					seg.Background(p.indicator).Shadow(0, 1, 3, 0, p.shadow)
+					seg.Background(p.indicator)
+					if !p.dark {
+						seg.Shadow(0, 1, 3, 0, argb(0x1A000000))
+					}
+					font, color = mediumFont, p.ink
 				case seg.Hovered():
-					seg.Background(p.hover)
+					color = p.ink
 				}
 				seg.Children(func() {
-					ui.Text(c, i18n.Get(key)).FontSize(bodySize).FontWeight(500).TextColor(p.label1).SingleLine()
+					ui.Text(c, i18n.Get(key)).Font(font).FontSize(13).TextColor(color).SingleLine()
 				})
 			}
 		})
@@ -165,93 +176,56 @@ func segments(c *ui.Context, p *palette, m *Model) {
 	}
 }
 
-func hero(c *ui.Context, p *palette, v *meter.View) {
-	accent := p.accent(v.Accent)
-	card(c, p).Height(heroHeight).Padding(cardPadding).Children(func() {
-		ui.Text(c, v.Title.Text).FontSize(captionSize + 1).TextColor(p.label2).SingleLine().Tooltip(v.Title.Tooltip)
-		figureText(c, p, v.Headline.Text, heroSize, p.tone(v.Headline.Tone, v.Accent), 600).Tooltip(v.Headline.Tooltip)
-		ui.Row(c).Height(22).Children(func() {
-			if v.Supply.Text != "" {
-				stateChip(c, p, v, accent)
-			}
+// hero is the first group: what the headline measures and the boundary
+// switch, the headline, the supply state with the battery's figures, and
+// the trend with its statistics.
+func hero(c *ui.Context, p *palette, m *Model) {
+	v := m.View
+	group(c, p).Height(heroHeight).Padding(14, groupPadding, 14, groupPadding).Children(func() {
+		ui.Row(c).MinHeight(28).AlignItems(ui.Center).Gap(10).Children(func() {
+			ui.Text(c, v.Title.Text).Font(textFont).FontSize(captionSize).LineHeight(1.3).TextColor(p.ink2).
+				MaxLines(2).Ellipsis("…").Grow(1).Shrink(1).Tooltip(v.Title.Tooltip)
+			segments(c, p, m)
 		})
+		ui.Column(c).Margin(6, 0, 0, 0).Children(func() {
+			figureText(c, p, v.Headline.Text, headSize, 18, figureFont, p.tone(v.Headline.Tone, v.Accent)).
+				Tooltip(v.Headline.Tooltip)
+		})
+		supply(c, p, v)
+		battery := strings.Join([]string{v.Voltage, v.Current, v.Percentage}, " · ")
+		label(c, battery, captionSize, p.ink2).FontFeatures(tabular).Margin(2, 0, 0, 20).
+			Tooltip(v.VoltageCaption + " · " + v.CurrentCaption + " · " + i18n.Get("电池电量"))
+		view := v.Trend
+		ui.Column(c).Height(chartHeight).Margin(14, 0, 0, 0).Tooltip(view.Tooltip).
+			Draw(chart{p: p, view: &view}.draw)
 		ui.Spacer(c)
 		ui.Row(c).Children(func() {
-			metric(c, p, v.VoltageCaption, v.Voltage, nil)
-			metric(c, p, v.CurrentCaption, v.Current, nil)
-			metric(c, p, i18n.Get("电池电量"), v.Percentage, func() {
-				batteryGlyph(c, p, v)
-			})
+			statistic(c, p, v.AverageCaption, v.AverageValue, v.AverageTone, v.AverageTooltip)
+			statistic(c, p, v.PeakCaption, v.PeakValue, v.PeakTone, v.PeakTooltip)
 		})
 	})
 }
 
-// stateChip is the supply state: its glyph and text on a tint of its hue.
-func stateChip(c *ui.Context, p *palette, v *meter.View, accent ui.Color) {
-	chip := ui.Row(c).AlignItems(ui.Center).Gap(4).Padding(2, 10, 2, 8).Radius(11).Height(22).
-		Background(withAlpha(accent, 0.12)).TextColor(accent).Tooltip(v.Supply.Tooltip)
-	if v.Accent == power.AccentIdle {
-		chip.Background(p.segment).TextColor(p.label2)
+// supply is the supply state: its glyph and words, quiet; red only for a
+// sensor error.
+func supply(c *ui.Context, p *palette, v *meter.View) {
+	color := p.ink2
+	if v.Accent == power.AccentError {
+		color = p.danger
 	}
-	chip.Children(func() {
+	ui.Row(c).Height(20).Margin(2, 0, 0, 0).AlignItems(ui.Center).Gap(6).Tooltip(v.Supply.Tooltip).Children(func() {
 		if body := supplyIconBody(v.SupplyIcon); body != "" {
-			ui.Icon(c, icon(body, 2.2)).Size(14, 14)
+			ui.Icon(c, icon(body, 1.75)).Size(14, 14).TextColor(color)
 		}
-		ui.Text(c, v.Supply.Text).FontSize(captionSize).FontWeight(500).SingleLine()
+		label(c, v.Supply.Text, captionSize, color).Shrink(1).Ellipsis("…")
 	})
 }
 
-func metric(c *ui.Context, p *palette, caption, value string, after func()) {
-	ui.Column(c).Grow(1).Basis(0).Gap(2).Children(func() {
-		ui.Text(c, caption).FontSize(captionSize).TextColor(p.label2).SingleLine()
-		ui.Row(c).AlignItems(ui.Center).Gap(6).Children(func() {
-			figureText(c, p, value, 16, p.label1, 400)
-			if after != nil {
-				after()
-			}
-		})
-	})
-}
-
-// batteryGlyph is a small battery filled to the charge level in the state's
-// hue.
-func batteryGlyph(c *ui.Context, p *palette, v *meter.View) {
-	fill := p.tone(v.BatteryTone, v.Accent)
-	if fill == p.label1 {
-		fill = p.green
-	}
-	level := v.BatteryLevel
-	ui.Column(c).Size(24, 12).Draw(func(pt *ui.Painter, r ui.Rect) {
-		body := ui.Rect{X: r.X, Y: r.Y, W: r.W - 2.5, H: r.H}
-		pt.Stroke(body, p.label3, 3, 1.2)
-		pt.Fill(ui.Rect{X: r.X + r.W - 1.8, Y: r.Y + r.H*0.32, W: 1.8, H: r.H * 0.36}, p.label3, 0.9)
-		if level >= 0 {
-			inner := ui.Rect{X: body.X + 2, Y: body.Y + 2, W: (body.W - 4) * float32(min(level, 100)) / 100, H: body.H - 4}
-			if inner.W > 0 {
-				pt.Fill(inner, fill, 1.5)
-			}
-		}
-	})
-}
-
-func trend(c *ui.Context, p *palette, v *meter.View) {
-	view := v.Trend
-	ch := chart{p: p, view: &view, accent: p.chartAccent(v.Accent)}
-	card(c, p).Height(trendHeight).Children(func() {
-		ui.Column(c).Height(124).Margin(12, 14, 0, 14).Tooltip(view.Tooltip).Draw(ch.draw)
-		ui.Column(c).Margin(8, cardPadding, 0, cardPadding).Children(func() { hairline(c, p) })
-		ui.Row(c).Grow(1).Padding(0, cardPadding, 0, cardPadding).AlignItems(ui.Center).Children(func() {
-			statistic(c, p, v.AverageCaption, v.AverageValue, v.AverageTone, v.AverageTooltip, v)
-			ui.Column(c).Width(1).Height(28).Background(p.divider).Margin(0, 12, 0, 12)
-			statistic(c, p, v.PeakCaption, v.PeakValue, v.PeakTone, v.PeakTooltip, v)
-		})
-	})
-}
-
-func statistic(c *ui.Context, p *palette, caption, value string, tone meter.Tone, tooltip string, v *meter.View) {
+// statistic is a caption over its figure, half the group's width.
+func statistic(c *ui.Context, p *palette, caption, value string, tone meter.Tone, tooltip string) {
 	ui.Column(c).Grow(1).Basis(0).Gap(2).Tooltip(tooltip).Children(func() {
-		ui.Text(c, caption).FontSize(captionSize).TextColor(p.label2).SingleLine()
-		figureText(c, p, value, statSize, p.tone(tone, v.Accent), 500)
+		label(c, caption, captionSize, p.ink2).Ellipsis("…")
+		figureText(c, p, value, 15, captionSize, mediumFont, p.tone(tone, 0))
 	})
 }
 
@@ -264,48 +238,45 @@ func rows(c *ui.Context, p *palette, m *Model) {
 	if m.Mode == meter.Battery {
 		hidden = meter.BatteryRow
 	}
-	card(c, p).Children(func() {
+	group(c, p).Padding(0, groupPadding, 0, groupPadding).Children(func() {
 		first := true
 		for i, row := range v.Rows {
 			if i == hidden {
 				continue
 			}
 			if !first {
-				ui.Column(c).Padding(0, cardPadding, 0, cardPadding).Children(func() { hairline(c, p) })
+				hairline(c, p)
 			}
 			first = false
-			ui.Row(c).Height(rowHeight-1).Padding(0, cardPadding, 0, cardPadding).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, names[i]).FontSize(bodySize).TextColor(p.label1).SingleLine().Shrink(1).Tooltip(tips[i])
+			ui.Row(c).Height(rowHeight - 1).AlignItems(ui.Center).Gap(12).Children(func() {
+				label(c, names[i], bodySize, p.ink).Shrink(1).Ellipsis("…").Tooltip(tips[i])
 				ui.Spacer(c)
-				figureText(c, p, row.Text, 15, p.tone(row.Tone, v.Accent), 400).Tooltip(row.Tooltip)
+				figureText(c, p, row.Text, bodySize, captionSize, mediumFont, p.tone(row.Tone, v.Accent)).Tooltip(row.Tooltip)
 			})
 		}
 	})
 }
 
-// notice is COUI's tips card: the reasons a reading or a setting is
-// missing, and the restart that would help.
+// notice is COUI's tips card: why a reading or a setting is missing, and
+// the restart that would help.
 func notice(c *ui.Context, p *palette, m *Model, text string) {
 	h := float32(noticeHeight)
 	if m.offersElevation() {
 		h += noticeActionHeight
 	}
-	card(c, p).Height(h).Padding(12, cardPadding, 12, 14).Gap(6).Children(func() {
+	group(c, p).Height(h).Padding(10, groupPadding, 10, 14).Justify(ui.Center).Gap(4).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Start).Children(func() {
-			ui.Icon(c, icon(iconTriangleAlert, 2.2)).Size(16, 16).TextColor(p.red).Margin(1, 0, 0, 0)
-			ui.Text(c, text).FontSize(captionSize + 1).LineHeight(1.3).TextColor(p.label1).MaxLines(2).Ellipsis("…").
-				Grow(1).Shrink(1).Tooltip(text)
+			ui.Icon(c, icon(iconTriangleAlert, 1.75)).Size(14, 14).TextColor(p.warn).Margin(2, 0, 0, 0)
+			ui.Text(c, text).Font(textFont).FontSize(captionSize).LineHeight(1.5).TextColor(p.ink2).MaxLines(2).
+				Ellipsis("…").Grow(1).Shrink(1).Tooltip(text)
 		})
-		ui.Spacer(c)
 		if m.offersElevation() {
-			link := ui.ButtonBase(c).Height(noticeActionHeight-4).Padding(0, 10, 0, 10).Radius(12).AlignSelf(ui.End).
-				TextColor(p.primary).FocusRing(false)
+			link := ui.ButtonBase(c).Height(20).Margin(0, 0, 0, 22).AlignSelf(ui.Start).TextColor(p.accent).FocusRing(false)
 			if link.Hovered() {
-				link.Background(withAlpha(p.primary, 0.1))
+				link.TextColor(withAlpha(p.accent, 0.75))
 			}
 			link.Children(func() {
-				ui.Icon(c, icon(iconShield, 2.2)).Size(14, 14).Margin(0, 6, 0, 0)
-				ui.Text(c, i18n.Get("以管理员身份重新启动")).FontSize(captionSize + 1).FontWeight(500).SingleLine()
+				ui.Text(c, i18n.Get("以管理员身份重新启动")).Font(mediumFont).FontSize(captionSize).SingleLine()
 			})
 			if link.Clicked() && m.Actions.Elevate != nil {
 				m.Actions.Elevate()
@@ -315,13 +286,13 @@ func notice(c *ui.Context, p *palette, m *Model, text string) {
 }
 
 func footer(c *ui.Context, p *palette, m *Model) {
-	ui.Row(c).Height(footerHeight).Padding(0, 8, 0, margin+4).AlignItems(ui.Center).Gap(6).Children(func() {
+	ui.Row(c).Height(footerHeight).Padding(0, 12, 2, 22).AlignItems(ui.Center).Gap(6).Children(func() {
 		if m.View.Updated != "" {
-			ui.Text(c, i18n.Get("更新于")).FontSize(captionSize).TextColor(p.label3).SingleLine()
-			ui.Text(c, m.View.Updated).FontSize(captionSize).TextColor(p.label2).FontFeatures(tabular).SingleLine()
+			label(c, i18n.Get("更新于"), captionSize, p.ink3)
+			label(c, m.View.Updated, captionSize, p.ink3).FontFeatures(tabular)
 		}
 		ui.Spacer(c)
-		gear := iconButton(c, p, iconSettings, i18n.Get("设置"), 32, false)
+		gear := iconButton(c, p, iconSettings, i18n.Get("设置"), m.SettingsOpen, false)
 		if gear.Clicked() {
 			m.SettingsOpen = !m.SettingsOpen
 		}

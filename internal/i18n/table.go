@@ -149,4 +149,5 @@ var table = []entry{
 	{"此数据源仅在 Windows 上可用", "This data source is available on Windows only"},
 	{"是", "Yes"},
 	{"否", "No"},
+	{"界面字体：MiSans", "Interface font: MiSans"},
 }
