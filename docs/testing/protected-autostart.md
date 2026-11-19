@@ -66,5 +66,21 @@ the physical acceptance before its first release replaces 1.5:
   copy kept); an elevated `--sync-autostart` then removes the unused copy and
   folders. Uninstall removes task, copy and `Program Files\Power Meter`.
 
-Sign-out and sign-in were not performed; the scheduler's on-demand run uses
-the same principal and action as the logon trigger.
+Sign-out and sign-in were not performed on 1.5; the scheduler's on-demand run
+uses the same principal and action as the logon trigger.
+
+Observed with Power Meter 1.6.0 (Go) after a fresh install on the same
+notebook:
+
+- Enabling startup from the elevated window registers
+  `PowerMeter.Logon.<SID>` for the user's interactive logon at the highest
+  run level. The task runs the protected copy with `--autostart`, does not
+  stop on battery, ignores new instances and has no time limit. The copy
+  matches the installed EXE; only SYSTEM and Administrators can write to its
+  folder.
+- An on-demand run while the window is open starts no second process. After
+  the instance is stopped, a run starts the protected copy elevated in the
+  tray without a window or UAC. Starting the installed EXE under the ordinary
+  token then brings that window back without UAC.
+- Sign-out and sign-in: the task started the protected copy elevated in the
+  tray right after logon, with no UAC.

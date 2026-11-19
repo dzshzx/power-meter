@@ -78,3 +78,23 @@ Use a separately copied development EXE; keep the installed release intact.
 - Account-name normalization and the task ACL that lets the ordinary token
   delete the task were set from live scheduler results, not only from tests.
 - Protected logon startup: see `protected-autostart.md`.
+
+Power Meter 1.6.0, the first Go release, replaced 1.5.5 on the same notebook:
+
+- `tools/release verify -version 1.6.0` passed on the notebook, and the EXE
+  installed from the public setup has the portable asset's SHA-256.
+- The 1.5.5 uninstaller removed its entry, folder, task and protected copy;
+  only its settings key stays, which 1.6.0 does not read.
+- Paired `--power-probe` runs of 1.5.5 and 1.6.0 on external power, under both
+  tokens, give the same report structure and readings within sampling noise.
+- The maintainer cancelled the first UAC prompt, then cancelled and accepted
+  the administrator restart: one elevated instance remained, with platform
+  power. On battery the window says System Load Power without `≈` and the tray
+  is amber; on external power it shows the estimate with `≈` and a green
+  tray. Statistics start again after the supply change.
+- Scaling 100%, 300% and back to 175%: no overlapping or clipped text. At
+  300% the window (585 DIPs) is taller than the work area (552 DIPs), so
+  its footer overlaps the taskbar.
+- Readings continue after resuming from modern standby. In the first minutes
+  after one resume the trend broke several times (sample gaps over 5 s);
+  the cause is not known yet.
