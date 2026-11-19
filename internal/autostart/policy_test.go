@@ -155,31 +155,31 @@ func TestDescribe(t *testing.T) {
 	_ = i18n.Select(i18n.Chinese)
 	absent := state{}
 	other := state{exists: true, registration: "<Task/>", executable: `C:\Other\PowerMeter.exe`}
-	if s := describe(absent, true, "PowerMeter.Logon.S-1"); s.Switch != SwitchOff || s.Notice != foreignTaskNotice+"PowerMeter.Logon.S-1" {
+	if s := describe(absent, true, "PowerMeter.Logon.S-1"); s.On || s.Notice != foreignTaskNotice+"PowerMeter.Logon.S-1" {
 		t.Errorf("switch shows a foreign task as off with where to delete it: %+v", s)
 	}
 	working := state{exists: true, thisCopy: true, protected: true, enabled: true}
 	repair := state{exists: true, thisCopy: true, repairReason: "repair"}
 	enabledRepair := state{exists: true, thisCopy: true, enabled: true, repairReason: "repair"}
-	if s := describe(working, false, "t"); s.Switch != SwitchOn || s.Notice != "" {
+	if s := describe(working, false, "t"); !s.On || s.Notice != "" {
 		t.Errorf("switch reflects working startup: %+v", s)
 	}
-	if s := describe(repair, false, "t"); s.Switch != SwitchOff || s.Notice != "repair" {
+	if s := describe(repair, false, "t"); s.On || s.Notice != "repair" {
 		t.Errorf("switch asks for repair: %+v", s)
 	}
-	if s := describe(enabledRepair, false, "t"); s.Switch != SwitchOn || s.Notice != "repair" {
+	if s := describe(enabledRepair, false, "t"); !s.On || s.Notice != "repair" {
 		t.Errorf("enabled startup still asks for repair: %+v", s)
 	}
-	if s := describe(other, false, "t"); !strings.Contains(s.Tooltip, other.executable) || s.Switch != SwitchOff {
+	if s := describe(other, false, "t"); !strings.Contains(s.Tooltip, other.executable) || s.On {
 		t.Errorf("switch names another installation's startup: %+v", s)
 	}
 	if s := describe(state{otherCopy: `C:\Old\PowerMeter.exe`}, false, "t"); !strings.Contains(s.Tooltip, `C:\Old\PowerMeter.exe`) {
 		t.Errorf("switch names another installation's copy: %+v", s)
 	}
-	if s := describe(absent, false, "t"); s.Switch != SwitchOff || s.Notice != "" || strings.Contains(s.Tooltip, "：") {
+	if s := describe(absent, false, "t"); s.On || s.Notice != "" || strings.Contains(s.Tooltip, "：") {
 		t.Errorf("absent startup is off with the plain tooltip: %+v", s)
 	}
-	if s := readFailed("x"); s.Switch != SwitchUnknown || s.Tooltip != "" || s.Notice != "自启状态读取失败：x" {
+	if s := readFailed("x"); s.On || s.Tooltip != "" || s.Notice != "自启状态读取失败：x" {
 		t.Errorf("read failures are unknown with the reason: %+v", s)
 	}
 }

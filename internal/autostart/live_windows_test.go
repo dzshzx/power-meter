@@ -408,7 +408,7 @@ func (f *fixture) foreignTaskIsLeftAlone(absent state) {
 	err = f.a.Enable(absent)
 	check(t, err != nil && f.taskXML() == foreign, "enabling never overwrites a foreign same-name task: %v", err)
 	status, err := f.a.Describe()
-	check(t, err == nil && status.Switch == SwitchOff && strings.HasSuffix(status.Notice, f.task), "the switch is off and says where to delete it: %+v %v", status, err)
+	check(t, err == nil && !status.On && strings.HasSuffix(status.Notice, f.task), "the switch is off and says where to delete it: %+v %v", status, err)
 	r, err := f.a.Synchronize(false)
 	check(t, err == nil && r == syncOrphanCopy, "report-only synchronization treats the owned copy as unused beside a foreign task: %d %v", r, err)
 	rm, err := f.a.Disable()

@@ -310,7 +310,7 @@ func SyncOnStart() {
 }
 
 // ReadStatus is the switch for the settings panel and the tray menu. It
-// never fails: a read failure is SwitchUnknown with the reason in Notice.
+// never fails: a read failure reads as off with the reason in Notice.
 func ReadStatus() Status {
 	m, err := forCurrentProcess()
 	if err == nil {

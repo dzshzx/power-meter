@@ -30,8 +30,8 @@
 // The settings panel and the tray menu read the switch with ReadStatus on
 // open and on every window activation:
 //
-//   - Status.Switch: SwitchOn checked, SwitchOff unchecked, SwitchUnknown
-//     indeterminate (the tray item then says to see the main window).
+//   - Status.On: whether the switch is checked. A read failure reads as
+//     off with the reason in Notice; changing the switch reads again.
 //   - Status.Tooltip: the switch's tooltip, already in the current language.
 //     It names the other installation when enabling would replace its
 //     startup.

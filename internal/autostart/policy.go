@@ -82,21 +82,12 @@ type plan struct {
 	refusal          string
 }
 
-// Switch is how the in-app switch shows startup.
-type Switch int
-
-const (
-	SwitchOff Switch = iota
-	SwitchOn
-	// SwitchUnknown: the state could not be read; Notice says why.
-	SwitchUnknown
-)
-
-// Status is how the settings panel and the tray menu present startup.
-// Notice is a Chinese source string for the diagnostics area, shown through
-// i18n.Diagnostic; Tooltip is already in the current language.
+// Status is how the settings panel and the tray menu present startup: On
+// checks the switch. Notice is a Chinese source string for the diagnostics
+// area, shown through i18n.Diagnostic; Tooltip is already in the current
+// language.
 type Status struct {
-	Switch  Switch
+	On      bool
 	Notice  string
 	Tooltip string
 }
@@ -212,10 +203,7 @@ func confirmation(other, identity string) (title, question string) {
 // describe is the switch for a read state. A foreign task shows as off,
 // is left alone, and the notice says where to delete it.
 func describe(task state, foreign bool, taskName string) Status {
-	var s Status
-	if task.thisCopy && task.enabled {
-		s.Switch = SwitchOn
-	}
+	s := Status{On: task.thisCopy && task.enabled}
 	switch {
 	case foreign:
 		s.Notice = foreignTaskNotice + taskName
@@ -230,9 +218,10 @@ func describe(task state, foreign bool, taskName string) Status {
 	return s
 }
 
-// readFailed is the switch when startup could not be read.
+// readFailed is the switch when startup could not be read: off, with the
+// reason. Changing it reads startup again first.
 func readFailed(reason string) Status {
-	return Status{Switch: SwitchUnknown, Notice: readFailedNotice + reason}
+	return Status{Notice: readFailedNotice + reason}
 }
 
 // outcome is the notice after the in-app switch changed startup.

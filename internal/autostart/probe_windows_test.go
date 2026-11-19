@@ -93,17 +93,20 @@ func probeEnable() int {
 		return true
 	})
 	fmt.Println("outcome:", notice)
-	if probeStatus() != int(SwitchOn) {
+	if probeStatus() != 1 {
 		return 1
 	}
 	return 0
 }
 
-// probeStatus prints the switch and exits with its value.
+// probeStatus prints the switch and exits 1 when it is on.
 func probeStatus() int {
 	s := ReadStatus()
-	fmt.Printf("switch=%d\nnotice=%s\ntooltip=%s\n", s.Switch, s.Notice, s.Tooltip)
-	return int(s.Switch)
+	fmt.Printf("on=%t\nnotice=%s\ntooltip=%s\n", s.On, s.Notice, s.Tooltip)
+	if s.On {
+		return 1
+	}
+	return 0
 }
 
 // probeAttack runs under the ordinary token after an elevated run enabled

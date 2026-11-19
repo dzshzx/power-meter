@@ -319,7 +319,7 @@ func (a *app) confirm(title, question string) bool {
 // else the outcome of the last change.
 func (a *app) applyStartup(s autostart.Status) {
 	a.model.Autostart = gui.Autostart{
-		Checked: s.Switch == autostart.SwitchOn,
+		Checked: s.On,
 		Enabled: !a.startupBusy,
 		Tooltip: s.Tooltip,
 	}
