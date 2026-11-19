@@ -1,13 +1,4 @@
-.vs/
-bin/
-obj/
 dist/
-work/
-*.pdb
-*.suo
-*.user
-*.tmp
-*.log
 locales/catalog_gen.go
 internal/fonts/misans/*.ttf.gz
 internal/fonts/misans/*.tmp

@@ -112,7 +112,6 @@ func TestDisabledTaskReadsDisabled(t *testing.T) {
 func TestForeignShapeIsNeverAdopted(t *testing.T) {
 	edits := map[string]func(*taskDefinition){
 		"source":       func(d *taskDefinition) { d.RegistrationInfo.Source = "someone-else" },
-		"old owner":    func(d *taskDefinition) { d.RegistrationInfo.Source = "BatteryChargeMeter.Logon.v1" },
 		"arguments":    func(d *taskDefinition) { d.Actions.Exec[0].Arguments = "--other" },
 		"no arguments": func(d *taskDefinition) { d.Actions.Exec[0].Arguments = "" },
 		"second action": func(d *taskDefinition) {

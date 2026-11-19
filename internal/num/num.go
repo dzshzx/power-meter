@@ -87,8 +87,3 @@ func layout(digits []byte, point, decimals int) string {
 	}
 	return b.String()
 }
-
-// Int formats a whole number as the invariant culture does.
-func Int(v int) string {
-	return strconv.Itoa(v)
-}

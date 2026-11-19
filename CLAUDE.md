@@ -13,7 +13,9 @@ and the logon-startup security invariants in
 The app is Go with mygo native UI (`go tool mygo`, version pinned in
 `go.mod`); it ships for windows/amd64 only. Power Meter 1.5 and earlier was
 a C# program; the installer refuses to run while it is installed, and nothing
-of it is migrated (settings key, task name and install folder are new).
+of it is migrated: the settings key and task name are new. The install folder
+is not: fresh 1.5 installs used `%LOCALAPPDATA%\Programs\Power Meter` too, and
+only those upgraded from 1.4 or earlier stayed in `Battery Charge Meter`.
 
 - Keep the manifest `asInvoker`: GUI startup requests elevation once, with
   cancellation falling back to ordinary mode. CLI commands never request UAC.
@@ -30,7 +32,8 @@ of it is migrated (settings key, task name and install folder are new).
   continuous corners (`internal/gui/shape.go`), MiSans, palette and metrics
   in `internal/gui/theme.go`. Check a UI change with the previews
   (`POWERMETER_PREVIEW_DIR=<dir> go test -run TestPreviews ./internal/gui`)
-  and show them before committing; the maintainer judges the look.
+  and show them before committing; the maintainer judges the look. mygo
+  draws the window, so upgrading it is such a change: do it on its own.
 - MiSans is not in the repository (its licence forbids separate
   distribution): `go run ./tools/fonts` fetches the pinned faces into
   `internal/fonts/misans/`. The program compiles and tests without them, so
@@ -47,7 +50,4 @@ of it is migrated (settings key, task name and install folder are new).
   tests, the smoke run and the installer test run on Windows: the manually
   dispatched `Windows validation` workflow, or by hand as in
   `docs/testing/manual-ci.md`.
-- Dependency updates are verified by an agent on the Windows host and then
-  landed; they go to the maintainer only when evidence shows the update breaks
-  the program.
 - `dist/` is generated; binaries belong in GitHub Releases.

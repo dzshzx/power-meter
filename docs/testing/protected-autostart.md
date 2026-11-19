@@ -27,6 +27,8 @@ file would then start elevated at the next sign-in without a UAC prompt.
   absent: this installation's copy is still removed, `--remove-autostart`
   returns 6 instead of failing, uninstall completes with a manual-deletion
   notice, and the in-app switch reads as off with the same hint.
+- Nothing refreshes the copy but an elevated process. The app has no
+  self-update; one would have to go through an elevated run as well.
 
 ## Testing
 
@@ -46,8 +48,7 @@ physical acceptance (`host-acceptance.md`) and by code review.
 
 Observed with Power Meter 1.5 (the C# program, whose task and installer
 followed the same rules under its old names) on a real installation, with the
-real AppId, task name and protected root. The Go program is checked again in
-the physical acceptance before its first release replaces 1.5:
+real AppId, task name and protected root:
 
 - Upgrading over an older version whose task ran the user-writable
   `%LOCALAPPDATA%\Programs\Battery Charge Meter\BatteryChargeMeter.exe` moves
