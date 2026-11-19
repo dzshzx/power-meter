@@ -38,7 +38,7 @@ func TestLiveProbe(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if rows := strings.Count(report, "\r\ntimestamp="); rows != seconds {
+	if rows := strings.Count(report, "\ntimestamp="); rows != seconds {
 		t.Errorf("%d rows for %d seconds:\n%s", rows, seconds, report)
 	}
 	t.Log("\n" + report)

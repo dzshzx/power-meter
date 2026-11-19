@@ -9,9 +9,6 @@ import (
 	"github.com/dzshzx/power-meter/internal/power"
 )
 
-// probeNewline ends every report line, as Windows text files do.
-const probeNewline = "\r\n"
-
 // Probe discovers the sources, takes one baseline sample and then one
 // sample a second for seconds seconds (at least one), and returns the
 // --power-probe report. Source availability is a per-machine hardware and
@@ -26,7 +23,7 @@ func Probe(seconds int) string {
 
 func probe(src *Sources, seconds int, elevated bool, sleep func(time.Duration)) string {
 	var b strings.Builder
-	line := func(text string) { b.WriteString(text + probeNewline) }
+	line := func(text string) { b.WriteString(text + "\n") }
 	line("Power source discovery")
 	line("  Elevated token: " + boolText(elevated))
 	line("  Timestamp is application observation time, not a BMS timestamp.")

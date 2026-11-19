@@ -129,7 +129,7 @@ func TestProbeReport(t *testing.T) {
 		raw,
 		"3.000s  " + battery + rest,
 		"",
-	}, "\r\n")
+	}, "\n")
 	if got != want {
 		t.Errorf("report:\n%s\nwant:\n%s", got, want)
 	}
@@ -141,7 +141,7 @@ func TestProbeReportUnavailable(t *testing.T) {
 	src := fixture(clock, discharging, &pawnIOSensor{reason: power.ReasonElevationRequired})
 	src.emi = newEMISensor(&clockEMI{clock: clock, start: clock.now(), pWhPerSec: 1e10, unreadables: []string{`\\?\emi#2`}})
 	clock.t = clock.t.Add(100 * time.Millisecond)
-	lines := strings.Split(probe(src, 1, false, clock.sleep), "\r\n")
+	lines := strings.Split(probe(src, 1, false, clock.sleep), "\n")
 	want := map[int]string{
 		1:  "  Elevated token: False",
 		6:  "  Platform (PawnIO): 需要以管理员身份运行才能读取平台功率",

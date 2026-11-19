@@ -1,7 +1,6 @@
 package thirdparty
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -19,11 +18,11 @@ func TestIntelMSRMatchesNotice(t *testing.T) {
 
 func TestNotices(t *testing.T) {
 	notices := Notices()
-	if !strings.HasPrefix(notices, "# Third-party components\r\n") {
+	if !strings.HasPrefix(notices, "# Third-party components\n") {
 		t.Error("the export starts with NOTICE.md")
 	}
 	for _, c := range components {
-		if !strings.Contains(notices, "\r\n\r\n---\r\n"+c.heading()+"\r\n---\r\n"+crlf(text(c.file))) {
+		if !strings.Contains(notices, "\n\n---\n"+c.heading()+"\n---\n"+text(c.file)) {
 			t.Errorf("%s carries %s after its heading", c.name, c.file)
 		}
 	}
@@ -33,17 +32,8 @@ func TestNotices(t *testing.T) {
 			t.Errorf("the export lacks %q", want)
 		}
 	}
-	if strings.Count(notices, "\n") != strings.Count(notices, "\r\n") || strings.Contains(notices, "\r\r") {
-		t.Error("every line of the export ends in CRLF")
-	}
-	if strings.Contains(notices, byteOrderMark) {
-		t.Error("embedded byte order marks are dropped")
-	}
-}
-
-func TestCRLF(t *testing.T) {
-	if got := crlf("a\nb\r\nc\n"); got != "a\r\nb\r\nc\r\n" {
-		t.Errorf("crlf = %q", got)
+	if strings.ContainsAny(notices, "\r\uFEFF") {
+		t.Error("the export has LF line endings and no byte order mark")
 	}
 }
 
@@ -56,8 +46,8 @@ func TestWriteNotices(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != byteOrderMark+Notices() || !bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF, '#'}) {
-		t.Error("the export is the notice as UTF-8 with a byte order mark")
+	if string(data) != Notices() {
+		t.Error("the export is the notice as UTF-8")
 	}
 	if WriteNotices(" ") == nil {
 		t.Error("a blank path is rejected")

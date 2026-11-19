@@ -135,7 +135,7 @@ func writeChecksum(path string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path+".sha256", []byte(sum+"  "+filepath.Base(path)+"\r\n"), 0o644)
+	return os.WriteFile(path+".sha256", []byte(sum+"  "+filepath.Base(path)+"\n"), 0o644)
 }
 
 func checkChecksum(path string) error {

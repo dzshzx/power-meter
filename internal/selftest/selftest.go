@@ -23,8 +23,7 @@ type Case struct {
 	Pass func() bool
 }
 
-// newline ends every report line, as Windows text files do.
-const newline = "\r\n"
+const newline = "\n"
 
 // Run runs the cases in order and returns the report, one PASS or FAIL line
 // per case and a summary, and whether every case passed. A case that panics

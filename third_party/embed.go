@@ -71,30 +71,24 @@ func (c component) heading() string {
 func Notice() string { return text("NOTICE.md") }
 
 // Notices is the complete third-party notice: NOTICE.md followed by every
-// component's heading and licence text, with Windows line endings
-// throughout. The embedded files keep their upstream bytes.
+// component's heading and licence text. The embedded files keep their
+// upstream text; the checkout gives them LF line endings.
 func Notices() string {
 	var b strings.Builder
 	b.WriteString(Notice())
 	for _, c := range components {
 		b.WriteString("\n\n---\n" + c.heading() + "\n---\n" + text(c.file))
 	}
-	return crlf(b.String())
+	return b.String()
 }
 
-// WriteNotices writes Notices to path as UTF-8 with a byte order mark, the
-// --third-party-notices export.
+// WriteNotices writes Notices to path as UTF-8, the --third-party-notices
+// export.
 func WriteNotices(path string) error {
 	if strings.TrimSpace(path) == "" {
 		return errors.New("a notice output path is required")
 	}
-	return os.WriteFile(path, []byte(byteOrderMark+Notices()), 0o644)
-}
-
-var byteOrderMark = string(rune(0xFEFF))
-
-func crlf(s string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\n", "\r\n")
+	return os.WriteFile(path, []byte(Notices()), 0o644)
 }
 
 func text(name string) string {
@@ -103,5 +97,5 @@ func text(name string) string {
 		// Every name is a literal listed in the embed patterns above.
 		panic(err)
 	}
-	return strings.TrimPrefix(string(data), byteOrderMark)
+	return string(data)
 }
