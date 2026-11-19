@@ -21,20 +21,20 @@ gh workflow run release.yml --ref master -f bump=patch
 
 工作流依次：
 
-1. 非 dry_run 时要求运行在 `master`。先判断这个提交是否已发过版：提交上有纯 `vX.Y.Z` tag、且同名
-   Release 已发布，才算发过版，非 dry_run 直接失败并说明「这个提交已发过版」。提交上只有 tag、
-   同名 Release 没有发布时，视为上次发版没做完，沿用这个版本继续发布，不再升档。这一步在门禁之前。
-2. 算出新版本号（见下节）。
-3. 调用 `Windows validation` 工作流（`.github/workflows/ci.yml`，做法见 `docs/testing/manual-ci.md`）：
+1. `tools/release next-version`：非 dry_run 时要求运行在 `master`。先判断这个提交是否已发过版：
+   提交上有纯 `vX.Y.Z` tag、且同名 Release 已发布，才算发过版，非 dry_run 直接失败并说明「这个
+   提交已发过版」。提交上只有 tag、同名 Release 没有发布时，视为上次发版没做完，沿用这个版本继续
+   发布，不再升档。否则算出新版本号（见下节）。这一步在门禁之前。
+2. 调用 `Windows validation` 工作流（`.github/workflows/ci.yml`，做法见 `docs/testing/manual-ci.md`）：
    门禁、在 Linux 上构建 EXE 与安装包、在 Windows 上测试这两个文件。发版时它在构建前用
    `go run ./tools/release set-version` 把新版本写进构建作业自己检出的 `mygo.json`；测试的检出保持仓里
    的占位版本。
-4. `tools/release package` 生成便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产旁各带
+3. `tools/release package` 生成便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产旁各带
    一个 `.sha256` 校验文件，全部放在一个只放发布资产的目录里，并核对 EXE 的文件版本是新版本、
    每个校验文件都对、源码包是 `third_party/NOTICE.md` 固定的那一份。
-5. 全部通过后依次：删掉同名的旧草稿 Release，建含全部资产的草稿，经 GitHub API 在该提交上打附注
-   tag `vX.Y.Z`（tag 已指向本提交就跳过，指向别的提交就失败），最后发布草稿；Release 说明写明
-   `source_commit`。
+4. `tools/release publish` 写运行摘要；非 dry_run 时依次：删掉同名的旧草稿 Release，建含全部
+   资产的草稿，经 GitHub API 在该提交上打附注 tag `vX.Y.Z`（tag 已指向本提交就跳过，指向别的提交
+   就失败），最后发布草稿；Release 说明写明 `source_commit`。
 
 ## 版本号
 

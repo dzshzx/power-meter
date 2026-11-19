@@ -38,65 +38,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Released = a vX.Y.Z tag on this commit plus a published Release of the
-      # same name. A tag without a published Release is an unfinished run:
-      # keep that version and finish publishing it.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # A tagged commit whose Release is not published resumes that version;
+      # see tools/release next-version.
       - name: Compute release version
         id: version
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           BUMP: ${{ inputs.bump }}
           DRY_RUN: ${{ inputs.dry_run }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          $dryRun = $env:DRY_RUN -eq 'true'
-          if (-not $dryRun -and $env:GITHUB_REF -ne "refs/heads/$env:DEFAULT_BRANCH") {
-              throw "A release (dry_run=false) must run on $env:DEFAULT_BRANCH; this run is on $env:GITHUB_REF."
-          }
-
-          $releaseTag = '^v\d+\.\d+\.\d+$'
-          $tags = @(git tag --list 'v*' | Where-Object { $_ -match $releaseTag })
-          if ($LASTEXITCODE -ne 0) { throw 'Could not list tags.' }
-          if ($tags.Count -eq 0) { throw 'No vX.Y.Z tag found; the version baseline is unknown.' }
-
-          $headTags = @(git tag --points-at $env:GITHUB_SHA | Where-Object { $_ -match $releaseTag })
-          if ($LASTEXITCODE -ne 0) { throw 'Could not list tags on the source commit.' }
-          $headTag = $headTags | Sort-Object { [version]$_.Substring(1) } -Descending | Select-Object -First 1
-          $published = @()
-          if ($headTag) {
-              $published = @(gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[] | select(.draft | not) | .tag_name')
-              if ($LASTEXITCODE -ne 0) { throw 'Could not list Releases.' }
-          }
-
-          if ($headTag -and $published -notcontains $headTag) {
-              $next = [version]$headTag.Substring(1)
-              Write-Host "Resuming ${headTag}: the tag is on this commit but its Release is not published."
-          }
-          else {
-              if ($headTag) {
-                  if (-not $dryRun) { throw "这个提交已发过版: $env:GITHUB_SHA is $headTag and its Release is published." }
-                  Write-Host "$headTag is already released from this commit; the dry run previews the next bump."
-              }
-              $base = $tags | ForEach-Object { [version]$_.Substring(1) } |
-                  Sort-Object -Descending | Select-Object -First 1
-              $next = switch ($env:BUMP) {
-                  'patch' { [version]::new($base.Major, $base.Minor, $base.Build + 1) }
-                  'minor' { [version]::new($base.Major, $base.Minor + 1, 0) }
-                  'major' { [version]::new($base.Major + 1, 0, 0) }
-                  default { throw "Unknown bump: $env:BUMP" }
-              }
-              Write-Host "Baseline v$($base.ToString(3)), bump $env:BUMP"
-          }
-          # Each field of a Windows file version is a 16-bit number.
-          if ($next.Major -gt 65535 -or $next.Minor -gt 65535 -or $next.Build -gt 65535) {
-              throw "Version $next does not fit a Windows file version."
-          }
-          $version = $next.ToString(3)
-
-          Write-Host "Release v$version (dry_run=$dryRun)"
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "tag=v$version" >> $env:GITHUB_OUTPUT
+        run: go run ./tools/release next-version -bump "$BUMP" -branch "$DEFAULT_BRANCH" -dry-run="$DRY_RUN" >> "$GITHUB_OUTPUT"
 
   # Builds on Linux and tests on Windows the files this run publishes, with
   # the gate beside them; a manual Windows validation runs the same jobs.
@@ -112,6 +68,9 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Check out source
@@ -128,101 +87,18 @@ jobs:
           name: build
           path: dist/windows-amd64
 
-      # The asset directory holds exactly the Release assets; the summary and
-      # the Release both take every file in it. package also checks the
-      # executable's file version and every checksum.
+      # The asset directory holds exactly the Release assets; package also
+      # checks the executable's file version and every checksum.
       - name: Package release assets
-        id: package
-        shell: pwsh
         env:
           VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          $dir = Join-Path $env:RUNNER_TEMP 'release-assets'
-          go run ./tools/release package -version $env:VERSION -build dist/windows-amd64 -out $dir
-          if ($LASTEXITCODE -ne 0) { throw "release package exited with $LASTEXITCODE." }
-          "dir=$dir" >> $env:GITHUB_OUTPUT
+        run: go run ./tools/release package -version "$VERSION" -build dist/windows-amd64 -out "$RUNNER_TEMP/release-assets"
 
-      - name: Summarize release
-        shell: pwsh
-        env:
-          TAG: ${{ needs.version.outputs.tag }}
-          DRY_RUN: ${{ inputs.dry_run }}
-          ASSET_DIR: ${{ steps.package.outputs.dir }}
-        run: |
-          $heading = if ($env:DRY_RUN -eq 'true') { "Dry run: would release $env:TAG" } else { "Releasing $env:TAG" }
-          $lines = @(
-            "## $heading", '',
-            "- version: ``$env:TAG``",
-            "- source_commit: ``$env:GITHUB_SHA``", '',
-            '| asset | sha256 |', '| --- | --- |'
-          )
-          foreach ($asset in Get-ChildItem -LiteralPath $env:ASSET_DIR -File) {
-            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $asset.FullName).Hash.ToLowerInvariant()
-            $lines += "| $($asset.Name) | ``$hash`` |"
-          }
-          $lines | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
-          $lines | Write-Host
-
-      # Publishing order: drop stale drafts of this version, create a draft
-      # with every asset, tag the commit through the API, then publish. A
-      # failed run is recovered by running the same command again; the
-      # version job resumes a tagged commit whose Release is not published.
-      - name: Create draft Release
-        if: ${{ !inputs.dry_run }}
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.version.outputs.tag }}
-          ASSET_DIR: ${{ steps.package.outputs.dir }}
-        run: |
-          $drafts = @(gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --paginate `
-            --jq '.[] | select(.draft) | [.id, .tag_name] | @tsv')
-          if ($LASTEXITCODE -ne 0) { throw 'Could not list Releases.' }
-          foreach ($id in $drafts | Where-Object { ($_ -split "`t")[1] -eq $env:TAG } | ForEach-Object { ($_ -split "`t")[0] }) {
-            gh api -X DELETE "repos/$env:GITHUB_REPOSITORY/releases/$id"
-            if ($LASTEXITCODE -ne 0) { throw "Could not delete draft Release $id." }
-          }
-
-          $assets = @(Get-ChildItem -LiteralPath $env:ASSET_DIR -File | ForEach-Object FullName)
-          gh release create $env:TAG @assets `
-            --repo $env:GITHUB_REPOSITORY `
-            --draft `
-            --target $env:GITHUB_SHA `
-            --title $env:TAG `
-            --notes "source_commit: $env:GITHUB_SHA" `
-            --generate-notes
-          if ($LASTEXITCODE -ne 0) { throw "gh release create exited with $LASTEXITCODE." }
-
-      - name: Tag the source commit
-        if: ${{ !inputs.dry_run }}
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.version.outputs.tag }}
-        run: |
-          $repo = "repos/$env:GITHUB_REPOSITORY"
-          $refs = @(gh api "$repo/git/matching-refs/tags/$env:TAG" --jq '.[] | [.ref, .object.type, .object.sha] | @tsv')
-          if ($LASTEXITCODE -ne 0) { throw "Could not look up tag $env:TAG." }
-          $ref = $refs | Where-Object { ($_ -split "`t")[0] -eq "refs/tags/$env:TAG" }
-          if ($ref) {
-            $null, $type, $sha = $ref -split "`t"
-            $commit = if ($type -eq 'tag') { gh api "$repo/git/tags/$sha" --jq .object.sha } else { $sha }
-            if ($LASTEXITCODE -ne 0) { throw "Could not read tag $env:TAG." }
-            if ($commit -ne $env:GITHUB_SHA) { throw "Tag $env:TAG already points at $commit, not $env:GITHUB_SHA." }
-            Write-Host "Tag $env:TAG already points at this commit."
-            exit 0
-          }
-          $tagObject = gh api "$repo/git/tags" -f tag=$env:TAG -f "message=Release $env:TAG" -f object=$env:GITHUB_SHA -f type=commit --jq .sha
-          if ($LASTEXITCODE -ne 0) { throw "Could not create tag object $env:TAG." }
-          gh api "$repo/git/refs" -f "ref=refs/tags/$env:TAG" -f sha=$tagObject --silent
-          if ($LASTEXITCODE -ne 0) { throw "Could not create ref for tag $env:TAG." }
-
+      # Writes the run summary; unless dry_run, publishes the Release and tags
+      # the commit (see tools/release publish for the order and recovery).
       - name: Publish Release
-        if: ${{ !inputs.dry_run }}
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.version.outputs.tag }}
-        run: |
-          gh release edit $env:TAG --repo $env:GITHUB_REPOSITORY --verify-tag --draft=false
-          if ($LASTEXITCODE -ne 0) { throw "gh release edit exited with $LASTEXITCODE." }
+          VERSION: ${{ needs.version.outputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: go run ./tools/release publish -version "$VERSION" -assets "$RUNNER_TEMP/release-assets" -dry-run="$DRY_RUN"

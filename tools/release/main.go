@@ -1,8 +1,11 @@
-// Command release packages, smoke-tests and verifies Power Meter's Windows
-// release assets. It runs on Windows, where the program it checks runs.
+// Command release packages, smoke-tests, publishes and verifies Power
+// Meter's Windows release assets. The commands that run the program run on
+// Windows; next-version and publish run in GitHub Actions.
 //
 //	release set-version -version X.Y.Z
+//	release next-version -bump patch|minor|major -branch <default branch> [-dry-run]
 //	release package -version X.Y.Z -build dist/windows-amd64 -out <empty dir>
+//	release publish -version X.Y.Z -assets <package output> [-dry-run]
 //	release smoke -exe <PowerMeter.exe> -work <dir>
 //	release install-test -version X.Y.Z -setup <setup.exe>
 //	release verify -version X.Y.Z -out <empty dir>
@@ -24,8 +27,12 @@ func main() {
 	switch os.Args[1] {
 	case "set-version":
 		err = runSetVersion(args)
+	case "next-version":
+		err = runNextVersion(args)
 	case "package":
 		err = runPackage(args)
+	case "publish":
+		err = runPublish(args)
 	case "smoke":
 		err = runSmoke(args)
 	case "install-test":
@@ -42,7 +49,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: release set-version|package|smoke|install-test|verify [flags]")
+	fmt.Fprintln(os.Stderr, "usage: release set-version|next-version|package|publish|smoke|install-test|verify [flags]")
 	os.Exit(2)
 }
 
