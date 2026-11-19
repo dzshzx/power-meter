@@ -146,4 +146,5 @@ var table = []entry{
 	{"采样窗口为零", "Sampling window is zero"},
 	{"采样间隔过长，正在重新建立基准", "Sampling gap too long; rebuilding the baseline"},
 	{"本机未启用 Psys 平台计数器", "Psys platform counter is not enabled on this computer"},
+	{"此数据源仅在 Windows 上可用", "This data source is available on Windows only"},
 }
