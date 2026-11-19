@@ -1,6 +1,7 @@
 package thirdparty
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -18,20 +19,31 @@ func TestIntelMSRMatchesNotice(t *testing.T) {
 
 func TestNotices(t *testing.T) {
 	notices := Notices()
-	if !strings.HasPrefix(notices, "# Third-party components") {
+	if !strings.HasPrefix(notices, "# Third-party components\r\n") {
 		t.Error("the export starts with NOTICE.md")
 	}
-	lgpl := "\r\n\r\n---\r\nGNU Lesser General Public License 2.1\r\n---\r\n"
-	if !strings.Contains(notices, lgpl+"                  GNU LESSER GENERAL PUBLIC LICENSE") {
-		t.Error("the LGPL-2.1 text follows its heading")
-	}
-	for _, s := range sections {
-		if !strings.Contains(notices, s.heading+"\r\n"+text(s.file)) {
-			t.Errorf("section %q carries %s", s.heading, s.file)
+	for _, c := range components {
+		if !strings.Contains(notices, "\r\n\r\n---\r\n"+c.heading()+"\r\n---\r\n"+crlf(text(c.file))) {
+			t.Errorf("%s carries %s after its heading", c.name, c.file)
 		}
 	}
-	if strings.Contains(notices, "\uFEFF") {
+	// The release checks look for these two.
+	for _, want := range []string{"GNU LESSER GENERAL PUBLIC LICENSE", "PawnIO.Modules-0.2.10-source.zip"} {
+		if !strings.Contains(notices, want) {
+			t.Errorf("the export lacks %q", want)
+		}
+	}
+	if strings.Count(notices, "\n") != strings.Count(notices, "\r\n") || strings.Contains(notices, "\r\r") {
+		t.Error("every line of the export ends in CRLF")
+	}
+	if strings.Contains(notices, byteOrderMark) {
 		t.Error("embedded byte order marks are dropped")
+	}
+}
+
+func TestCRLF(t *testing.T) {
+	if got := crlf("a\nb\r\nc\n"); got != "a\r\nb\r\nc\r\n" {
+		t.Errorf("crlf = %q", got)
 	}
 }
 
@@ -44,7 +56,7 @@ func TestWriteNotices(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != "\uFEFF"+Notices() {
+	if string(data) != byteOrderMark+Notices() || !bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF, '#'}) {
 		t.Error("the export is the notice as UTF-8 with a byte order mark")
 	}
 	if WriteNotices(" ") == nil {

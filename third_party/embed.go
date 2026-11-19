@@ -1,6 +1,6 @@
 // Package thirdparty carries the third-party files the executable embeds:
-// the PawnIO IntelMSR module and the notice and licence texts that
-// NOTICE.md in this directory describes.
+// the PawnIO IntelMSR module, NOTICE.md and the licence text of every
+// third-party component linked into or embedded in the executable.
 package thirdparty
 
 import (
@@ -19,37 +19,66 @@ var IntelMSR []byte
 // IntelMSRFileName is the module's name both here and beside the executable.
 const IntelMSRFileName = "IntelMSR.bin"
 
-//go:embed NOTICE.md LICENSE.*.txt
+//go:embed NOTICE.md LICENSE.Go.txt LICENSE.purego.txt LICENSE.mygo.txt LICENSE.go-ole.txt
+//go:embed LICENSE.go-text-typesetting.txt LICENSE.Lucide.txt LICENSE.LGPL-2.1.txt
 var files embed.FS
 
-// newline separates the exported sections, as Windows text files do. The
-// embedded texts keep their own bytes.
-const newline = "\r\n"
+// component is one third-party part of the executable and the licence it is
+// used under. NOTICE.md describes each one: a Go component (the standard
+// library or a module) in its table, any other under a heading of its name.
+type component struct {
+	// name is the module path, or what NOTICE.md calls the component.
+	name string
+	// version is the module version or Go release; empty for a component
+	// NOTICE.md versions in its own section.
+	version string
+	// module marks a Go module linked into the executable.
+	module bool
+	// spdx is the licence as an SPDX expression.
+	spdx string
+	// file is the licence text in this directory.
+	file string
+}
 
-// sections follow NOTICE.md in the export: a heading line, then the licence
-// text it introduces.
-var sections = []struct{ heading, file string }{
-	{"---" + newline + "GNU Lesser General Public License 2.1" + newline + "---", "LICENSE.LGPL-2.1.txt"},
-	{"AntdUI - Apache License 2.0", "LICENSE.Apache-2.0.txt"},
-	{"Lucide icons", "LICENSE.Lucide.txt"},
-	{"SVG.NET (included in AntdUI)", "LICENSE.Ms-PL.txt"},
-	{"TaskScheduler - MIT License", "LICENSE.TaskScheduler.txt"},
-	{"System.CommandLine, System.Memory, System.Buffers, System.Numerics.Vectors," +
-		" System.Runtime.CompilerServices.Unsafe - MIT License", "LICENSE.dotnet-MIT.txt"},
+// components are the export's sections after NOTICE.md, in its order. The
+// tests hold them to the modules the executable links.
+var components = []component{
+	{name: "Go standard library and runtime", version: "go1.27.4", spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "github.com/ebitengine/purego", version: "v0.11.1", module: true, spdx: "Apache-2.0", file: "LICENSE.purego.txt"},
+	{name: "github.com/egoist/mygo", version: "v0.10.0", module: true, spdx: "MIT", file: "LICENSE.mygo.txt"},
+	{name: "github.com/go-ole/go-ole", version: "v1.3.0", module: true, spdx: "MIT", file: "LICENSE.go-ole.txt"},
+	{name: "github.com/go-text/typesetting", version: "v0.3.5", module: true, spdx: "Unlicense OR BSD-3-Clause",
+		file: "LICENSE.go-text-typesetting.txt"},
+	{name: "golang.org/x/image", version: "v0.46.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/net", version: "v0.59.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/sys", version: "v0.48.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/text", version: "v0.43.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "Lucide icons", spdx: "ISC", file: "LICENSE.Lucide.txt"},
+	{name: "IntelMSR.bin", spdx: "LGPL-2.1-or-later", file: "LICENSE.LGPL-2.1.txt"},
+}
+
+// heading is the line that introduces the component's licence text.
+func (c component) heading() string {
+	h := c.name
+	if c.version != "" {
+		h += " " + c.version
+	}
+	return h + " - " + c.spdx
 }
 
 // Notice is NOTICE.md as embedded.
 func Notice() string { return text("NOTICE.md") }
 
 // Notices is the complete third-party notice: NOTICE.md followed by every
-// licence text it refers to.
+// component's heading and licence text, with Windows line endings
+// throughout. The embedded files keep their upstream bytes.
 func Notices() string {
 	var b strings.Builder
 	b.WriteString(Notice())
-	for _, s := range sections {
-		b.WriteString(newline + newline + s.heading + newline + text(s.file))
+	for _, c := range components {
+		b.WriteString("\n\n---\n" + c.heading() + "\n---\n" + text(c.file))
 	}
-	return b.String()
+	return crlf(b.String())
 }
 
 // WriteNotices writes Notices to path as UTF-8 with a byte order mark, the
@@ -58,14 +87,20 @@ func WriteNotices(path string) error {
 	if strings.TrimSpace(path) == "" {
 		return errors.New("a notice output path is required")
 	}
-	return os.WriteFile(path, []byte("\uFEFF"+Notices()), 0o644)
+	return os.WriteFile(path, []byte(byteOrderMark+Notices()), 0o644)
+}
+
+var byteOrderMark = string(rune(0xFEFF))
+
+func crlf(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\n", "\r\n")
 }
 
 func text(name string) string {
 	data, err := files.ReadFile(name)
 	if err != nil {
-		// Every name is a literal matched by the embed pattern above.
+		// Every name is a literal listed in the embed patterns above.
 		panic(err)
 	}
-	return strings.TrimPrefix(string(data), "\uFEFF")
+	return strings.TrimPrefix(string(data), byteOrderMark)
 }
