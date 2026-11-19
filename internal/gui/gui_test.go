@@ -31,7 +31,7 @@ type recorder struct {
 func newRecorder(scenario string) *recorder {
 	v, mode := fixture(scenario)
 	r := &recorder{}
-	r.model = Model{View: v, Mode: mode, Language: i18n.System, Autostart: Autostart{Enabled: true}}
+	r.model = Model{View: v, Mode: mode, Pinned: true, Language: i18n.System, Autostart: Autostart{Enabled: true}}
 	r.model.Actions = Actions{
 		SetMode:      func(m meter.Mode) { r.modes = append(r.modes, m) },
 		SetPinned:    func(on bool) { r.pinned = append(r.pinned, on) },
@@ -172,7 +172,7 @@ func TestActions(t *testing.T) {
 				t.Fatalf("click %s: %v", label, err)
 			}
 		}
-		if len(r.pinned) != 1 || !r.pinned[0] || r.minimized != 1 || r.closed != 1 ||
+		if len(r.pinned) != 1 || r.pinned[0] || r.minimized != 1 || r.closed != 1 ||
 			len(r.modes) != 1 || r.modes[0] != meter.Battery || r.elevated != 1 {
 			t.Errorf("caption buttons, the mode and the restart reach the app: %+v", r)
 		}

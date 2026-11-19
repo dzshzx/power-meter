@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/dzshzx/power-meter/internal/app"
 	"github.com/dzshzx/power-meter/internal/autostart"
@@ -115,12 +116,15 @@ func runCommand(route cli.Route) error {
 	return nil
 }
 
-// screenshot draws the window with one live reading at dpi, and its size
-// beside it in path.txt.
+// screenshot draws the window with live readings at dpi, and its size
+// beside it in path.txt. The second reading, a second after the first,
+// gives the counter sources their first figures.
 func screenshot(path string, dpi int) error {
 	sources := sensors.New()
 	defer sources.Close()
 	session := meter.NewSession(settings.Mode())
+	session.Observe(sources.Capture())
+	time.Sleep(time.Second)
 	m := &gui.Model{
 		View:     session.Observe(sources.Capture()),
 		Mode:     session.Mode(),

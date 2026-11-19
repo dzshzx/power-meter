@@ -120,9 +120,9 @@ func titleBarView(c *ui.Context, p *palette, m *Model) {
 		appTileView(c, 20)
 		ui.Text(c, i18n.AppName()).FontSize(titleSize).FontWeight(500).TextColor(p.label1).SingleLine().Margin(0, 0, 0, 6)
 		ui.Spacer(c)
-		pin := iconButton(c, p, iconPin, i18n.Get("置顶"), 32, false).Selected(m.Pinned)
+		pin := iconButton(c, p, iconPin, i18n.Get("置顶"), 32, false).Checked(m.Pinned)
 		if m.Pinned {
-			pin.TextColor(p.primary)
+			pin.TextColor(p.primary).Background(withAlpha(p.primary, 0.12))
 		}
 		if pin.Clicked() && m.Actions.SetPinned != nil {
 			m.Actions.SetPinned(!m.Pinned)

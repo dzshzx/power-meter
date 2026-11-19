@@ -8,3 +8,4 @@ work/
 *.user
 *.tmp
 *.log
+locales/catalog_gen.go
