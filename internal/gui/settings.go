@@ -32,8 +32,8 @@ func languageName(value string) string {
 func settings(c *ui.Context, p *palette, m *Model, anchor ui.Element) {
 	ui.PopoverBase(c.Key("settings"), anchor, &m.SettingsOpen, func(panel ui.Element) {
 		panel.AttachTo(anchor, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, 8, 0).Width(settingsWidth).
-			Padding(4, 0, 4, 0).Radius(groupRadius).Background(p.popup).Border(1, p.border).
-			Shadow(0, 8, 24, 0, p.shadow).Font(textFont).TextColor(p.ink)
+			Padding(4, 0, 4, 0).Shadow(0, 8, 24, 0, p.shadow).Radius(groupRadius).Draw(outlined(p.popup, p.border, groupRadius)).
+			Font(textFont).TextColor(p.ink)
 		autostartRow(c, p, m)
 		settingsDivider(c, p)
 		languageRow(c, p, m)
@@ -128,12 +128,12 @@ func languageRow(c *ui.Context, p *palette, m *Model) {
 		ui.Icon(c, icon(iconChevronDown, 1.75)).Size(16, 16).TextColor(p.ink3).Margin(0, 0, 0, 4)
 	})
 	sel.Popup(func(panel ui.Element) {
-		panel.Margin(4, 0, 0, 0).Padding(4).Radius(14).Background(p.popup).Border(1, p.border).
-			Shadow(0, 8, 24, 0, p.shadow).Width(160).Font(textFont).TextColor(p.ink)
+		panel.Margin(4, 0, 0, 0).Padding(4).Shadow(0, 8, 24, 0, p.shadow).Radius(16).Draw(outlined(p.popup, p.border, 16)).
+			Width(160).Font(textFont).TextColor(p.ink)
 		for _, l := range languages {
-			item := sel.Item(l.value).Height(40).Padding(0, 12, 0, 12).Radius(10).AlignItems(ui.Center).FocusRing(false)
+			item := sel.Item(l.value).Height(40).Padding(0, 12, 0, 12).AlignItems(ui.Center).FocusRing(false)
 			if item.Highlighted() {
-				item.Background(p.hover)
+				item.Draw(shape(p.hover, 12))
 			}
 			item.Children(func() {
 				font, color := textFont, p.ink

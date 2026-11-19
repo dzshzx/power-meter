@@ -67,16 +67,76 @@ func (m *Model) offersElevation() bool {
 	return !m.Elevated && (m.View.ElevationHelps || m.ElevationNotice != "")
 }
 
-// Fixed section heights: the window is sized from them, not measured.
+// Fixed section heights: the window is sized from them and from which
+// lines fit side by side (heroLayout), not measured after layout.
 const (
-	noticeHeight       = 56 // two lines of text
+	noticeHeight       = 58 // two lines of text
 	noticeActionHeight = 24
 	rowsCount          = 3
+	stateHeight        = 20
+	stateGap           = 16 // between the supply state and the battery's figures
+	statsHeight        = 20
+	statsGap           = 8 // between the trend's time labels and the statistics
 )
+
+// heroLayout says which pairs of lines in the hero group fit side by side
+// at the group's width; English text is longer.
+type heroLayout struct {
+	// stackBattery puts the battery's figures under the supply state.
+	stackBattery bool
+	// stackStats puts each statistic's figure under its caption.
+	stackStats bool
+}
+
+// heroWidth is the width inside the hero group.
+const heroWidth = panelWidth - 2*inset - 2*groupPadding
+
+func layoutFor(v *meter.View) heroLayout {
+	ensureFonts()
+	supplyW := 14 + 6 + textWidth(v.Supply.Text, textFont, captionSize)
+	batteryW := textWidth(batteryLine(v), textFont, captionSize)
+	half := float32(heroWidth-16) / 2
+	stat := func(caption, value string) float32 {
+		f := splitFigure(value)
+		return textWidth(caption, textFont, captionSize) + 8 + textWidth(f.prefix, textFont, captionSize) +
+			textWidth(f.number, mediumFont, 15) + textWidth(f.unit, textFont, captionSize) + 8
+	}
+	return heroLayout{
+		stackBattery: supplyW+stateGap+batteryW > heroWidth,
+		stackStats:   stat(v.AverageCaption, v.AverageValue) > half || stat(v.PeakCaption, v.PeakValue) > half,
+	}
+}
+
+// textWidth is the width of s on one line.
+func textWidth(s, family string, size float32) float32 {
+	var w float32
+	for _, g := range ui.Shape(s, ui.Font{Family: family, Size: size, Features: tabular}) {
+		w = max(w, g.X+g.Advance)
+	}
+	return w
+}
+
+func batteryLine(v *meter.View) string {
+	return strings.Join([]string{v.Voltage, v.Current, v.Percentage}, " · ")
+}
+
+// heroHeight is the hero group's height for v.
+func heroHeight(v *meter.View) int {
+	l := layoutFor(v)
+	const headline = 51 // headSize at a line height of 1.15
+	h := 16 + 24 + 8 + headline + 4 + stateHeight + 14 + chartHeight + 10 + statsGap + statsHeight + 16
+	if l.stackBattery {
+		h += 18
+	}
+	if l.stackStats {
+		h += 18
+	}
+	return h
+}
 
 // panelHeight is the panel's height for m: the notice group adds to it.
 func panelHeight(m *Model) int {
-	h := titleBar + heroHeight + inset + rowsCount*rowHeight + footerHeight
+	h := titleBar + heroHeight(m.View) + inset + rowsCount*rowHeight + footerHeight
 	if m.notice() != "" {
 		h += inset + noticeHeight
 		if m.offersElevation() {
@@ -101,8 +161,8 @@ func Panel(m *Model) (x, y, w, h int) {
 }
 
 // Build builds the window for m; the app gives it to mygo as the window's
-// view. The window is transparent: the panel rounds its own corners and
-// draws its own shadow.
+// view. The window is transparent: the panel draws its own continuous
+// corners, outline and shadow.
 func Build(c *ui.Context, m *Model) {
 	ensureFonts()
 	p := paletteFor(c.Theme().Dark)
@@ -111,8 +171,7 @@ func Build(c *ui.Context, m *Model) {
 	t.Inverse, t.InverseText = p.popup, p.ink
 	c.SetTheme(&t)
 	ui.Column(c).Fill().Background(ui.Transparent).Padding(shadowTop, shadowSide, shadowBottom, shadowSide).Children(func() {
-		ui.Column(c).Grow(1).Background(p.page).Radius(panelRadius).Border(1, p.border).
-			Shadow(0, 8, 22, 0, p.shadow).Font(textFont).TextColor(p.ink).Children(func() {
+		ui.Column(c).Grow(1).Draw(panelShape(p)).Font(textFont).TextColor(p.ink).Children(func() {
 			titleBarView(c, p, m)
 			ui.Scroll(c.Key("page")).Grow(1).Children(func() {
 				ui.Column(c).Padding(0, inset, 0, inset).Gap(inset).Children(func() {
@@ -128,9 +187,21 @@ func Build(c *ui.Context, m *Model) {
 	})
 }
 
+// panelShape draws the panel: its shadow, its surface and a hairline
+// outline, all with continuous corners.
+func panelShape(p *palette) func(*ui.Painter, ui.Rect) {
+	return func(pt *ui.Painter, r ui.Rect) {
+		pt.Shadow(r, panelRadius, 0, 8, 22, 0, p.shadow)
+		var path ui.Path
+		squircle(&path, r, panelRadius)
+		pt.FillPath(&path, p.page)
+		pt.StrokePath(&path, 1/pt.Scale(), p.border)
+	}
+}
+
 func titleBarView(c *ui.Context, p *palette, m *Model) {
-	ui.Row(c).Height(titleBar).Padding(0, 12, 0, 22).AlignItems(ui.Center).Gap(4).DragWindow().Children(func() {
-		ui.Text(c, i18n.AppName()).Font(mediumFont).FontSize(titleSize).TextColor(p.ink).SingleLine()
+	ui.Row(c).Height(titleBar).Padding(4, 14, 0, 22).AlignItems(ui.Center).Gap(4).DragWindow().Children(func() {
+		ui.Text(c, i18n.AppName()).Font(figureFont).FontSize(titleSize).TextColor(p.ink).SingleLine()
 		ui.Spacer(c)
 		pin := iconButton(c, p, iconPin, i18n.Get("置顶"), m.Pinned, false).Checked(m.Pinned)
 		if pin.Clicked() && m.Actions.SetPinned != nil {
@@ -145,65 +216,68 @@ func titleBarView(c *ui.Context, p *palette, m *Model) {
 	})
 }
 
-// segments is COUI's capsule segmented control choosing the headline's
-// boundary: equal segments, the same face in both, the choice shown by a
-// raised capsule and the ink.
-func segments(c *ui.Context, p *palette, m *Model) {
-	const h, pad = 30, 3
+// tabs choose the headline's boundary: ColorOS page tabs, the chosen one
+// in ink and the other quieter, in the same face.
+func tabs(c *ui.Context, p *palette, m *Model) {
 	selected := int(m.Mode)
 	parts := ui.SegmentedBase(c.Key("mode"), &selected, 2)
-	parts.Track.Height(h).Width(176).Padding(pad).Radius(h / 2).Background(p.track).Label(i18n.Get("功率显示口径")).
-		Children(func() {
-			for i, key := range []string{"整机功率", "电池端"} {
-				seg := parts.Segment(i).Grow(1).Basis(0).Radius(h/2 - pad).Justify(ui.Center).AlignItems(ui.Center).
-					FocusRing(false)
-				color := p.ink2
-				switch {
-				case i == selected:
-					seg.Background(p.indicator)
-					if !p.dark {
-						seg.Shadow(0, 1, 4, 0, argb(0x1F000000))
-					}
-					color = p.ink
-				case seg.Hovered():
-					color = p.ink
-				}
-				seg.Children(func() {
-					ui.Text(c, i18n.Get(key)).Font(mediumFont).FontSize(13).TextColor(color).SingleLine()
-				})
+	parts.Track.Gap(16).AlignItems(ui.Center).Label(i18n.Get("功率显示口径")).Children(func() {
+		for i, key := range []string{"整机功率", "电池端"} {
+			tab := parts.Segment(i).FocusRing(false)
+			color := p.ink3
+			switch {
+			case i == selected:
+				color = p.ink
+			case tab.Hovered():
+				color = p.ink2
 			}
-		})
+			tab.Children(func() {
+				ui.Text(c, i18n.Get(key)).Font(mediumFont).FontSize(tabSize).TextColor(color).SingleLine()
+			})
+		}
+	})
 	if next := meter.Mode(selected); next != m.Mode && m.Actions.SetMode != nil {
 		m.Actions.SetMode(next)
 	}
 }
 
-// hero is the first group: what the headline measures and the boundary
-// switch, the headline, the supply state with the battery's figures, and
-// the trend with its statistics.
+// hero is the first group: the boundary tabs and what the headline
+// measures, the headline, the supply state beside the battery's figures,
+// the trend and its statistics.
 func hero(c *ui.Context, p *palette, m *Model) {
 	v := m.View
-	group(c, p).Height(heroHeight).Padding(14, groupPadding, 14, groupPadding).Children(func() {
-		ui.Row(c).MinHeight(28).AlignItems(ui.Center).Gap(10).Children(func() {
-			ui.Text(c, v.Title.Text).Font(textFont).FontSize(captionSize).LineHeight(1.3).TextColor(p.ink2).
-				MaxLines(2).Ellipsis("…").Grow(1).Shrink(1).Tooltip(v.Title.Tooltip)
-			segments(c, p, m)
+	l := layoutFor(v)
+	group(c, p).Height(float32(heroHeight(v))).Padding(16, groupPadding, 16, groupPadding).Children(func() {
+		ui.Row(c).Height(24).AlignItems(ui.Center).Gap(12).Children(func() {
+			tabs(c, p, m)
+			ui.Spacer(c)
+			label(c, v.Title.Text, captionSize, p.ink2).Shrink(1).Ellipsis("…").Tooltip(v.Title.Tooltip)
 		})
-		ui.Column(c).Margin(6, 0, 0, 0).Children(func() {
+		ui.Column(c).Margin(8, 0, 0, 0).Children(func() {
 			figureText(c, p, v.Headline.Text, headSize, 18, figureFont, p.tone(v.Headline.Tone, v.Accent)).
 				Tooltip(v.Headline.Tooltip)
 		})
-		supply(c, p, v)
-		battery := strings.Join([]string{v.Voltage, v.Current, v.Percentage}, " · ")
-		label(c, battery, captionSize, p.ink2).FontFeatures(tabular).Margin(2, 0, 0, 20).
-			Tooltip(v.VoltageCaption + " · " + v.CurrentCaption + " · " + i18n.Get("电池电量"))
+		battery := func() ui.Element {
+			return label(c, batteryLine(v), captionSize, p.ink2).FontFeatures(tabular).
+				Tooltip(v.VoltageCaption + " · " + v.CurrentCaption + " · " + i18n.Get("电池电量"))
+		}
+		ui.Row(c).Height(stateHeight).Margin(4, 0, 0, 0).AlignItems(ui.Center).Gap(stateGap / 2).Children(func() {
+			supply(c, p, v)
+			ui.Spacer(c)
+			if !l.stackBattery {
+				battery()
+			}
+		})
+		if l.stackBattery {
+			battery().Height(18).Margin(0, 0, 0, 20)
+		}
 		view := v.Trend
 		ui.Column(c).Height(chartHeight).Margin(14, 0, 0, 0).Tooltip(view.Tooltip).
 			Draw(chart{p: p, view: &view}.draw)
 		ui.Spacer(c)
-		ui.Row(c).Children(func() {
-			statistic(c, p, v.AverageCaption, v.AverageValue, v.AverageTone, v.AverageTooltip)
-			statistic(c, p, v.PeakCaption, v.PeakValue, v.PeakTone, v.PeakTooltip)
+		ui.Row(c).Margin(statsGap, 0, 0, 0).Gap(16).Children(func() {
+			statistic(c, p, v.AverageCaption, v.AverageValue, v.AverageTone, v.AverageTooltip, l.stackStats)
+			statistic(c, p, v.PeakCaption, v.PeakValue, v.PeakTone, v.PeakTooltip, l.stackStats)
 		})
 	})
 }
@@ -215,7 +289,7 @@ func supply(c *ui.Context, p *palette, v *meter.View) {
 	if v.Accent == power.AccentError {
 		color = p.danger
 	}
-	ui.Row(c).Height(20).Margin(2, 0, 0, 0).AlignItems(ui.Center).Gap(6).Tooltip(v.Supply.Tooltip).Children(func() {
+	ui.Row(c).AlignItems(ui.Center).Gap(6).Shrink(1).Tooltip(v.Supply.Tooltip).Children(func() {
 		if body := supplyIconBody(v.SupplyIcon); body != "" {
 			ui.Icon(c, icon(body, 1.75)).Size(14, 14).TextColor(color)
 		}
@@ -223,9 +297,16 @@ func supply(c *ui.Context, p *palette, v *meter.View) {
 	})
 }
 
-// statistic is a caption over its figure, half the group's width.
-func statistic(c *ui.Context, p *palette, caption, value string, tone meter.Tone, tooltip string) {
-	ui.Column(c).Grow(1).Basis(0).Gap(2).Tooltip(tooltip).Children(func() {
+// statistic is a caption and its figure, half the group's width: on one
+// baseline, or the figure under the caption where they do not fit.
+func statistic(c *ui.Context, p *palette, caption, value string, tone meter.Tone, tooltip string, stacked bool) {
+	var box ui.Element
+	if stacked {
+		box = ui.Column(c).AlignItems(ui.Start).Gap(2)
+	} else {
+		box = ui.Row(c).AlignItems(ui.Baseline).Gap(8)
+	}
+	box.Grow(1).Basis(0).Tooltip(tooltip).Children(func() {
 		label(c, caption, captionSize, p.ink2).Ellipsis("…")
 		figureText(c, p, value, 15, captionSize, mediumFont, p.tone(tone, 0))
 	})
@@ -266,7 +347,7 @@ func notice(c *ui.Context, p *palette, m *Model, text string) {
 	if m.offersElevation() {
 		h += noticeActionHeight
 	}
-	group(c, p).Height(h).Padding(10, groupPadding, 10, 14).Justify(ui.Center).Gap(4).Children(func() {
+	group(c, p).Height(h).Padding(10, groupPadding, 10, 16).Justify(ui.Center).Gap(4).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Start).Children(func() {
 			ui.Icon(c, icon(iconTriangleAlert, 1.75)).Size(14, 14).TextColor(p.warn).Margin(2, 0, 0, 0)
 			ui.Text(c, text).Font(textFont).FontSize(captionSize).LineHeight(1.5).TextColor(p.ink2).MaxLines(2).
@@ -288,7 +369,7 @@ func notice(c *ui.Context, p *palette, m *Model, text string) {
 }
 
 func footer(c *ui.Context, p *palette, m *Model) {
-	ui.Row(c).Height(footerHeight).Padding(0, 12, 2, 22).AlignItems(ui.Center).Gap(6).Children(func() {
+	ui.Row(c).Height(footerHeight).Padding(0, 14, 2, 22).AlignItems(ui.Center).Gap(6).Children(func() {
 		if m.View.Updated != "" {
 			label(c, i18n.Get("更新于"), captionSize, p.ink3)
 			label(c, m.View.Updated, captionSize, p.ink3).FontFeatures(tabular)

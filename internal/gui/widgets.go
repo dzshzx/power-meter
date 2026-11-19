@@ -47,9 +47,10 @@ func label(c *ui.Context, text string, size float32, color ui.Color) ui.Element 
 	return ui.Text(c, text).Font(textFont).FontSize(size).TextColor(color).SingleLine()
 }
 
-// group is a COUI card: a rounded group of rows on the panel.
+// group is a COUI card: a group of rows on the panel, its continuous
+// corners concentric with the panel's.
 func group(c *ui.Context, p *palette) ui.Element {
-	return ui.Column(c).Background(p.group).Radius(groupRadius)
+	return ui.Column(c).Draw(shape(p.group, groupRadius))
 }
 
 // iconButton is a round icon button: a press highlight and no border. on

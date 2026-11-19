@@ -118,27 +118,28 @@ const (
 )
 
 // Metrics. The window is the panel and, around it, the room its shadow
-// takes; the groups sit inset from the panel's edge, their corners
-// concentric with its.
+// takes. Every corner is continuous (see squircle), and nested corners are
+// concentric: a group inset from the panel's edge takes the panel's radius
+// less the inset.
 const (
 	panelWidth   = 360
-	panelRadius  = 28
+	panelRadius  = 32
 	shadowSide   = 16
 	shadowTop    = 10
 	shadowBottom = 24
 	inset        = 12 // the panel's edge to a group, and between groups
 	groupRadius  = panelRadius - inset
-	groupPadding = 16
-	titleBar     = 48
-	footerHeight = 44
-	heroHeight   = 310
-	rowHeight    = 44
-	chartHeight  = 88
+	groupPadding = 18
+	titleBar     = 60
+	footerHeight = 46
+	rowHeight    = 46
+	chartHeight  = 96
 
 	captionSize = 12
 	bodySize    = 14
-	titleSize   = 15
-	headSize    = 40
+	tabSize     = 15
+	titleSize   = 24
+	headSize    = 44
 	axisSize    = 11
 )
 
