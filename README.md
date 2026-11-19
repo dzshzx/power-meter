@@ -254,7 +254,7 @@ Go 测试、函数认知复杂度不超过 30）。Windows 上的测试、可执
 
 ```text
 .
-├── .github/       # 手动触发的 Windows 验证与 Release 工作流
+├── .github/       # 手动触发的 Windows 验证与 Release 工作流，推送到 master 时跑的 CodeQL 扫描
 ├── cmd/powermeter # 程序入口
 ├── internal/      # 传感器、口径与显示规则、开机自启、界面、语言、设置等 Go 包
 ├── locales/       # 交给 mygo 的翻译：应用的中文名与安装包里的文字
