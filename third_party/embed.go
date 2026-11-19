@@ -20,7 +20,7 @@ var IntelMSR []byte
 const IntelMSRFileName = "IntelMSR.bin"
 
 //go:embed NOTICE.md LICENSE.Go.txt LICENSE.purego.txt LICENSE.mygo.txt LICENSE.go-ole.txt
-//go:embed LICENSE.go-text-typesetting.txt LICENSE.Lucide.txt LICENSE.LGPL-2.1.txt
+//go:embed LICENSE.go-text-typesetting.txt LICENSE.Lucide.txt LICENSE.MiSans.txt LICENSE.LGPL-2.1.txt
 var files embed.FS
 
 // component is one third-party part of the executable and the licence it is
@@ -54,6 +54,7 @@ var components = []component{
 	{name: "golang.org/x/sys", version: "v0.48.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
 	{name: "golang.org/x/text", version: "v0.43.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
 	{name: "Lucide icons", spdx: "ISC", file: "LICENSE.Lucide.txt"},
+	{name: "MiSans", spdx: "LicenseRef-MiSans", file: "LICENSE.MiSans.txt"},
 	{name: "IntelMSR.bin", spdx: "LGPL-2.1-or-later", file: "LICENSE.LGPL-2.1.txt"},
 }
 

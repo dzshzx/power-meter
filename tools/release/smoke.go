@@ -67,7 +67,7 @@ func smokeNotices(exe, work string) error {
 	if err != nil {
 		return err
 	}
-	for _, want := range []string{"GNU LESSER GENERAL PUBLIC LICENSE", "IntelMSR.bin", "Lucide", "github.com/egoist/mygo"} {
+	for _, want := range []string{"GNU LESSER GENERAL PUBLIC LICENSE", "IntelMSR.bin", "Lucide", "MiSans字体知识产权许可协议", "github.com/egoist/mygo"} {
 		if !bytes.Contains(text, []byte(want)) {
 			return fmt.Errorf("notices lack %q", want)
 		}

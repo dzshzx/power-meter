@@ -18,9 +18,11 @@ var allowedLicences = map[string]bool{
 	"MIT": true, "BSD-2-Clause": true, "BSD-3-Clause": true, "Apache-2.0": true, "ISC": true, "OFL-1.1": true,
 }
 
-// copyleftComponents may use a licence outside allowedLicences: the PawnIO
-// module, which is replaceable and ships with its corresponding source.
-var copyleftComponents = map[string]string{"IntelMSR.bin": "LGPL-2.1-or-later"}
+// namedComponents may use a licence outside allowedLicences, each only its
+// own: the PawnIO module, which is replaceable and ships with its
+// corresponding source, and the MiSans fonts, which the app may embed but
+// not distribute on their own.
+var namedComponents = map[string]string{"IntelMSR.bin": "LGPL-2.1-or-later", "MiSans": "LicenseRef-MiSans"}
 
 // goCommand runs the go command from the module root.
 func goCommand(t *testing.T, env []string, args ...string) string {
@@ -121,7 +123,7 @@ func TestGoToolchainNotice(t *testing.T) {
 
 func TestLicencesAllowed(t *testing.T) {
 	for _, c := range components {
-		if want, ok := copyleftComponents[c.name]; ok {
+		if want, ok := namedComponents[c.name]; ok {
 			if c.spdx != want {
 				t.Errorf("%s is %s, want %s", c.name, c.spdx, want)
 			}
