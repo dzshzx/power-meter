@@ -69,7 +69,7 @@ func (m *Model) offersElevation() bool {
 
 // Fixed section heights: the window is sized from them, not measured.
 const (
-	noticeHeight       = 76
+	noticeHeight       = 60
 	noticeActionHeight = 28
 	rowsCount          = 3
 )
@@ -205,7 +205,7 @@ func metric(c *ui.Context, p *palette, caption, value string, after func()) {
 	ui.Column(c).Grow(1).Basis(0).Gap(2).Children(func() {
 		ui.Text(c, caption).FontSize(captionSize).TextColor(p.label2).SingleLine()
 		ui.Row(c).AlignItems(ui.Center).Gap(6).Children(func() {
-			figureText(c, p, value, 16, p.label1, 500)
+			figureText(c, p, value, 16, p.label1, 400)
 			if after != nil {
 				after()
 			}
@@ -251,7 +251,7 @@ func trend(c *ui.Context, p *palette, v *meter.View) {
 func statistic(c *ui.Context, p *palette, caption, value string, tone meter.Tone, tooltip string, v *meter.View) {
 	ui.Column(c).Grow(1).Basis(0).Gap(2).Tooltip(tooltip).Children(func() {
 		ui.Text(c, caption).FontSize(captionSize).TextColor(p.label2).SingleLine()
-		figureText(c, p, value, statSize, p.tone(tone, v.Accent), 600)
+		figureText(c, p, value, statSize, p.tone(tone, v.Accent), 500)
 	})
 }
 
@@ -277,7 +277,7 @@ func rows(c *ui.Context, p *palette, m *Model) {
 			ui.Row(c).Height(rowHeight-1).Padding(0, cardPadding, 0, cardPadding).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, names[i]).FontSize(bodySize).TextColor(p.label1).SingleLine().Shrink(1).Tooltip(tips[i])
 				ui.Spacer(c)
-				figureText(c, p, row.Text, 15, p.tone(row.Tone, v.Accent), 500).Tooltip(row.Tooltip)
+				figureText(c, p, row.Text, 15, p.tone(row.Tone, v.Accent), 400).Tooltip(row.Tooltip)
 			})
 		}
 	})
@@ -293,7 +293,7 @@ func notice(c *ui.Context, p *palette, m *Model, text string) {
 	card(c, p).Height(h).Padding(12, cardPadding, 12, 14).Gap(6).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Start).Children(func() {
 			ui.Icon(c, icon(iconTriangleAlert, 2.2)).Size(16, 16).TextColor(p.red).Margin(1, 0, 0, 0)
-			ui.Text(c, text).FontSize(captionSize + 1).LineHeight(1.3).TextColor(p.label1).MaxLines(3).Ellipsis("…").
+			ui.Text(c, text).FontSize(captionSize + 1).LineHeight(1.3).TextColor(p.label1).MaxLines(2).Ellipsis("…").
 				Grow(1).Shrink(1).Tooltip(text)
 		})
 		ui.Spacer(c)

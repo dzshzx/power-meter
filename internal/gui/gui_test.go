@@ -314,3 +314,11 @@ func writePNG(t *testing.T, path string, img image.Image) {
 		t.Fatal(err)
 	}
 }
+
+func TestSelfTestCases(t *testing.T) {
+	for _, c := range SelfTest() {
+		if !c.Pass() {
+			t.Errorf("self-test case failed: %s", c.Name)
+		}
+	}
+}

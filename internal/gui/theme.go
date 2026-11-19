@@ -85,7 +85,7 @@ var darkPalette = palette{
 	segment:    argb(0x1FFFFFFF),
 	indicator:  argb(0x33FFFFFF),
 	switchOff:  argb(0x40FFFFFF),
-	button:     argb(0xFF353535),
+	button:     argb(0x1FFFFFFF),
 	shadow:     argb(0x66000000),
 }
 
