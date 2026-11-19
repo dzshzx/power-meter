@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dzshzx/power-meter/internal/autostart"
 	"github.com/dzshzx/power-meter/internal/cli"
 	"github.com/dzshzx/power-meter/internal/gui"
 	"github.com/dzshzx/power-meter/internal/i18n"
@@ -18,22 +19,6 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Startup is logon startup as the window shows and changes it. Refresh
-// reads the current state; Set asks for on or off and returns the state
-// after it.
-type Startup interface {
-	Refresh() StartupState
-	Set(on bool) StartupState
-}
-
-// StartupState is the switch and the notice about logon startup.
-type StartupState struct {
-	Switch gui.Autostart
-	// Notice reports a failure or a state that needs action; empty when
-	// there is nothing to say.
-	Notice string
-}
-
 // Options are what the command line and the elevation decision gave.
 type Options struct {
 	StartHidden bool
@@ -42,11 +27,9 @@ type Options struct {
 	ElevationNotice string
 	// Elevate starts an elevated copy; Started quits this one.
 	Elevate func() cli.ElevationResult
-	// Startup is nil where logon startup is not supported.
-	Startup Startup
-	// Restore receives a callback that brings the window back, for a second
-	// launch to call.
-	Restore func(show func())
+	// Listen registers the callback a second launch triggers, on a
+	// goroutine of its own, to bring the window back.
+	Listen func(onRestore func()) error
 }
 
 type app struct {
@@ -61,6 +44,9 @@ type app struct {
 	height  int
 	glyph   string
 	accent  power.Accent
+	// startupBusy: a startup change is running; lastChange is its notice.
+	startupBusy bool
+	lastChange  string
 }
 
 // Run shows the meter until the user exits, and returns the exit code.
@@ -90,7 +76,6 @@ func Run(o Options) int {
 		SetLanguage:  a.setLanguage,
 		Elevate:      a.elevate,
 	}
-	a.refreshStartup()
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { a.stop() })
 	mygo.App.WhenReady(a.start)
 	if err := mygo.App.Run(); err != nil {
@@ -127,10 +112,12 @@ func (a *app) start() {
 	})
 	_ = a.win.SetIcon(gui.AppIcon(256))
 	a.win.OnMinimize(a.hide)
+	a.win.OnFocus(a.refreshStartup)
 	a.buildTray()
-	if a.opts.Restore != nil {
-		a.opts.Restore(func() { mygo.RunOnMain(a.show) })
+	if a.opts.Listen != nil {
+		_ = a.opts.Listen(func() { mygo.RunOnMain(a.show) })
 	}
+	a.refreshStartup()
 	go a.capture()
 }
 
@@ -247,30 +234,65 @@ func (a *app) elevate() {
 	a.present(a.model.View)
 }
 
+// refreshStartup reads the startup switch off the main thread: the
+// scheduler and the file system can block.
 func (a *app) refreshStartup() {
-	if a.opts.Startup == nil {
-		a.model.Autostart = gui.Autostart{}
-		return
-	}
-	a.applyStartup(a.opts.Startup.Refresh())
+	go func() {
+		status := autostart.ReadStatus()
+		a.win.Update(func() { a.applyStartup(status) })
+	}()
 }
 
+// setStartup asks to turn logon startup on or off. The switch waits while
+// the change runs; replacing another installation's startup asks first.
 func (a *app) setStartup(on bool) {
-	if a.opts.Startup == nil {
+	if a.startupBusy {
 		return
 	}
-	a.applyStartup(a.opts.Startup.Set(on))
-	if a.win != nil {
-		a.present(a.model.View)
-	}
+	a.startupBusy = true
+	a.model.Autostart.Enabled = false
+	go func() {
+		notice := autostart.Change(on, a.confirm)
+		status := autostart.ReadStatus()
+		a.win.Update(func() {
+			a.startupBusy = false
+			a.lastChange = notice
+			a.applyStartup(status)
+		})
+	}()
 }
 
-func (a *app) applyStartup(s StartupState) {
-	a.model.Autostart = s.Switch
+// confirm asks a yes/no question in a dialog over the window. It runs on
+// the goroutine of the change.
+func (a *app) confirm(title, question string) bool {
+	r, err := mygo.Dialog.Message(mygo.MessageOptions{
+		Parent:        a.win,
+		Type:          mygo.MessageQuestion,
+		Title:         title,
+		Message:       question,
+		Buttons:       []string{i18n.Get("是"), i18n.Get("否")},
+		DefaultButton: 1,
+		CancelButton:  1,
+	})
+	return err == nil && r.Button == 0
+}
+
+// applyStartup shows the switch and the notice: a standing problem first,
+// else the outcome of the last change.
+func (a *app) applyStartup(s autostart.Status) {
+	a.model.Autostart = gui.Autostart{
+		Checked: s.Switch == autostart.SwitchOn,
+		Enabled: !a.startupBusy,
+		Tooltip: s.Tooltip,
+	}
 	a.model.StartupNotice = s.Notice
+	if a.model.StartupNotice == "" {
+		a.model.StartupNotice = a.lastChange
+	}
 	if a.menu != nil {
 		item := a.menu.ItemByID("autostart")
-		item.SetChecked(s.Switch.Checked)
-		item.SetEnabled(s.Switch.Enabled)
+		item.SetChecked(a.model.Autostart.Checked)
+		item.SetEnabled(a.model.Autostart.Enabled)
 	}
+	a.present(a.model.View)
 }

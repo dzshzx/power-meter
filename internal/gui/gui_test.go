@@ -254,6 +254,9 @@ func TestTrayIcons(t *testing.T) {
 			if _, _, _, a := tile.RGBA(); a == 0 {
 				t.Errorf("tray icon %q has no tile", glyph)
 			}
+			if _, _, _, a := img.At(0, 0).RGBA(); a != 0 {
+				t.Errorf("tray icon %q has an opaque corner", glyph)
+			}
 		}
 	}
 }

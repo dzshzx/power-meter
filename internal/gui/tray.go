@@ -17,6 +17,7 @@ const TrayIconSize = 64
 // of the supply's colour.
 func TrayIcon(glyph string, accent power.Accent) []byte {
 	return encode(ui.Render(func(c *ui.Context) {
+		transparent(c)
 		ui.Column(c).Fill().Background(ui.Transparent).Draw(func(pt *ui.Painter, r ui.Rect) {
 			drawTrayIcon(pt, r, glyph, trayTile(accent))
 		})
@@ -27,6 +28,7 @@ func TrayIcon(glyph string, accent power.Accent) []byte {
 // installer and the tray before the first reading use it.
 func AppIcon(size int) []byte {
 	return encode(ui.Render(func(c *ui.Context) {
+		transparent(c)
 		ui.Column(c).Fill().Background(ui.Transparent).Draw(func(pt *ui.Painter, r ui.Rect) {
 			drawAppMark(pt, r)
 		})
@@ -54,6 +56,14 @@ func drawAppMark(pt *ui.Painter, r ui.Rect) {
 	pt.Fill(box, appTile, box.W*14/60)
 	glyph := box.W * 0.72
 	pt.Icon(icon(iconBatteryMedium, 2), ui.Rect{X: r.X + (r.W-glyph)/2, Y: r.Y + (r.H-glyph)/2, W: glyph, H: glyph}, white)
+}
+
+// transparent clears the window background, so an icon's corners show
+// what is behind it.
+func transparent(c *ui.Context) {
+	t := *c.Theme()
+	t.Background = ui.Transparent
+	c.SetTheme(&t)
 }
 
 func encode(img *image.RGBA) []byte {

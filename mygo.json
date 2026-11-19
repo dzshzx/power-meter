@@ -1,0 +1,19 @@
+{
+  "name": "PowerMeter",
+  "slug": "power-meter",
+  "identifier": "io.github.dzshzx.powermeter",
+  "version": "0.0.0",
+  "copyright": "© 2026 dzshzx",
+  "publisher": "dzshzx",
+  "license": "MIT",
+  "icon": "installer/icon.png",
+  "main": "./cmd/powermeter",
+  "out": "dist",
+  "i18n": { "dir": "locales", "source": "en" },
+  "windows": {
+    "displayName": "Power Meter",
+    "installDirName": "Power Meter",
+    "installerInclude": "installer/installer.nsh"
+  },
+  "linux": { "webview": false }
+}
