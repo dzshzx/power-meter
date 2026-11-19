@@ -26,9 +26,9 @@ gh workflow run release.yml --ref master -f bump=patch
    Release 已发布，才算发过版，非 dry_run 直接失败并说明「这个提交已发过版」。提交上只有 tag、
    同名 Release 没有发布时，视为上次发版没做完，沿用这个版本继续发布，不再升档。这一步在门禁之前。
 2. 算出新版本号（见下节）。
-3. 在 Linux runner 上跑门禁 `bash scripts/check.sh`；在 Windows runner 上用
-   `go run ./tools/release set-version` 把新版本写进 `mygo.json`，取 MiSans 字体，跑 Windows 上的
-   `go test`（含提权的自启实测），`go tool mygo build` 构建 EXE 与安装包，再跑
+3. 在 Linux runner 上跑门禁 `bash scripts/check.sh`；在 Windows runner 上取 MiSans 字体，跑 Windows 上的
+   `go test`（含提权的自启实测），再用 `go run ./tools/release set-version` 把新版本写进 `mygo.json`
+   （测试要求仓里是占位版本，所以写在测试之后），`go tool mygo build` 构建 EXE 与安装包，再跑
    `tools/release smoke`（`--self-test`、通知导出、截图与预览等烟测）和 `tools/release install-test`
    （拒绝覆盖 1.5 及更早的版本、安装、覆盖安装、卸载）。
 4. `tools/release package` 生成便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产旁各带

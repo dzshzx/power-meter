@@ -136,11 +136,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # mygo.json carries the 0.0.0 placeholder; only this build stamps the
-      # release version on the executable and the installer.
-      - name: Write release version into mygo.json
-        run: go run ./tools/release set-version -version ${{ needs.version.outputs.version }}
-
       - name: Fetch MiSans (pinned SHA-256)
         run: go run ./tools/fonts
 
@@ -151,6 +146,12 @@ jobs:
         env:
           POWERMETER_LIVE: "1"
         run: go test -count=1 ./internal/autostart
+
+      # mygo.json carries the 0.0.0 placeholder, which the tests check; only
+      # this build, after them, stamps the release version on the executable
+      # and the installer.
+      - name: Write release version into mygo.json
+        run: go run ./tools/release set-version -version ${{ needs.version.outputs.version }}
 
       - name: Build executable and installer
         run: go tool mygo build -platform windows/amd64
