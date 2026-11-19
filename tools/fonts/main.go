@@ -132,21 +132,11 @@ type remote struct {
 // Content-Range of a one-byte range request, not from a HEAD request: some
 // of the CDN's edges answer HEAD without a length.
 func openRemote(url string) (*remote, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	_, header, err := fetchRange(url, "bytes=-1", 16)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Range", "bytes=-1")
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusPartialContent {
-		return nil, fmt.Errorf("GET %s with a range: %s; the server must answer range requests", url, resp.Status)
-	}
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 16))
-	cr := resp.Header.Get("Content-Range")
+	cr := header.Get("Content-Range")
 	i := strings.LastIndexByte(cr, '/')
 	size := int64(-1)
 	if i >= 0 {
@@ -175,20 +165,57 @@ func (r *remote) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (r *remote) get(off, n int64) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, r.url, nil)
-	if err != nil {
-		return nil, err
+	data, _, err := fetchRange(r.url, "bytes="+strconv.FormatInt(off, 10)+"-"+strconv.FormatInt(off+n-1, 10), n)
+	return data, err
+}
+
+// attempts is how many times a range request is tried: the CDN now and then
+// resets a stream (HTTP/2 INTERNAL_ERROR) or answers 5xx.
+const attempts = 3
+
+// retryWait is the wait before the second attempt, doubled for the third.
+var retryWait = time.Second
+
+// fetchRange gets at most limit bytes of url's range spec (a Range header
+// value) and the answer's header. It retries network errors, including a
+// body cut off midway, and 5xx answers; any other answer but 206 fails at
+// once.
+func fetchRange(url, spec string, limit int64) ([]byte, http.Header, error) {
+	var err error
+	for i := range attempts {
+		if i > 0 {
+			time.Sleep(retryWait << (i - 1))
+		}
+		var data []byte
+		var header http.Header
+		var transient bool
+		data, header, transient, err = fetchOnce(url, spec, limit)
+		if err == nil || !transient {
+			return data, header, err
+		}
 	}
-	req.Header.Set("Range", "bytes="+strconv.FormatInt(off, 10)+"-"+strconv.FormatInt(off+n-1, 10))
+	return nil, nil, fmt.Errorf("after %d attempts: %w", attempts, err)
+}
+
+func fetchOnce(url, spec string, limit int64) (data []byte, header http.Header, transient bool, err error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	req.Header.Set("Range", spec)
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, true, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusPartialContent {
-		return nil, fmt.Errorf("range request: %s", resp.Status)
+		return nil, nil, resp.StatusCode >= 500,
+			fmt.Errorf("GET %s with range %s: %s; the server must answer range requests", url, spec, resp.Status)
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, n))
+	if data, err = io.ReadAll(io.LimitReader(resp.Body, limit)); err != nil {
+		return nil, nil, true, err
+	}
+	return data, resp.Header, false, nil
 }
 
 // extract fetches one entry, whose name ends with suffix, in one request.

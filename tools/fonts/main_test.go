@@ -80,3 +80,47 @@ func TestRemoteNeedsRanges(t *testing.T) {
 		t.Fatalf("openRemote: %v", err)
 	}
 }
+
+// A 5xx answer, as the CDN gives now and then, is tried again; a 4xx is not.
+func TestRetries(t *testing.T) {
+	retryWait = 0
+	defer func() { retryWait = time.Second }()
+	for _, c := range []struct {
+		status   int
+		requests int
+		ok       bool
+	}{
+		{http.StatusServiceUnavailable, 2, true},
+		{http.StatusNotFound, 1, false},
+	} {
+		requests := 0
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			requests++
+			if requests == 1 {
+				rw.WriteHeader(c.status)
+				return
+			}
+			http.ServeContent(rw, req, "x", time.Time{}, strings.NewReader("0123456789"))
+		}))
+		data, _, err := fetchRange(srv.URL, "bytes=2-4", 3)
+		srv.Close()
+		if requests != c.requests || (err == nil) != c.ok || (c.ok && string(data) != "234") {
+			t.Errorf("first answer %d: %d requests, data %q, err %v", c.status, requests, data, err)
+		}
+	}
+}
+
+// Every attempt failing ends in an error that says so.
+func TestRetriesGiveUp(t *testing.T) {
+	retryWait = 0
+	defer func() { retryWait = time.Second }()
+	requests := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		requests++
+		rw.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv.Close()
+	if _, _, err := fetchRange(srv.URL, "bytes=0-1", 2); err == nil || requests != attempts || !strings.Contains(err.Error(), "attempts") {
+		t.Fatalf("%d requests, err %v", requests, err)
+	}
+}
