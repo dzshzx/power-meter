@@ -1,41 +1,34 @@
 # Third-party components
 
-## AntdUI
+The Windows executable is a Go program. It statically links the Go standard
+library and the Go modules below, draws Lucide icon geometry and embeds the
+PawnIO `IntelMSR.bin` module. The complete licence text of every component
+follows this notice in the `--third-party-notices` export, the standalone
+release notice and the installed notice. The `third_party` package tests fail
+when a module linked into the executable is missing here, its version differs,
+its licence text changed or its licence is not one this project accepts.
 
-The application embeds the unmodified .NET Framework 4.8 assembly from
-AntdUI 2.4.19, Copyright (c) Tom 2024-2030, licensed under Apache-2.0.
-Upstream: https://github.com/AntdUI/AntdUI. Package:
-https://www.nuget.org/packages/AntdUI/2.4.19. The NuGet package SHA-256 is
-`82b1ebc2c91409ead4becf9e3674454e4e0df6f2ab21600be9ce02f5b5576820`.
-NuGet restores it in locked mode against the content hash in
-`src/packages.lock.json`; binaries are not committed. The GUI uses its buttons, panel, checkbox,
-language selector and popover. No separate UI runtime installation is needed.
+## Go standard library and modules
 
-AntdUI includes SVG.NET rendering code, Copyright (c) svg-net, under the
-Microsoft Public License: https://github.com/svg-net/SVG. The Apache-2.0 and
-Ms-PL license texts are retained in this directory and included in the EXE's
-third-party-notice export, portable release notice and installed notice.
+| Component | Version | Licence | Upstream |
+|---|---|---|---|
+| Go standard library and runtime | `go1.27.4` | BSD-3-Clause | https://go.dev/ |
+| `github.com/ebitengine/purego` | `v0.11.1` | Apache-2.0 | https://github.com/ebitengine/purego |
+| `github.com/egoist/mygo` | `v0.10.0` | MIT | https://github.com/egoist/mygo |
+| `github.com/go-ole/go-ole` | `v1.3.0` | MIT | https://github.com/go-ole/go-ole |
+| `github.com/go-text/typesetting` | `v0.3.5` | Unlicense OR BSD-3-Clause | https://github.com/go-text/typesetting |
+| `golang.org/x/image` | `v0.46.0` | BSD-3-Clause | https://go.googlesource.com/image |
+| `golang.org/x/net` | `v0.59.0` | BSD-3-Clause | https://go.googlesource.com/net |
+| `golang.org/x/sys` | `v0.48.0` | BSD-3-Clause | https://go.googlesource.com/sys |
+| `golang.org/x/text` | `v0.43.0` | BSD-3-Clause | https://go.googlesource.com/text |
 
-## TaskScheduler
-
-The application embeds the unmodified .NET Framework 4.8 assembly
-`Microsoft.Win32.TaskScheduler.dll` from TaskScheduler 2.12.2, Copyright (c)
-2003-2010 David Hall, licensed under MIT. Upstream:
-https://github.com/dahall/TaskScheduler. Package:
-https://www.nuget.org/packages/TaskScheduler/2.12.2. It registers and reads the
-logon task. The license text is `LICENSE.TaskScheduler.txt`.
-
-## System.CommandLine and .NET libraries
-
-The application embeds the unmodified .NET Standard 2.0 assembly from
-System.CommandLine 2.0.15 (https://www.nuget.org/packages/System.CommandLine/2.0.15),
-and its dependencies System.Memory 4.5.5, System.Buffers 4.5.1,
-System.Numerics.Vectors 4.5.0 and System.Runtime.CompilerServices.Unsafe 4.5.3.
-The .NET Framework 4.8.1 runtime supplies .NET Standard support itself. All are Copyright (c) .NET Foundation and
-Contributors, licensed under MIT; the license text is `LICENSE.dotnet-MIT.txt`.
-Upstream: https://github.com/dotnet/command-line-api and
-https://github.com/dotnet/runtime. NuGet restores every package in locked mode
-against the content hash in `src/packages.lock.json`.
+The modules are used unmodified; the Go toolchain fetches them against the
+checksums in `go.sum`. `go-text/typesetting` is used under BSD-3-Clause, one
+of the two licences it offers. mygo embeds only its own shaders, scripts and
+messages; it embeds no fonts, and text is drawn with DirectWrite using the
+system's fonts. The licence texts are kept here as `LICENSE.Go.txt` (the Go
+standard library and every `golang.org/x` module), `LICENSE.purego.txt`,
+`LICENSE.mygo.txt`, `LICENSE.go-ole.txt` and `LICENSE.go-text-typesetting.txt`.
 
 ## Lucide icons
 
