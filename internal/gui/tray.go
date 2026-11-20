@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"sync"
 
 	"github.com/dzshzx/power-meter/internal/fonts"
 	"github.com/dzshzx/power-meter/internal/power"
@@ -18,12 +19,39 @@ const TrayIconSize = 64
 // of the supply's colour.
 func TrayIcon(glyph string, accent power.Accent) []byte {
 	ensureFonts()
-	return encode(ui.Render(func(c *ui.Context) {
-		transparent(c)
-		ui.Column(c).Fill().Background(ui.Transparent).Draw(func(pt *ui.Painter, r ui.Rect) {
-			drawTrayIcon(pt, r, glyph, trayTile(accent))
-		})
-	}, TrayIconSize, TrayIconSize, 1))
+	p := &trayPainter
+	p.Lock()
+	defer p.Unlock()
+	p.image = trayImage{glyph: glyph, tile: trayTile(accent)}
+	if p.tester == nil {
+		p.tester = ui.NewTester(p.image.view, TrayIconSize, TrayIconSize)
+	}
+	p.tester.Frame()
+	return encode(p.tester.Image())
+}
+
+// trayPainter draws every tray image as another frame of one renderer
+// kept for the process. Each renderer has a text system of its own that
+// registers the app's fonts natively and never releases them (about 23 MB
+// with MiSans), and the tray is drawn again whenever its figures change,
+// which with Psys is every second.
+var trayPainter struct {
+	sync.Mutex
+	tester *ui.Tester
+	image  trayImage
+}
+
+// trayImage is what one tray image shows.
+type trayImage struct {
+	glyph string
+	tile  ui.Color
+}
+
+func (m *trayImage) view(c *ui.Context) {
+	transparent(c)
+	ui.Column(c).Fill().Background(ui.Transparent).Draw(func(pt *ui.Painter, r ui.Rect) {
+		drawTrayIcon(pt, r, m.glyph, m.tile)
+	})
 }
 
 // AppIcon draws the app's mark at size pixels: the window's title, the

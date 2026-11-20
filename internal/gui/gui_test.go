@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"bytes"
 	"image"
 	"image/png"
 	"os"
@@ -278,6 +279,21 @@ func TestTrayIcons(t *testing.T) {
 			if _, _, _, a := img.At(0, 0).RGBA(); a != 0 {
 				t.Errorf("tray icon %q has an opaque corner", glyph)
 			}
+		}
+	}
+}
+
+// TestTrayIconRedrawsEachReading: each tray image is the one a renderer of
+// its own draws, also after other readings were drawn before it.
+func TestTrayIconRedrawsEachReading(t *testing.T) {
+	for _, c := range []struct {
+		glyph  string
+		accent power.Accent
+	}{{"11", power.AccentCharging}, {"99+", power.AccentDischarging}, {"11", power.AccentCharging}, {"--", power.AccentIdle}} {
+		fresh := trayImage{glyph: c.glyph, tile: trayTile(c.accent)}
+		want := encode(ui.Render(fresh.view, TrayIconSize, TrayIconSize, 1))
+		if got := TrayIcon(c.glyph, c.accent); !bytes.Equal(got, want) {
+			t.Errorf("tray icon %q, accent %d differs from a fresh drawing", c.glyph, c.accent)
 		}
 	}
 }
