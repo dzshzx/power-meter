@@ -5,6 +5,7 @@ package sensors
 import (
 	"errors"
 	"runtime"
+	"sync"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
@@ -34,9 +35,21 @@ func readBattery() (*power.BatteryReading, error) {
 	return batteryReading(packs, systemPercentage()), nil
 }
 
+// keepMTA keeps the process's multithreaded apartment until it exits. The
+// app's main thread is single-threaded, and while the window is hidden no
+// other thread holds the MTA: each read would then make it and tear it down
+// again, and every round left an event open, one a second in the tray.
+var keepMTA = sync.OnceFunc(func() {
+	var cookie uintptr
+	_, _, _ = procCoIncrementMTAUsage.Call(uintptr(unsafe.Pointer(&cookie)))
+})
+
+var procCoIncrementMTAUsage = windows.NewLazySystemDLL("ole32.dll").NewProc("CoIncrementMTAUsage")
+
 // queryBatteryStatus runs the WMI query on this goroutine's locked thread,
-// joining the thread's COM apartment or creating a multithreaded one.
+// joining the thread's COM apartment or the process's multithreaded one.
 func queryBatteryStatus() ([]wmiBattery, error) {
+	keepMTA()
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err == nil {
