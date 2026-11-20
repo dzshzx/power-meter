@@ -78,12 +78,8 @@ func run(root, cache string) error {
 		return err
 	}
 	for _, f := range faces {
-		data, err := subset(filepath.Join(cache, f.name), chars)
-		if err != nil {
+		if err := subset(filepath.Join(cache, f.name), chars, filepath.Join(dir, "misans", f.name)); err != nil {
 			return fmt.Errorf("%s: %w", f.name, err)
-		}
-		if err := writeFile(filepath.Join(dir, "misans", f.name), data); err != nil {
-			return err
 		}
 	}
 	return nil
@@ -113,16 +109,11 @@ func fetch(dir string, missing []int) error {
 
 // stored is the SHA-256 of a face's file, or "" without one.
 func stored(path string) string {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return ""
-	}
-	return hex.EncodeToString(h.Sum(nil))
+	return sum(data)
 }
 
 func sum(data []byte) string {

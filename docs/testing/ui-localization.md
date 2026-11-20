@@ -10,11 +10,11 @@ target; Windows 10 is not tested.
 
 The window is drawn on the CPU and shown through GDI, which DWM blends over
 the desktop by each pixel's alpha (`internal/winapp`, blur behind an empty
-region): no Direct3D device, which DirectComposition and the GPU renderer
-would bring with tens of megabytes of driver memory. It exists only while it
-shows: hiding it into the tray, by its minimize button or by Windows, closes
-it, and showing it makes it again where it was. In the tray the app keeps
-about 9 MB in Task Manager's Memory column, with the window about 20 MB.
+region), without the Direct3D device of a transparent mygo window or of the
+GPU renderer, which keeps tens of megabytes of driver memory. A start into
+the tray makes no window until it is first shown; hidden into the tray, by
+its minimize button or by Windows, the window draws nothing until it shows
+again, where it was.
 
 Geometry is in DIPs, which mygo scales to each monitor's DPI. The panel is
 360 wide with a corner radius of 32; the cards sit 12 inside it with a

@@ -11,7 +11,6 @@ import (
 var (
 	dwmapi                        = windows.NewLazySystemDLL("dwmapi.dll")
 	procDwmEnableBlurBehindWindow = dwmapi.NewProc("DwmEnableBlurBehindWindow")
-	procDwmSetWindowAttribute     = dwmapi.NewProc("DwmSetWindowAttribute")
 	gdi32                         = windows.NewLazySystemDLL("gdi32.dll")
 	procCreateRectRgn             = gdi32.NewProc("CreateRectRgn")
 	procDeleteObject              = gdi32.NewProc("DeleteObject")
@@ -39,8 +38,6 @@ func BlendPixels(hwnd uintptr) error {
 	if r, _, _ := procDwmEnableBlurBehindWindow.Call(hwnd, uintptr(unsafe.Pointer(&bb))); r != 0 {
 		return windows.Errno(r)
 	}
-	const cornerPreference, doNotRound = 33, 1
-	v := uint32(doNotRound)
-	procDwmSetWindowAttribute.Call(hwnd, cornerPreference, uintptr(unsafe.Pointer(&v)), unsafe.Sizeof(v))
-	return nil
+	v := uint32(1) // DWMWCP_DONOTROUND
+	return windows.DwmSetWindowAttribute(windows.HWND(hwnd), windows.DWMWA_WINDOW_CORNER_PREFERENCE, unsafe.Pointer(&v), uint32(unsafe.Sizeof(v)))
 }

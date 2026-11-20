@@ -45,7 +45,7 @@ jobs:
           makensis -VERSION
           hb-subset --version
 
-      - name: Fetch MiSans (pinned SHA-256)
+      - name: Fetch MiSans (pinned SHA-256) and cut it for the app's text
         run: go run ./tools/fonts
 
       # mygo.json carries the 0.0.0 placeholder, which the tests check; this

@@ -68,7 +68,8 @@ go run ./tools/release verify -version X.Y.Z -out <空目录>
 
 公开的 EXE 在 Linux 上可逐字节复现：在不带 tag 的克隆里检出 Release 说明写的 `source_commit`，取字体、
 写入版本、构建，得到的 `PowerMeter.exe` 与资产的 SHA-256 相同（v1.6.0 实测）。tag 会改变嵌入的模块版本，
-所以克隆时不带 tag；安装包内含打包时间，不能逐字节复现。
+所以克隆时不带 tag；字体由 HarfBuzz 的 `hb-subset` 裁剪，它的版本也要与发版构建相同（Release 工作流的
+日志里 `hb-subset --version` 一行）；安装包内含打包时间，不能逐字节复现。
 
 ```sh
 git clone --no-tags https://github.com/dzshzx/power-meter.git && cd power-meter

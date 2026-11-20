@@ -17,7 +17,7 @@ const smoothing = 0.6
 // through a cubic, a circular arc of radius R as one cubic, and another
 // cubic. It is the cubic, arc, cubic construction Figma uses for corner
 // smoothing.
-type curve struct{ p, a, b, c, d, arcLen, R, arc float64 }
+type curve struct{ p, b, c, d, arcLen, R, arc float64 }
 
 func curveOf(r ui.Rect, radius float32) curve {
 	limit := float64(min(r.W, r.H) / 2)
@@ -36,7 +36,7 @@ func curveOf(r ui.Rect, radius float32) curve {
 	c := p34 * math.Cos(rad(beta))
 	d := c * math.Tan(rad(beta))
 	b := (p - arcLen - c - d) / 3
-	return curve{p: p, a: 2 * b, b: b, c: c, d: d, arcLen: arcLen, R: R, arc: arc}
+	return curve{p: p, b: b, c: c, d: d, arcLen: arcLen, R: R, arc: arc}
 }
 
 func rad(deg float64) float64 { return deg * math.Pi / 180 }
@@ -71,13 +71,14 @@ func cornersOf(r ui.Rect) [4]corner {
 // trace adds the curve round k to path, which stands at k.at(-p, 0); it
 // ends at k.at(0, p).
 func (cv curve) trace(path *ui.Path, k corner) {
-	p, a, b, c, d, arcLen := cv.p, cv.a, cv.b, cv.c, cv.d, cv.arcLen
+	p, b, c, d, arcLen := cv.p, cv.b, cv.c, cv.d, cv.arcLen
+	a := 2 * b
 	// The cubic from the side into the arc.
-	c1x, c1y := k.at(-p+a, 0)
-	c2x, c2y := k.at(-p+a+b, 0)
+	c1x, c1y := k.pt(-p+a, 0)
+	c2x, c2y := k.pt(-p+a+b, 0)
 	ax, ay := k.at(-p+a+b+c, d)
 	f := func(v float64) float32 { return float32(v) }
-	path.CubeTo(f(c1x), f(c1y), f(c2x), f(c2y), f(ax), f(ay))
+	path.CubeTo(c1x, c1y, c2x, c2y, f(ax), f(ay))
 	// The circular arc, as one cubic.
 	ex, ey := k.at(-p+a+b+c+arcLen, d+arcLen)
 	cx, cy := k.at(-cv.R, cv.R)
@@ -86,10 +87,10 @@ func (cv curve) trace(path *ui.Path, k corner) {
 	t2x, t2y := tangent(ex-cx, ey-cy, k.ux+k.vx, k.uy+k.vy)
 	path.CubeTo(f(ax+k4*t1x), f(ay+k4*t1y), f(ex-k4*t2x), f(ey-k4*t2y), f(ex), f(ey))
 	// The cubic from the arc into the next side.
-	c3x, c3y := k.at(-p+a+b+c+arcLen+d, d+arcLen+c)
-	c4x, c4y := k.at(0, p-a)
+	c3x, c3y := k.pt(-p+a+b+c+arcLen+d, d+arcLen+c)
+	c4x, c4y := k.pt(0, p-a)
 	endx, endy := k.pt(0, p)
-	path.CubeTo(f(c3x), f(c3y), f(c4x), f(c4y), endx, endy)
+	path.CubeTo(c3x, c3y, c4x, c4y, endx, endy)
 }
 
 // tangent is the radius vector (x, y) turned a quarter, to point the way
@@ -116,14 +117,15 @@ func squircle(path *ui.Path, r ui.Rect, radius float32) {
 }
 
 // The window draws its squircles in pieces. A path is drawn through a mask
-// of its bounds, kept in the atlas its frame shares with the glyphs, and
-// the atlas grows to twice the masks it holds: one path the size of the
-// panel would hold 16 MB there for as long as the window shows. So the
-// corners are paths, each of the square its curve takes; so are the
-// pixels the straight edges cover in part; the whole pixels between them
-// are rectangles, which take no mask. The pieces meet on pixel
-// boundaries, so each pixel is covered by one of them, as the whole path
-// would cover it.
+// of its bounds, kept in the atlas the process shares with the glyphs,
+// which grows to twice the masks it holds and never shrinks: the panel's
+// fill and outline as whole paths grow it to 4096×4096, 16 MB, and even a
+// side's edge as a path, a pixel wide, takes a shelf of the atlas as tall.
+// So only the corners are paths, each of the square its curve takes; the
+// pixels between them are rectangles, which take no mask, those the
+// straight edges cover in part drawn with the alpha of how much they
+// cover. The pieces meet on pixel boundaries, so each pixel is covered by
+// one of them, as the whole path would cover it.
 
 // grid is where a squircle's pieces meet, in DIPs on device pixels: the
 // corners' squares end at the seams xl, xr, yt and yb, and the edges' part
@@ -166,6 +168,15 @@ func (g grid) seams(i int) (into, out float64) {
 	return top, left
 }
 
+// piece adds corner k's piece of the outline to path: from into back along
+// the side into it, round its curve, to out along the side out of it.
+func (cv curve) piece(path *ui.Path, k corner, into, out float64) {
+	path.MoveTo(k.pt(-into, 0))
+	path.LineTo(k.pt(-cv.p, 0))
+	cv.trace(path, k)
+	path.LineTo(k.pt(0, out))
+}
+
 // fillSquircle fills r with continuous corners of radius, as squircle
 // outlines it.
 func fillSquircle(pt *ui.Painter, r ui.Rect, radius float32, color ui.Color) {
@@ -180,10 +191,7 @@ func fillSquircle(pt *ui.Painter, r ui.Rect, radius float32, color ui.Color) {
 	for i, k := range cornersOf(r) {
 		into, out := g.seams(i)
 		var path ui.Path
-		path.MoveTo(k.pt(-into, 0))
-		path.LineTo(k.pt(-cv.p, 0))
-		cv.trace(&path, k)
-		path.LineTo(k.pt(0, out))
+		cv.piece(&path, k, into, out)
 		path.LineTo(k.pt(-into, out))
 		path.Close()
 		pt.FillPath(&path, color)
@@ -215,10 +223,7 @@ func strokeSquircle(pt *ui.Painter, r ui.Rect, radius, width float32, color ui.C
 		into, out := g.seams(i)
 		var path ui.Path
 		path.Cap(ui.ButtCap)
-		path.MoveTo(k.pt(-into, 0))
-		path.LineTo(k.pt(-cv.p, 0))
-		cv.trace(&path, k)
-		path.LineTo(k.pt(0, out))
+		cv.piece(&path, k, into, out)
 		pt.StrokePath(&path, width, color)
 	}
 	// The sides between the corners, as their strokes would cover them.
@@ -236,19 +241,41 @@ func fillPixels(pt *ui.Painter, x0, y0, x1, y1 float32, color ui.Color) {
 	}
 }
 
-// fillBand fills a narrow rectangle, off pixel boundaries, as a path: its
-// mask is as narrow.
+// fillBand fills a rectangle off pixel boundaries without a mask: in
+// rectangles of whole pixels, each with the alpha of how much of its
+// pixels the band covers.
 func fillBand(pt *ui.Painter, x0, y0, x1, y1 float32, color ui.Color) {
-	if x1 <= x0 || y1 <= y0 {
-		return
+	s := pt.Scale()
+	for _, x := range spans(x0, x1, s) {
+		for _, y := range spans(y0, y1, s) {
+			if cover := x.cover * y.cover; cover > 1e-3 && x.to > x.from && y.to > y.from {
+				pt.Fill(ui.Rect{X: x.from, Y: y.from, W: x.to - x.from, H: y.to - y.from}, color.Alpha(cover), 0)
+			}
+		}
 	}
-	var path ui.Path
-	path.MoveTo(x0, y0)
-	path.LineTo(x1, y0)
-	path.LineTo(x1, y1)
-	path.LineTo(x0, y1)
-	path.Close()
-	pt.FillPath(&path, color)
+}
+
+// span is a run of device pixels, in DIPs, and how much of each a range
+// covers.
+type span struct{ from, to, cover float32 }
+
+// spans are the pixels of v0 to v1 at scale device pixels a DIP: the one
+// it covers in part at each end and the whole ones between.
+func spans(v0, v1, scale float32) [3]span {
+	s := float64(scale)
+	a, b := float64(v0)*s, float64(v1)*s
+	px := func(v float64) float32 { return float32(v / s) }
+	lo, hi := math.Ceil(a-1e-4), math.Floor(b+1e-4)
+	if hi < lo {
+		// Within one pixel.
+		p := math.Floor(a)
+		return [3]span{{px(p), px(p + 1), float32(b - a)}}
+	}
+	return [3]span{
+		{px(lo - 1), px(lo), float32(lo - a)},
+		{px(lo), px(hi), 1},
+		{px(hi), px(hi + 1), float32(b - hi)},
+	}
 }
 
 // shape fills an element's box with continuous corners, as its background.

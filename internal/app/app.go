@@ -2,21 +2,19 @@
 // the session on it, the window and the tray. The window only draws the
 // model; this package carries out what it asks for.
 //
-// The window exists only while it shows: in the tray there is none, so
-// that what a window holds even hidden, its frame and glyph atlas among
-// them, goes back to the system, and showing it makes it again where it
-// was. It draws on the CPU, a frame a second of a small window, and shows
-// through GDI with each pixel's alpha (winapp.BlendPixels), not as a
-// transparent window of mygo's: that one shows through DirectComposition,
-// whose Direct3D device keeps tens of megabytes of driver memory, as
-// mygo's GPU renderer would.
+// The window is made when it first shows, so a start into the tray has
+// none, and draws only while it shows: hidden in the tray it draws
+// nothing, and mygo frees its frame. It draws on the CPU, a frame a second
+// of a small window, and shows through GDI with each pixel's alpha
+// (winapp.BlendPixels), not as a transparent window of mygo's: that one
+// shows through DirectComposition, whose Direct3D device keeps tens of
+// megabytes of driver memory, as mygo's GPU renderer would.
 package app
 
 import (
 	"fmt"
 	"os"
 	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/dzshzx/power-meter/internal/autostart"
@@ -50,10 +48,8 @@ type app struct {
 	session *meter.Session
 	sources *sensors.Sources
 	model   gui.Model
-	// win is the window while it shows, else nil; at is where it was
-	// last, for the next one.
+	// win is the window once it showed, else nil.
 	win    *mygo.Window
-	at     mygo.Point
 	tray   *mygo.Tray
 	menu   *mygo.Menu
 	done   chan struct{}
@@ -103,11 +99,9 @@ func Run(o Options) int {
 		Elevate:      a.elevate,
 	}
 	// The documented switch to mygo's CPU renderer (docs/ui/rendering.md),
-	// read as each window makes its renderer: GDI shows what it draws.
+	// read as each window makes its renderer.
 	_ = os.Setenv("MYGO_GPU", "0")
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { a.stop() })
-	// Hiding into the tray closes the last window; the app goes on.
-	mygo.App.OnWindowAllClosed(func() {})
 	mygo.App.WhenReady(a.start)
 	if err := mygo.App.Run(); err != nil {
 		return 1
@@ -126,7 +120,7 @@ func (a *app) stop() {
 
 func (a *app) start() {
 	if !a.opts.StartHidden {
-		a.openWindow()
+		a.show()
 	}
 	a.buildTray()
 	if a.opts.Listen != nil {
@@ -136,17 +130,14 @@ func (a *app) start() {
 	go a.capture()
 }
 
-// openWindow makes the window and shows it where the last one was, or
-// centred the first time. Main thread only.
+// openWindow makes the window, centred. Main thread only.
 func (a *app) openWindow() {
-	w := mygo.NewWindow(mygo.WindowOptions{
+	a.win = mygo.NewWindow(mygo.WindowOptions{
 		Title:             i18n.AppName(),
 		Content:           ui.View(func(c *ui.Context) { gui.Build(c, &a.model) }),
 		Width:             gui.Width,
 		Height:            gui.Height(&a.model),
 		UseContentSize:    true,
-		X:                 a.at.X,
-		Y:                 a.at.Y,
 		Frameless:         true,
 		DisableShadow:     true,
 		DisableResize:     true,
@@ -154,39 +145,23 @@ func (a *app) openWindow() {
 		DisableFullScreen: true,
 		AlwaysOnTop:       a.model.Pinned,
 	})
-	a.win, a.fitted = w, fit{}
-	_ = winapp.BlendPixels(w.NativeHandle())
-	_ = w.SetIcon(windowIcon())
-	a.resize()
-	a.remember(w)
-	w.OnMove(func() { a.remember(w) })
-	w.OnMinimize(a.hide)
-	w.OnFocus(a.refreshStartup)
-	w.OnClosed(func() {
-		// Closed otherwise than into the tray, as with Alt+F4: that quits.
-		if a.win == w {
-			mygo.App.Quit()
-		}
-	})
+	_ = winapp.BlendPixels(a.win.NativeHandle())
+	_ = a.win.SetIcon(gui.AppIcon(256))
+	a.win.OnMinimize(a.hide)
+	a.win.OnFocus(a.refreshStartup)
 }
 
-// remember notes where w is, for the next window; not while it is
-// minimized, which puts it out of sight.
-func (a *app) remember(w *mygo.Window) {
-	if !w.IsMinimized() {
-		a.at.X, a.at.Y = w.Position()
-	}
-}
+// shows reports whether the window shows. A hidden window is asked for no
+// frames: mygo draws those asked of a minimized one all the same, and the
+// window Windows minimizes goes into the tray so.
+func (a *app) shows() bool { return a.win != nil && a.win.IsVisible() }
 
-// windowIcon is the window's icon, drawn once.
-var windowIcon = sync.OnceValue(func() []byte { return gui.AppIcon(256) })
-
-// update runs fn on the main thread and redraws the window, if one
-// shows. It is for the goroutines; it waits for fn.
+// update runs fn on the main thread and redraws the window if it shows.
+// It is for the goroutines; it waits for fn.
 func (a *app) update(fn func()) {
 	mygo.RunOnMain(func() {
 		fn()
-		if a.win != nil {
+		if a.shows() {
 			a.win.Invalidate()
 		}
 	})
@@ -237,9 +212,10 @@ func (a *app) present(v *meter.View) {
 // display; the content scrolls where the screen is shorter. It runs with
 // every view but acts only when the content height, the work area or the
 // display's scale changed, so a new scaling refits the window within a
-// second while a window the user moved stays where it is.
+// second while a window the user moved stays where it is. A hidden window
+// is fitted when it shows again.
 func (a *app) resize() {
-	if a.win == nil {
+	if !a.shows() {
 		return
 	}
 	x, y := a.win.Position()
@@ -291,28 +267,18 @@ func (a *app) setMode(m meter.Mode) {
 
 func (a *app) setPinned(on bool) {
 	a.model.Pinned = on
-	if a.win != nil {
-		a.win.SetAlwaysOnTop(on)
-	}
+	a.win.SetAlwaysOnTop(on)
 }
 
-// hide puts the window in the tray: it disappears at once and is closed
-// after the event that hid it, which may be one of its own frames.
+// hide puts the window in the tray: no taskbar button until it is shown.
 func (a *app) hide() {
-	w := a.win
-	if w == nil {
-		return
-	}
 	a.model.SettingsOpen = false
-	a.remember(w)
-	a.win = nil
-	w.Hide()
-	go func() {
-		mygo.RunOnMain(w.Destroy)
-		// What the window held goes back to the system now rather than
-		// at the next collection, which in the tray may be minutes away.
-		debug.FreeOSMemory()
-	}()
+	a.win.Hide()
+	// mygo frees the frame of a window that drew none for two seconds
+	// (frameIdle in its ui package); what it held goes back to the system
+	// then rather than at the next collection, which in the tray may be
+	// minutes away.
+	time.AfterFunc(5*time.Second, debug.FreeOSMemory)
 }
 
 func (a *app) show() {
@@ -323,6 +289,8 @@ func (a *app) show() {
 	if a.win.IsMinimized() {
 		a.win.Restore()
 	}
+	a.resize()
+	a.win.Invalidate()
 	a.win.Focus()
 }
 
@@ -385,7 +353,11 @@ func (a *app) setStartup(on bool) {
 // shows. It runs on the goroutine of the change.
 func (a *app) confirm(title, question string) bool {
 	var parent *mygo.Window
-	mygo.RunOnMain(func() { parent = a.win })
+	mygo.RunOnMain(func() {
+		if a.shows() {
+			parent = a.win
+		}
+	})
 	r, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent:        parent,
 		Type:          mygo.MessageQuestion,

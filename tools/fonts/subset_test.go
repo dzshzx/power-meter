@@ -12,11 +12,7 @@ import (
 func TestCharacters(t *testing.T) {
 	root := t.TempDir()
 	write := func(name, body string) {
-		path := filepath.Join(root, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		if err := writeFile(filepath.Join(root, name), []byte(body)); err != nil {
 			t.Fatal(err)
 		}
 	}

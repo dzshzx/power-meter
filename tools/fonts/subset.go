@@ -134,22 +134,18 @@ func walkJSON(v any, add func(string)) {
 }
 
 // subset cuts the face in the file font down to the characters of the file
-// text.
-func subset(font, text string) ([]byte, error) {
-	out, err := os.CreateTemp("", "misans-*.ttf")
-	if err != nil {
-		return nil, err
-	}
-	out.Close()
-	defer os.Remove(out.Name())
-	cmd := exec.Command("hb-subset", "--font-file="+font, "--text-file="+text, "--output-file="+out.Name(),
+// text, into the file dest.
+func subset(font, text, dest string) error {
+	tmp := dest + ".tmp"
+	cmd := exec.Command("hb-subset", "--font-file="+font, "--text-file="+text, "--output-file="+tmp,
 		"--layout-features=*", "--layout-scripts=*", "--name-IDs=*", "--name-languages=*", "--notdef-outline")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
+		_ = os.Remove(tmp)
 		if errors.Is(err, exec.ErrNotFound) {
-			return nil, errors.New("hb-subset is not installed: it comes with HarfBuzz (libharfbuzz-bin on Ubuntu)")
+			return errors.New("hb-subset is not installed: it comes with HarfBuzz (libharfbuzz-bin on Ubuntu)")
 		}
-		return nil, fmt.Errorf("hb-subset: %w", err)
+		return fmt.Errorf("hb-subset: %w", err)
 	}
-	return os.ReadFile(out.Name())
+	return os.Rename(tmp, dest)
 }

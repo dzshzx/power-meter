@@ -2,5 +2,4 @@ dist/
 locales/catalog_gen.go
 internal/fonts/characters.txt
 internal/fonts/misans/*.ttf
-internal/fonts/*.tmp
-internal/fonts/misans/*.tmp
+internal/fonts/**/*.tmp

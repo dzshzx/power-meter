@@ -5,7 +5,7 @@ the live autostart tests, the smoke run of the built executable and the
 installer test. The `Windows validation` workflow
 (`.github/workflows/ci.yml`), dispatched by hand or called by Release with
 the release version, builds the executable and the installer on Linux, as
-a local build does:
+a local build does, with NSIS and HarfBuzz's `hb-subset` installed:
 
 ```sh
 go run ./tools/fonts
