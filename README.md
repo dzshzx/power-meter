@@ -278,6 +278,5 @@ Go 测试、函数认知复杂度不超过 30）。Windows 上的测试、可执
 ## 许可证
 
 本项目代码以 MIT 许可证发布（见 `LICENSE`）。内嵌的 PawnIO `IntelMSR.bin` 模块为 LGPL-2.1：其通知、许可证文本与对应源码包随 Release 资产和 `third_party/` 一并提供，见 `third_party/NOTICE.md`。
-界面使用 mygo（MIT）、Lucide 图标（ISC）与 MiSans 字体（[MiSans 字体知识产权许可协议](https://hyperos.mi.com/font/)，
-可免费商用，须在软件中注明使用了 MiSans，不得单独分发字体文件）；Go 标准库与各模块的许可同在
+界面使用 mygo（MIT）、Lucide 图标（ISC）与 MiSans 字体。Go 标准库与各模块的许可同在
 `third_party/NOTICE.md`，完整通知和许可可用 EXE 的 `--third-party-notices` 导出。

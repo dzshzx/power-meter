@@ -20,9 +20,8 @@ var allowedLicences = map[string]bool{
 
 // namedComponents may use a licence outside allowedLicences, each only its
 // own: the PawnIO module, which is replaceable and ships with its
-// corresponding source, and the MiSans fonts, which the app may embed but
-// not distribute on their own.
-var namedComponents = map[string]string{"IntelMSR.bin": "LGPL-2.1-or-later", "MiSans": "LicenseRef-MiSans"}
+// corresponding source.
+var namedComponents = map[string]string{"IntelMSR.bin": "LGPL-2.1-or-later"}
 
 // goCommand runs the go command from the module root.
 func goCommand(t *testing.T, env []string, args ...string) string {

@@ -46,8 +46,7 @@ only those upgraded from 1.4 or earlier stayed in `Battery Charge Meter`.
   catalogs, into `internal/fonts/misans/`; rerun it after adding UI text.
   The program compiles and tests without them, so the gate and CodeQL
   depend only on the commit; such a build draws with system fonts and fails
-  `--self-test`. The app must keep saying it uses MiSans (settings popover
-  and notices).
+  `--self-test`. The app must keep saying it uses MiSans (settings popover).
 - Portable EXE and per-user installer are equal release options. Preserve the
   replaceable `IntelMSR.bin` sidecar, LGPL notice/licence and exact corresponding
   source bundle; release assets include both formats, and every asset has a
