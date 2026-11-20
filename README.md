@@ -18,6 +18,7 @@ GitHub 仓库为 `dzshzx/power-meter`（2026-09-28 由 `battery-charge-meter` �
 - 默认显示整机功率；可在窗口或托盘菜单切换到电池端净功率，记住当前用户的选择
 - 主数字、托盘、10 分钟时间加权平均和 5 分钟峰值使用同一口径
 - 最小化后隐藏到系统托盘，继续在后台监测
+- 占用内存少：任务管理器「内存」一列在托盘里约 9 MB，窗口打开时约 20 MB
 - 托盘文字图标显示所选功率的整数瓦数（大于等于 99.5 W 显示 `99+`），悬停显示口径、估算标识和两位小数
 - 托盘数字为白色，充电时底色为绿色，放电时为琥珀色
 - 窗口按 ColorOS 的卡片样式绘制：整窗与卡片都是连续曲率的同心圆角，界面字体为内嵌的 MiSans，随系统切换浅色与深色
@@ -212,14 +213,18 @@ EXE manifest 使用 `asInvoker`，由界面启动流程主动请求提权，因�
 Linux 或 Windows 上交叉编译。Go 版本写在 `go.mod`，mygo 作为 `go tool` 固定在同一处。
 
 ```sh
-go run ./tools/fonts                                   # 取 MiSans，按固定的 SHA-256 核对（要发出去的构建必须先取）
+go run ./tools/fonts                                   # 取 MiSans、按固定的 SHA-256 核对并裁剪（要发出去的构建必须先跑）
 go tool mygo build -platform windows/amd64             # EXE 与安装包，输出到 dist/windows-amd64/
 go tool mygo build -platform windows/amd64 -skip-installer   # 只要 EXE
 ```
 
 MiSans 的许可不允许单独分发字体文件，所以字体不进仓库：`tools/fonts` 从小米官方的
-`MiSans.zip` 只取 Regular、Medium、Semibold 三个字重，核对固定的 SHA-256 后压缩存进
-`internal/fonts/misans/`（已忽略），构建时嵌入 EXE。已有且一致时不再下载。没取字体也能编译和测试，
+`MiSans.zip` 只取 Regular、Medium、Semibold 三个字重，核对固定的 SHA-256 后存在用户缓存目录
+（已有且一致时不再下载），再用 HarfBuzz 的 `hb-subset` 裁到界面会显示的字符：代码里的字符串、
+`locales/` 的文案，加上 ASCII、Latin-1 与常用标点。裁好的字体写进 `internal/fonts/misans/`
+（已忽略），构建时嵌入 EXE；界面之外的字（如 Windows 的报错原文）用系统字体显示。每次运行都按当前
+代码重新裁剪，所以需要 `hb-subset`（Ubuntu 上是 `libharfbuzz-bin`）；加了界面文字要重跑，
+否则 `go test ./tools/fonts` 会报出缺的字。没取字体也能编译和测试，
 这样门禁与 CodeQL 只取决于提交、不联网；这种构建用系统字体绘制，`--self-test` 不通过，所以发不出去。
 安装包由 mygo 用 NSIS 生成，安装步骤在 `installer/installer.nsh`；构建需要 `makensis`。
 发版与 Windows 验证都在 Linux 上构建，Windows 只测试这份产物。应用图标源文件为 `installer/icon.png`。

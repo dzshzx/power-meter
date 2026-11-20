@@ -35,12 +35,19 @@ only those upgraded from 1.4 or earlier stayed in `Battery Charge Meter`.
   (`POWERMETER_PREVIEW_DIR=<dir> go test -run TestPreviews ./internal/gui`)
   and show them before committing; the maintainer judges the look. mygo
   draws the window, so upgrading it is such a change: do it on its own.
+- Task Manager's Memory column stays under 30 MB, in the tray and with the
+  window: the window is not a mygo `Transparent` one and draws on the CPU,
+  its per-pixel alpha coming from `winapp.BlendPixels` (DirectComposition
+  and the GPU renderer bring a Direct3D device of tens of MB); the tray has
+  no window; shapes take no mask of the window's size (`TestWindowHeap`).
 - MiSans is not in the repository (its licence forbids separate
-  distribution): `go run ./tools/fonts` fetches the pinned faces into
-  `internal/fonts/misans/`. The program compiles and tests without them, so
-  the gate and CodeQL depend only on the commit; such a build draws with
-  system fonts and fails `--self-test`. The app must keep saying it uses
-  MiSans (settings popover and notices).
+  distribution): `go run ./tools/fonts` fetches the pinned faces and cuts
+  them with `hb-subset` to the characters of the code's strings and the
+  catalogs, into `internal/fonts/misans/`; rerun it after adding UI text.
+  The program compiles and tests without them, so the gate and CodeQL
+  depend only on the commit; such a build draws with system fonts and fails
+  `--self-test`. The app must keep saying it uses MiSans (settings popover
+  and notices).
 - Portable EXE and per-user installer are equal release options. Preserve the
   replaceable `IntelMSR.bin` sidecar, LGPL notice/licence and exact corresponding
   source bundle; release assets include both formats, and every asset has a

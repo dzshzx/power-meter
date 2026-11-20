@@ -35,13 +35,15 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # The image's package lists usually still name NSIS; refreshing them
-      # only when the install fails skips a slow update.
-      - name: Install NSIS
+      # The image's package lists usually still name NSIS and HarfBuzz's
+      # tools; refreshing them only when the install fails skips a slow
+      # update. tools/fonts cuts the faces with hb-subset.
+      - name: Install NSIS and hb-subset
         run: |
-          install() { sudo apt-get install -y -qq --no-install-recommends nsis; }
+          install() { sudo apt-get install -y -qq --no-install-recommends nsis libharfbuzz-bin; }
           install || { sudo apt-get update -qq && install; }
           makensis -VERSION
+          hb-subset --version
 
       - name: Fetch MiSans (pinned SHA-256)
         run: go run ./tools/fonts

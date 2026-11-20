@@ -201,10 +201,8 @@ func Build(c *ui.Context, m *Model) {
 func panelShape(p *palette) func(*ui.Painter, ui.Rect) {
 	return func(pt *ui.Painter, r ui.Rect) {
 		pt.Shadow(r, panelRadius, 0, 8, 22, 0, p.shadow)
-		var path ui.Path
-		squircle(&path, r, panelRadius)
-		pt.FillPath(&path, p.page)
-		pt.StrokePath(&path, 1/pt.Scale(), p.border)
+		fillSquircle(pt, r, panelRadius, p.page)
+		strokeSquircle(pt, r, panelRadius, 1/pt.Scale(), p.border)
 	}
 }
 

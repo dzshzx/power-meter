@@ -43,10 +43,15 @@ retained in `LICENSE.Lucide.txt` and included in the same notice export.
 ## MiSans
 
 The interface text and the tray icon's figures are set in MiSans, Xiaomi's
-typeface, in its Regular, Medium and Semibold faces. The three font files are
-embedded unmodified in the executable, as the MiSans Font Intellectual Property
-License Agreement allows for an application that uses them; the settings panel
-states that the interface font is MiSans, and this notice does too.
+typeface, in its Regular, Medium and Semibold faces. The executable embeds the
+part of each face its interface uses: `tools/fonts` keeps the characters of the
+app's own text, ASCII, Latin-1 and common punctuation, with HarfBuzz's
+`hb-subset`, which leaves their glyphs, metrics, layout features, hinting and
+every name record, the copyright and the licence among them, as they are. The
+faces are not otherwise changed, nor distributed apart from the application,
+as the MiSans Font Intellectual Property License Agreement allows for an
+application that uses them; the settings panel states that the interface font
+is MiSans, and this notice does too.
 
 | | |
 |---|---|
@@ -57,7 +62,8 @@ states that the interface font is MiSans, and this notice does too.
 
 The agreement forbids distributing the fonts on their own, so the font files
 are not in this repository: `tools/fonts` takes them from Xiaomi's package and
-checks them against the SHA-256 sums pinned there before a build embeds them.
+checks them against the SHA-256 sums pinned there before it cuts them for a
+build to embed.
 The complete agreement is kept in `LICENSE.MiSans.txt` and included in the
 same notice export, as it asks for every copy of the fonts.
 

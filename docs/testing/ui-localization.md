@@ -8,6 +8,14 @@ the panel takes the mouse (the shadow margin lets clicks through). It follows
 the system's light or dark appearance. Windows 11 is the only supported
 target; Windows 10 is not tested.
 
+The window is drawn on the CPU and shown through GDI, which DWM blends over
+the desktop by each pixel's alpha (`internal/winapp`, blur behind an empty
+region): no Direct3D device, which DirectComposition and the GPU renderer
+would bring with tens of megabytes of driver memory. It exists only while it
+shows: hiding it into the tray, by its minimize button or by Windows, closes
+it, and showing it makes it again where it was. In the tray the app keeps
+about 9 MB in Task Manager's Memory column, with the window about 20 MB.
+
 Geometry is in DIPs, which mygo scales to each monitor's DPI. The panel is
 360 wide with a corner radius of 32; the cards sit 12 inside it with a
 radius of 20, so the corners are concentric. Every corner is continuous
@@ -40,8 +48,9 @@ tray tile keeps solid state colours (green charging, amber discharging, grey
 otherwise) under white figures.
 
 Text uses MiSans Regular, Medium and Semibold, embedded in the executable
-(`internal/fonts`), with Microsoft YaHei UI as the fallback; changing figures
-use tabular digits. Display figures use the typographic minus (U+2212); CLI
+(`internal/fonts`) with the characters the interface shows (`tools/fonts`),
+and Microsoft YaHei UI for the others, as in a Windows error message;
+changing figures use tabular digits. Display figures use the typographic minus (U+2212); CLI
 reports and logs keep ASCII.
 
 The trend records both display boundaries from the first reading, one point

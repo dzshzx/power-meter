@@ -69,6 +69,10 @@ Use a separately copied development EXE; keep the installed release intact.
    copy must not silently adopt another copy's registration; uninstall cleanup
    must preserve registrations targeting other executable paths. Keep actual
    reboot/logon acceptance distinct from a manual scheduled-task launch.
+9. Read Task Manager's Memory column (private working set) a minute after a
+   logon start into the tray, with the window open, and after hiding it into
+   the tray again: each under 30 MB. The window's corners and shadow show the
+   desktop behind them, and clicks on the shadow reach the window below.
 
 ## Confirmed on the target notebook
 

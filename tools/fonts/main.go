@@ -1,22 +1,23 @@
 // Command fonts puts the MiSans faces the window draws with into
-// internal/fonts/misans, gzip-compressed for go:embed. They come from
-// Xiaomi's official package and must match the pinned SHA-256 sums.
+// internal/fonts/misans for go:embed, cut down to the characters the app
+// shows (see subset.go). The faces come from Xiaomi's official package and
+// must match the pinned SHA-256 sums.
 //
 // The font files stay out of the repository: the MiSans licence lets an app
 // embed them but forbids distributing them on their own. The package is
-// large, so only the entries needed are fetched, with range requests.
+// large, so only the entries needed are fetched, with range requests, into
+// the user's cache directory, where the next run finds them.
 //
 //	go run ./tools/fonts
 //
-// A face already there with the pinned content is kept; nothing is fetched
-// then.
+// Each run cuts the faces again for the text of the code as it is; it
+// needs HarfBuzz's hb-subset. What it writes is ignored by Git.
 package main
 
 import (
 	"archive/zip"
 	"bytes"
 	"compress/flate"
-	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -42,22 +43,53 @@ var faces = []struct{ name, sum string }{
 var client = &http.Client{Timeout: 5 * time.Minute}
 
 func main() {
-	if err := run(filepath.Join(root(), "internal", "fonts", "misans")); err != nil {
+	cache, err := os.UserCacheDir()
+	if err == nil {
+		err = run(root(), filepath.Join(cache, "power-meter", "MiSans"))
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "fonts:", err)
 		os.Exit(1)
 	}
 }
 
-func run(dir string) error {
+// run keeps the whole faces in cache, fetching those missing, and writes
+// them, cut for the text of the code under root, into
+// root/internal/fonts/misans.
+func run(root, cache string) error {
 	var missing []int
 	for i, f := range faces {
-		if stored(filepath.Join(dir, f.name+".gz")) != f.sum {
+		if stored(filepath.Join(cache, f.name)) != f.sum {
 			missing = append(missing, i)
 		}
 	}
-	if len(missing) == 0 {
-		return nil
+	if len(missing) > 0 {
+		if err := fetch(cache, missing); err != nil {
+			return err
+		}
 	}
+	text, err := characters(root)
+	if err != nil {
+		return err
+	}
+	dir := filepath.Join(root, "internal", "fonts")
+	chars := filepath.Join(dir, charactersFile)
+	if err := writeFile(chars, []byte(text)); err != nil {
+		return err
+	}
+	for _, f := range faces {
+		data, err := subset(filepath.Join(cache, f.name), chars)
+		if err != nil {
+			return fmt.Errorf("%s: %w", f.name, err)
+		}
+		if err := writeFile(filepath.Join(dir, "misans", f.name), data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func fetch(dir string, missing []int) error {
 	pkg, err := openRemote(source)
 	if err != nil {
 		return err
@@ -71,7 +103,7 @@ func run(dir string) error {
 		if got := sum(data); got != f.sum {
 			return fmt.Errorf("%s has SHA-256 %s, want %s: the package changed", f.name, got, f.sum)
 		}
-		if err := writeGzip(filepath.Join(dir, f.name+".gz"), data); err != nil {
+		if err := writeFile(filepath.Join(dir, f.name), data); err != nil {
 			return err
 		}
 		fmt.Println("fetched", f.name)
@@ -79,19 +111,15 @@ func run(dir string) error {
 	return nil
 }
 
-// stored is the SHA-256 of a compressed face's content, or "" without one.
+// stored is the SHA-256 of a face's file, or "" without one.
 func stored(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
 		return ""
 	}
 	defer f.Close()
-	z, err := gzip.NewReader(f)
-	if err != nil {
-		return ""
-	}
 	h := sha256.New()
-	if _, err := io.Copy(h, z); err != nil {
+	if _, err := io.Copy(h, f); err != nil {
 		return ""
 	}
 	return hex.EncodeToString(h.Sum(nil))
@@ -102,20 +130,16 @@ func sum(data []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-func writeGzip(path string, data []byte) error {
-	var b bytes.Buffer
-	z, _ := gzip.NewWriterLevel(&b, gzip.BestCompression)
-	if _, err := z.Write(data); err != nil {
-		return err
-	}
-	if err := z.Close(); err != nil {
-		return err
+// writeFile replaces path with data, unless it holds data already.
+func writeFile(path string, data []byte) error {
+	if old, err := os.ReadFile(path); err == nil && bytes.Equal(old, data) {
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)

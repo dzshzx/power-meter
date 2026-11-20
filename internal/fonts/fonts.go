@@ -6,20 +6,18 @@
 // The faces are not in the repository (the MiSans licence forbids
 // distributing them on their own); go generate ./internal/fonts, or
 // go run ./tools/fonts, puts them in misans/ from Xiaomi's official
-// package, checked against pinned SHA-256 sums. The package compiles
-// without them, so the gate and code scanning need no download: such a
-// build draws with the system's fonts, and its --self-test fails, so a
-// release cannot ship without the faces.
+// package, checked against pinned SHA-256 sums and cut down to the
+// characters the app shows. The package compiles without them, so the
+// gate and code scanning need no download: such a build draws with the
+// system's fonts, and its --self-test fails, so a release cannot ship
+// without the faces.
 package fonts
 
 //go:generate go run ../../tools/fonts
 
 import (
-	"bytes"
-	"compress/gzip"
 	"embed"
 	"errors"
-	"io"
 	"io/fs"
 	"sync"
 
@@ -40,9 +38,9 @@ const (
 var files embed.FS
 
 var faces = []struct{ file, family string }{
-	{"misans/MiSans-Regular.ttf.gz", Regular},
-	{"misans/MiSans-Medium.ttf.gz", Medium},
-	{"misans/MiSans-Semibold.ttf.gz", Semibold},
+	{"misans/MiSans-Regular.ttf", Regular},
+	{"misans/MiSans-Medium.ttf", Medium},
+	{"misans/MiSans-Semibold.ttf", Semibold},
 }
 
 var (
@@ -57,7 +55,7 @@ var (
 func Register() error {
 	once.Do(func() {
 		for _, f := range faces {
-			data, readErr := read(f.file)
+			data, readErr := files.ReadFile(f.file)
 			if errors.Is(readErr, fs.ErrNotExist) {
 				continue
 			}
@@ -82,16 +80,4 @@ func Embedded() bool {
 		}
 	}
 	return true
-}
-
-func read(name string) ([]byte, error) {
-	packed, err := files.ReadFile(name)
-	if err != nil {
-		return nil, err
-	}
-	z, err := gzip.NewReader(bytes.NewReader(packed))
-	if err != nil {
-		return nil, err
-	}
-	return io.ReadAll(z)
 }
