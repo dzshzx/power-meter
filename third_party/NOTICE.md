@@ -1,8 +1,8 @@
 # Third-party components
 
 The Windows executable is a Go program. It statically links the Go standard
-library and the Go modules below, draws Lucide icon geometry, embeds the MiSans
-typeface and embeds the PawnIO `IntelMSR.bin` module. The complete licence text of every component
+library and the Go modules below, draws Lucide icon geometry and embeds the
+PawnIO `IntelMSR.bin` module. The complete licence text of each listed component
 follows this notice in the `--third-party-notices` export, the standalone
 release notice and the installed notice. The `third_party` package tests fail
 when a module linked into the executable is missing here, its version differs,
@@ -25,7 +25,8 @@ its licence text changed or its licence is not one this project accepts.
 The modules are used unmodified; the Go toolchain fetches them against the
 checksums in `go.sum`. `go-text/typesetting` is used under BSD-3-Clause, one
 of the two licences it offers. mygo embeds only its own shaders, scripts and
-messages; text is drawn with DirectWrite in the MiSans faces described below. The licence texts are kept here as `LICENSE.Go.txt` (the Go
+messages; text is drawn with DirectWrite. The licence texts are kept here as
+`LICENSE.Go.txt` (the Go
 standard library and every `golang.org/x` module), `LICENSE.purego.txt`,
 `LICENSE.mygo.txt`, `LICENSE.go-ole.txt` and `LICENSE.go-text-typesetting.txt`.
 
@@ -39,27 +40,6 @@ white on a rounded green tile. The interface also uses Lucide `zap`, `pin`,
 stroked in the interface colours; compact SVG arc flags are written out in full
 without changing the geometry. The complete Lucide/Feather license text is
 retained in `LICENSE.Lucide.txt` and included in the same notice export.
-
-## MiSans
-
-The interface text and the tray icon's figures are set in MiSans, Xiaomi's
-typeface, in its Regular, Medium and Semibold faces. The three font files are
-embedded unmodified in the executable, as the MiSans Font Intellectual Property
-License Agreement allows for an application that uses them; the settings panel
-states that the interface font is MiSans, and this notice does too.
-
-| | |
-|---|---|
-| Upstream | https://hyperos.mi.com/font/ |
-| Package | https://hyperos.mi.com/font-download/MiSans.zip |
-| Files | `MiSans-Regular.ttf`, `MiSans-Medium.ttf`, `MiSans-Semibold.ttf` |
-| Licence | MiSans Font Intellectual Property License Agreement (`LicenseRef-MiSans`) |
-
-The agreement forbids distributing the fonts on their own, so the font files
-are not in this repository: `tools/fonts` takes them from Xiaomi's package and
-checks them against the SHA-256 sums pinned there before a build embeds them.
-The complete agreement is kept in `LICENSE.MiSans.txt` and included in the
-same notice export, as it asks for every copy of the fonts.
 
 ## IntelMSR.bin
 
