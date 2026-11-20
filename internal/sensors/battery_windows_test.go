@@ -14,7 +14,9 @@ import (
 // TestBatteryQueryKeepsHandles reads the battery as the tray does once a
 // second, beside a single-threaded apartment as the app's main thread
 // keeps. Each read used to make the multithreaded apartment and tear it
-// down again, leaving an event open every time.
+// down again, leaving an event open every time. WMI opens some handles of
+// its own over the first reads, more on some machines than others, and
+// keeps them: they are counted out before the reads that are measured.
 func TestBatteryQueryKeepsHandles(t *testing.T) {
 	release := holdSTA(t)
 	defer release()
@@ -23,12 +25,15 @@ func TestBatteryQueryKeepsHandles(t *testing.T) {
 	if _, err := queryBatteryStatus(); err != nil {
 		t.Log("battery query:", err)
 	}
+	for range 30 {
+		_, _ = queryBatteryStatus()
+	}
 	before := handleCount(t)
-	const reads = 30
+	const reads = 60
 	for range reads {
 		_, _ = queryBatteryStatus()
 	}
-	if grown := handleCount(t) - before; grown > 10 {
+	if grown := handleCount(t) - before; grown > reads/4 {
 		t.Fatalf("%d battery reads left %d handles open", reads, grown)
 	}
 }
