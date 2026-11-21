@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -53,7 +55,9 @@ jobs:
       # test's checkout as committed.
       - name: Write release version into mygo.json
         if: inputs.version
-        run: go run ./tools/release set-version -version ${{ inputs.version }}
+        env:
+          VERSION: ${{ inputs.version }}
+        run: go run ./tools/release set-version -version "$VERSION"
 
       - name: Build executable and installer
         run: go tool mygo build -platform windows/amd64
@@ -74,6 +78,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -102,7 +108,7 @@ jobs:
       - name: Install, reinstall and uninstall
         env:
           VERSION: ${{ inputs.version || '0.0.0' }}
-        run: go run ./tools/release install-test -version ${{ env.VERSION }} -setup dist/windows-amd64/power-meter-setup-${{ env.VERSION }}-amd64.exe
+        run: go run ./tools/release install-test -version "${env:VERSION}" -setup "dist/windows-amd64/power-meter-setup-${env:VERSION}-amd64.exe"
 
       - name: Save smoke outputs
         if: always()
@@ -119,6 +125,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
