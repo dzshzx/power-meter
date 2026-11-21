@@ -111,7 +111,7 @@ jobs:
       - name: Install, reinstall and uninstall
         env:
           VERSION: ${{ inputs.version || '0.0.0' }}
-        run: go run ./tools/release install-test -version "$VERSION" -setup "dist/windows-amd64/power-meter-setup-$VERSION-amd64.exe"
+        run: go run ./tools/release install-test -version "$VERSION" -build dist/windows-amd64
 
       - name: Save smoke outputs
         if: always()

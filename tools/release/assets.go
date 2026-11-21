@@ -29,6 +29,11 @@ const (
 func portableAsset(version string) string  { return "PowerMeter-v" + version + "-windows.exe" }
 func installerAsset(version string) string { return "PowerMeter-v" + version + "-windows-setup.exe" }
 
+// builtInstaller is the installer mygo writes into its build output.
+func builtInstaller(build, version string) string {
+	return filepath.Join(build, "power-meter-setup-"+version+"-amd64.exe")
+}
+
 // releaseAssets are the published files: each asset and its .sha256.
 func releaseAssets(version string) []string {
 	var names []string
@@ -57,7 +62,7 @@ func runPackage(args []string) error {
 		return err
 	}
 	exe := filepath.Join(*build, exeName)
-	setup := filepath.Join(*build, "power-meter-setup-"+*version+"-amd64.exe")
+	setup := builtInstaller(*build, *version)
 	if err := checkFileVersion(exe, *version); err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@
 //	release package -version X.Y.Z -build dist/windows-amd64 -out <empty dir>
 //	release publish -version X.Y.Z -assets <package output> [-dry-run]
 //	release smoke -exe <PowerMeter.exe> -work <dir>
-//	release install-test -version X.Y.Z -setup <setup.exe>
+//	release install-test -version X.Y.Z -build dist/windows-amd64
 //	release verify -version X.Y.Z -out <empty dir>
 package main
 

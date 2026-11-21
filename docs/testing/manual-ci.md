@@ -19,7 +19,7 @@ thrown away afterwards, to run:
 go test -count=1 ./...
 POWERMETER_LIVE=1 go test -count=1 ./internal/autostart
 go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work <dir>
-go run ./tools/release install-test -version 0.0.0 -setup dist/windows-amd64/power-meter-setup-0.0.0-amd64.exe
+go run ./tools/release install-test -version 0.0.0 -build dist/windows-amd64
 ```
 
 ## Local run

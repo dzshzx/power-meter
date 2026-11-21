@@ -72,6 +72,8 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
 
     steps:
       - name: Check out source
@@ -93,8 +95,6 @@ jobs:
       # The asset directory holds exactly the Release assets; package also
       # checks the executable's file version and every checksum.
       - name: Package release assets
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
         run: go run ./tools/release package -version "$VERSION" -build dist/windows-amd64 -out "$RUNNER_TEMP/release-assets"
 
       # Writes the run summary; unless dry_run, publishes the Release and tags
@@ -102,6 +102,5 @@ jobs:
       - name: Publish Release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.version.outputs.version }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: go run ./tools/release publish -version "$VERSION" -assets "$RUNNER_TEMP/release-assets" -dry-run="$DRY_RUN"

@@ -23,16 +23,18 @@ const (
 	installedNotices = "THIRD-PARTY-NOTICES.txt"
 )
 
-// runInstallTest installs, upgrades and uninstalls the installer silently
-// for the current user, after checking that it refuses to install over
-// Power Meter 1.5 or earlier. It refuses to run where Power Meter is installed.
+// runInstallTest installs, upgrades and uninstalls the installer of a mygo
+// build silently for the current user, after checking that it refuses to
+// install over Power Meter 1.5 or earlier. It refuses to run where Power
+// Meter is installed.
 func runInstallTest(args []string) error {
 	fs := flag.NewFlagSet("install-test", flag.ContinueOnError)
 	version := fs.String("version", "", "the installer's version X.Y.Z")
-	setup := fs.String("setup", "", "the installer")
-	if err := parse(fs, args, "version", "setup"); err != nil {
+	build := fs.String("build", "", "mygo build output for windows/amd64")
+	if err := parse(fs, args, "version", "build"); err != nil {
 		return err
 	}
+	setup := builtInstaller(*build, *version)
 	if installLocation() != "" || keyExists(oldUninstallKey) {
 		return errors.New("found an installed Power Meter; uninstall it before the test")
 	}
@@ -40,9 +42,9 @@ func runInstallTest(args []string) error {
 		name string
 		run  func() error
 	}{
-		{"refuses to install over 1.5", func() error { return blockedByOldVersion(*setup) }},
-		{"installs", func() error { return install(*setup, *version) }},
-		{"installs over itself", func() error { return install(*setup, *version) }},
+		{"refuses to install over 1.5", func() error { return blockedByOldVersion(setup) }},
+		{"installs", func() error { return install(setup, *version) }},
+		{"installs over itself", func() error { return install(setup, *version) }},
 		{"uninstalls", uninstall},
 	}
 	for _, s := range steps {
