@@ -74,6 +74,9 @@ jobs:
     needs: build
     runs-on: windows-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Check out source
@@ -103,12 +106,12 @@ jobs:
           path: dist/windows-amd64
 
       - name: Smoke-test the executable
-        run: go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work "${{ runner.temp }}/smoke"
+        run: go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work "$RUNNER_TEMP/smoke"
 
       - name: Install, reinstall and uninstall
         env:
           VERSION: ${{ inputs.version || '0.0.0' }}
-        run: go run ./tools/release install-test -version "${env:VERSION}" -setup "dist/windows-amd64/power-meter-setup-${env:VERSION}-amd64.exe"
+        run: go run ./tools/release install-test -version "$VERSION" -setup "dist/windows-amd64/power-meter-setup-$VERSION-amd64.exe"
 
       - name: Save smoke outputs
         if: always()
