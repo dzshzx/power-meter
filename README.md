@@ -250,8 +250,8 @@ Go 测试、函数认知复杂度不超过 30）。Windows 上的测试、可执
 
 ## 发布
 
-日常改动完成相应本地验证后合入并快进同步 `master`。发版手动触发 Release 工作流
-（`gh workflow run release.yml --ref master -f bump=patch`），它按已有 tag 算出新版本号，
+日常改动完成相应本地验证后合入并快进同步 `master`。维护者用私有的 rollout 工具派发本仓 Release 工作流
+（等价于 `gh workflow run release.yml --ref master -f bump=patch [-f gate=true]`），它按已有 tag 算出新版本号，
 重新构建、验收并发布便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产都带 `.sha256` 校验文件。本地构建的版本是
 占位值 `0.0.0`。默认不跑门禁，要跑时加 `-f gate=true`。版本档位、dry_run、门禁开关、出错处理与公开产物复验见 `docs/release.md`。
 

@@ -6,7 +6,8 @@
 
 ## 发版
 
-发版只有一条命令，手动触发 `.github/workflows/release.yml`：
+发版只走 `.github/workflows/release.yml`：维护者用私有的 rollout 工具在 `master` 头提交上派发它并等运行结束，
+等价于：
 
 ```sh
 gh workflow run release.yml --ref master -f bump=patch

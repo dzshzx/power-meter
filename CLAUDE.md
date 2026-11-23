@@ -1,8 +1,11 @@
 # Power Meter agent notes
 
 Power terminology and measurement boundaries are defined in `GLOSSARY.md`;
-build and packaging commands are in `README.md`, release commands in
-`docs/release.md`, and PawnIO obligations in `third_party/NOTICE.md`. Which
+build and packaging commands are in `README.md`, release details in
+`docs/release.md`, and PawnIO obligations in `third_party/NOTICE.md`. Release
+with `~/workspace/fleet-state/tools/rollout/rollout release power-meter`
+(`--bump minor|major` needs the maintainer's consent, `--dry-run` only builds
+and verifies, `--gate` runs the gate first). Which
 Windows interfaces and sensors can or cannot supply whole-system input power,
 as measured on the target notebook, is in
 `docs/research/system-input-power.md`; read it before adding or changing a
