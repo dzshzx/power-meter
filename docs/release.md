@@ -12,12 +12,14 @@
 gh workflow run release.yml --ref master -f bump=patch
 ```
 
-输入只有两个：
+输入有三个：
 
 - `bump`：`patch`（默认）、`minor` 或 `major`。默认 patch；minor（有用户能感知的新能力）与
   major（含 0.x→1.0）须先经维护者确认。内部重构、目录搬迁、删兼容层不算破坏性变更。
 - `dry_run`：默认 `false`。设为 `true` 时可在任意分支运行，完整构建和核对，但不打 tag、不发布；
   运行摘要列出将要发布的版本、源提交和各资产的 SHA-256。
+- `gate`：默认 `false`，不跑门禁，直接构建、发布：每个提交合入时已过 `wt land` 的门禁，手动触发的
+  `Windows validation` 也跑全套。设为 `true`（`-f gate=true`）时先跑门禁，没过就不发布。
 
 工作流依次：
 
@@ -26,7 +28,8 @@ gh workflow run release.yml --ref master -f bump=patch
    提交已发过版」。提交上只有 tag、同名 Release 没有发布时，视为上次发版没做完，沿用这个版本继续
    发布，不再升档。否则算出新版本号（见下节）。这一步在门禁之前。
 2. 调用 `Windows validation` 工作流（`.github/workflows/ci.yml`，做法见 `docs/testing/manual-ci.md`）：
-   门禁、在 Linux 上构建 EXE 与安装包、在 Windows 上测试这两个文件。发版时它在构建前用
+   在 Linux 上构建 EXE 与安装包，在 Windows 上对这两个文件跑烟测和安装测试；`gate=true` 时还跑门禁
+   （`scripts/check.sh` 与 Windows 上的 Go 测试），没打开时传 `skip_gate` 跳过这两样。发版时它在构建前用
    `go run ./tools/release set-version` 把新版本写进构建作业自己检出的 `mygo.json`；测试的检出保持仓里
    的占位版本。
 3. `tools/release package` 生成便携 EXE、当前用户安装包、第三方通知与对应源码包，每个资产旁各带

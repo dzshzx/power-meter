@@ -15,6 +15,10 @@ on:
         description: Build and verify only; no tag and no Release
         type: boolean
         default: false
+      gate:
+        description: 跑全量门禁；默认不跑，合入门禁与每晚 CI 已查过
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -55,13 +59,16 @@ jobs:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: go run ./tools/release next-version -bump "$BUMP" -branch "$DEFAULT_BRANCH" -dry-run="$DRY_RUN" >> "$GITHUB_OUTPUT"
 
-  # Builds on Linux and tests on Windows the files this run publishes, with
-  # the gate beside them; a manual Windows validation runs the same jobs.
+  # Builds on Linux, and smoke- and installer-tests on Windows, the files
+  # this run publishes. The gate (scripts/check.sh and the Go tests on
+  # Windows) runs only with gate on and then stops the release when it
+  # fails; off, it is skipped: every commit passed the gate at wt land.
   validate:
     needs: version
     uses: ./.github/workflows/ci.yml
     with:
       version: ${{ needs.version.outputs.version }}
+      skip_gate: ${{ !inputs.gate }}
 
   release:
     needs: [version, validate]

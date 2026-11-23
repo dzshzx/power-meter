@@ -1,8 +1,11 @@
 name: Windows validation
 
 # Builds the executable and the installer on Linux and tests these exact
-# files on Windows. Dispatched by hand, it builds the 0.0.0 placeholder;
-# Release calls it with the release version and publishes what it built.
+# files on Windows. Dispatched by hand, it builds the 0.0.0 placeholder and
+# runs everything; Release calls it with the release version and publishes
+# what it built. Release skips the gate (the Linux gate job and the Go tests
+# on Windows) unless its gate input is on; the build, the smoke run and the
+# installer test of the published files always run.
 on:
   workflow_dispatch:
   workflow_call:
@@ -11,6 +14,10 @@ on:
         description: Release version stamped on the build; empty keeps the 0.0.0 placeholder
         type: string
         default: ""
+      skip_gate:
+        description: Skip the gate (scripts/check.sh and the Go tests on Windows); build, smoke and installer test still run
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -90,11 +97,13 @@ jobs:
           go-version-file: go.mod
 
       - name: Test on Windows
+        if: ${{ !inputs.skip_gate }}
         run: go test -count=1 ./...
 
       # The runner is elevated and thrown away afterwards: the live tests may
       # register tasks and write below Program Files.
       - name: Test autostart against Task Scheduler
+        if: ${{ !inputs.skip_gate }}
         env:
           POWERMETER_LIVE: "1"
         run: go test -count=1 ./internal/autostart
@@ -122,6 +131,7 @@ jobs:
           if-no-files-found: warn
 
   gate:
+    if: ${{ !inputs.skip_gate }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

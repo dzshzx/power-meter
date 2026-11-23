@@ -22,6 +22,10 @@ go run ./tools/release smoke -exe dist/windows-amd64/PowerMeter.exe -work <dir>
 go run ./tools/release install-test -version 0.0.0 -build dist/windows-amd64
 ```
 
+Release runs the two `go test` lines, and the Linux gate job, only when its
+`gate` input is on (`docs/release.md`); the smoke run and the installer test
+always check the files it publishes.
+
 ## Local run
 
 The executable and the installer cross-compile from Linux (`mygo build`
