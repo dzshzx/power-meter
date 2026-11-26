@@ -37,8 +37,8 @@ Meter, or Power Meter 1.5 or earlier, is installed.
 
 An SSH session on the Windows host runs in session 0 without an interactive
 desktop, so the window cannot be shown there. Run GUI checks through a
-one-off interactive scheduled task (`fleet-admin win-elevated run
---run-level Limited` in fleet-state), or rely on the dispatched workflow: its
+one-off interactive scheduled task (`win-elevated run
+--run-level Limited` from dotfiles), or rely on the dispatched workflow: its
 runner has an interactive session.
 
 ## Task-branch flow
