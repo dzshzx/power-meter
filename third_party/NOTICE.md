@@ -13,14 +13,14 @@ its licence text changed or its licence is not one this project accepts.
 | Component | Version | Licence | Upstream |
 |---|---|---|---|
 | Go standard library and runtime | `go1.27.4` | BSD-3-Clause | https://go.dev/ |
-| `github.com/ebitengine/purego` | `v0.11.1` | Apache-2.0 | https://github.com/ebitengine/purego |
+| `github.com/ebitengine/purego` | `v0.11.3` | Apache-2.0 | https://github.com/ebitengine/purego |
 | `github.com/egoist/mygo` | `v0.10.0` | MIT | https://github.com/egoist/mygo |
 | `github.com/go-ole/go-ole` | `v1.3.0` | MIT | https://github.com/go-ole/go-ole |
 | `github.com/go-text/typesetting` | `v0.3.5` | Unlicense OR BSD-3-Clause | https://github.com/go-text/typesetting |
-| `golang.org/x/image` | `v0.46.0` | BSD-3-Clause | https://go.googlesource.com/image |
-| `golang.org/x/net` | `v0.59.0` | BSD-3-Clause | https://go.googlesource.com/net |
-| `golang.org/x/sys` | `v0.48.0` | BSD-3-Clause | https://go.googlesource.com/sys |
-| `golang.org/x/text` | `v0.43.0` | BSD-3-Clause | https://go.googlesource.com/text |
+| `golang.org/x/image` | `v0.48.0` | BSD-3-Clause | https://go.googlesource.com/image |
+| `golang.org/x/net` | `v0.63.0` | BSD-3-Clause | https://go.googlesource.com/net |
+| `golang.org/x/sys` | `v0.50.0` | BSD-3-Clause | https://go.googlesource.com/sys |
+| `golang.org/x/text` | `v0.44.0` | BSD-3-Clause | https://go.googlesource.com/text |
 
 The modules are used unmodified; the Go toolchain fetches them against the
 checksums in `go.sum`. `go-text/typesetting` is used under BSD-3-Clause, one

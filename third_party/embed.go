@@ -43,15 +43,15 @@ type component struct {
 // tests hold them to the modules the executable links.
 var components = []component{
 	{name: "Go standard library and runtime", version: "go1.27.4", spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
-	{name: "github.com/ebitengine/purego", version: "v0.11.1", module: true, spdx: "Apache-2.0", file: "LICENSE.purego.txt"},
+	{name: "github.com/ebitengine/purego", version: "v0.11.3", module: true, spdx: "Apache-2.0", file: "LICENSE.purego.txt"},
 	{name: "github.com/egoist/mygo", version: "v0.10.0", module: true, spdx: "MIT", file: "LICENSE.mygo.txt"},
 	{name: "github.com/go-ole/go-ole", version: "v1.3.0", module: true, spdx: "MIT", file: "LICENSE.go-ole.txt"},
 	{name: "github.com/go-text/typesetting", version: "v0.3.5", module: true, spdx: "Unlicense OR BSD-3-Clause",
 		file: "LICENSE.go-text-typesetting.txt"},
-	{name: "golang.org/x/image", version: "v0.46.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
-	{name: "golang.org/x/net", version: "v0.59.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
-	{name: "golang.org/x/sys", version: "v0.48.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
-	{name: "golang.org/x/text", version: "v0.43.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/image", version: "v0.48.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/net", version: "v0.63.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/sys", version: "v0.50.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/text", version: "v0.44.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
 	{name: "Lucide icons", spdx: "ISC", file: "LICENSE.Lucide.txt"},
 	{name: "IntelMSR.bin", spdx: "LGPL-2.1-or-later", file: "LICENSE.LGPL-2.1.txt"},
 }
