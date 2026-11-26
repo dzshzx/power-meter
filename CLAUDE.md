@@ -60,4 +60,6 @@ only those upgraded from 1.4 or earlier stayed in `Battery Charge Meter`.
   the smoke run and the installer test run there on the Linux-built files:
   the manually dispatched `Windows validation` workflow, or by hand as in
   `docs/testing/manual-ci.md`.
+- A dependency change also needs `Windows validation` green before landing:
+  push the task branch and dispatch `ci.yml`.
 - `dist/` is generated; binaries belong in GitHub Releases.
