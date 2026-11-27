@@ -5,22 +5,25 @@ library and the Go modules below, draws Lucide icon geometry and embeds the
 PawnIO `IntelMSR.bin` module. The complete licence text of each listed component
 follows this notice in the `--third-party-notices` export, the standalone
 release notice and the installed notice. The `third_party` package tests fail
-when a module linked into the executable is missing here, its version differs,
-its licence text changed or its licence is not one this project accepts.
+when a module linked into the executable is missing here, its
+licence text changed or its licence is not one this project accepts.
+The Go release and each module version appear in the component's heading in
+the export; the executable reads them from its own build information, so they
+are the versions it was built with.
 
 ## Go standard library and modules
 
-| Component | Version | Licence | Upstream |
-|---|---|---|---|
-| Go standard library and runtime | `go1.27.4` | BSD-3-Clause | https://go.dev/ |
-| `github.com/ebitengine/purego` | `v0.11.3` | Apache-2.0 | https://github.com/ebitengine/purego |
-| `github.com/egoist/mygo` | `v0.10.0` | MIT | https://github.com/egoist/mygo |
-| `github.com/go-ole/go-ole` | `v1.3.0` | MIT | https://github.com/go-ole/go-ole |
-| `github.com/go-text/typesetting` | `v0.3.5` | Unlicense OR BSD-3-Clause | https://github.com/go-text/typesetting |
-| `golang.org/x/image` | `v0.48.0` | BSD-3-Clause | https://go.googlesource.com/image |
-| `golang.org/x/net` | `v0.63.0` | BSD-3-Clause | https://go.googlesource.com/net |
-| `golang.org/x/sys` | `v0.50.0` | BSD-3-Clause | https://go.googlesource.com/sys |
-| `golang.org/x/text` | `v0.44.0` | BSD-3-Clause | https://go.googlesource.com/text |
+| Component | Licence | Upstream |
+|---|---|---|
+| Go standard library and runtime | BSD-3-Clause | https://go.dev/ |
+| `github.com/ebitengine/purego` | Apache-2.0 | https://github.com/ebitengine/purego |
+| `github.com/egoist/mygo` | MIT | https://github.com/egoist/mygo |
+| `github.com/go-ole/go-ole` | MIT | https://github.com/go-ole/go-ole |
+| `github.com/go-text/typesetting` | Unlicense OR BSD-3-Clause | https://github.com/go-text/typesetting |
+| `golang.org/x/image` | BSD-3-Clause | https://go.googlesource.com/image |
+| `golang.org/x/net` | BSD-3-Clause | https://go.googlesource.com/net |
+| `golang.org/x/sys` | BSD-3-Clause | https://go.googlesource.com/sys |
+| `golang.org/x/text` | BSD-3-Clause | https://go.googlesource.com/text |
 
 The modules are used unmodified; the Go toolchain fetches them against the
 checksums in `go.sum`. `go-text/typesetting` is used under BSD-3-Clause, one

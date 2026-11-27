@@ -6,6 +6,8 @@ import (
 	"embed"
 	"errors"
 	"os"
+	"runtime"
+	"runtime/debug"
 	"strings"
 )
 
@@ -28,11 +30,10 @@ var files embed.FS
 type component struct {
 	// name is the module path, or what NOTICE.md calls the component.
 	name string
-	// version is the module version or Go release; empty for a component
-	// NOTICE.md versions in its own section.
-	version string
 	// module marks a Go module linked into the executable.
 	module bool
+	// toolchain marks the Go standard library and runtime.
+	toolchain bool
 	// spdx is the licence as an SPDX expression.
 	spdx string
 	// file is the licence text in this directory.
@@ -42,25 +43,55 @@ type component struct {
 // components are the export's sections after NOTICE.md, in its order. The
 // tests hold them to the modules the executable links.
 var components = []component{
-	{name: "Go standard library and runtime", version: "go1.27.4", spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
-	{name: "github.com/ebitengine/purego", version: "v0.11.3", module: true, spdx: "Apache-2.0", file: "LICENSE.purego.txt"},
-	{name: "github.com/egoist/mygo", version: "v0.10.0", module: true, spdx: "MIT", file: "LICENSE.mygo.txt"},
-	{name: "github.com/go-ole/go-ole", version: "v1.3.0", module: true, spdx: "MIT", file: "LICENSE.go-ole.txt"},
-	{name: "github.com/go-text/typesetting", version: "v0.3.5", module: true, spdx: "Unlicense OR BSD-3-Clause",
+	{name: "Go standard library and runtime", toolchain: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "github.com/ebitengine/purego", module: true, spdx: "Apache-2.0", file: "LICENSE.purego.txt"},
+	{name: "github.com/egoist/mygo", module: true, spdx: "MIT", file: "LICENSE.mygo.txt"},
+	{name: "github.com/go-ole/go-ole", module: true, spdx: "MIT", file: "LICENSE.go-ole.txt"},
+	{name: "github.com/go-text/typesetting", module: true, spdx: "Unlicense OR BSD-3-Clause",
 		file: "LICENSE.go-text-typesetting.txt"},
-	{name: "golang.org/x/image", version: "v0.48.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
-	{name: "golang.org/x/net", version: "v0.63.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
-	{name: "golang.org/x/sys", version: "v0.50.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
-	{name: "golang.org/x/text", version: "v0.44.0", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/image", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/net", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/sys", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
+	{name: "golang.org/x/text", module: true, spdx: "BSD-3-Clause", file: "LICENSE.Go.txt"},
 	{name: "Lucide icons", spdx: "ISC", file: "LICENSE.Lucide.txt"},
 	{name: "IntelMSR.bin", spdx: "LGPL-2.1-or-later", file: "LICENSE.LGPL-2.1.txt"},
+}
+
+// buildInfo is the running executable's build information; tests replace it.
+var buildInfo = debug.ReadBuildInfo
+
+// version is the Go release or module version this executable was built
+// with, read from its build information so that a dependency or toolchain
+// upgrade needs no notice edit; "" for a component NOTICE.md versions in its
+// own section, or a module the build information does not list.
+func (c component) version() string {
+	switch {
+	case c.toolchain:
+		return runtime.Version()
+	case !c.module:
+		return ""
+	}
+	info, ok := buildInfo()
+	if !ok {
+		return ""
+	}
+	for _, dep := range info.Deps {
+		if dep.Path != c.name {
+			continue
+		}
+		if dep.Replace != nil {
+			return dep.Replace.Version
+		}
+		return dep.Version
+	}
+	return ""
 }
 
 // heading is the line that introduces the component's licence text.
 func (c component) heading() string {
 	h := c.name
-	if c.version != "" {
-		h += " " + c.version
+	if v := c.version(); v != "" {
+		h += " " + v
 	}
 	return h + " - " + c.spdx
 }

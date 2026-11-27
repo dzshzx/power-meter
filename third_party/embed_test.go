@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -51,5 +53,28 @@ func TestWriteNotices(t *testing.T) {
 	}
 	if WriteNotices(" ") == nil {
 		t.Error("a blank path is rejected")
+	}
+}
+
+func TestHeadingVersionFromBuildInfo(t *testing.T) {
+	saved := buildInfo
+	t.Cleanup(func() { buildInfo = saved })
+	buildInfo = func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{Deps: []*debug.Module{
+			{Path: "golang.org/x/sys", Version: "v0.50.0"},
+			{Path: "golang.org/x/net", Version: "v0.63.0", Replace: &debug.Module{Path: "golang.org/x/net", Version: "v0.64.0"}},
+		}}, true
+	}
+	for name, want := range map[string]string{
+		"golang.org/x/sys":                "golang.org/x/sys v0.50.0 - BSD-3-Clause",
+		"golang.org/x/net":                "golang.org/x/net v0.64.0 - BSD-3-Clause",
+		"golang.org/x/text":               "golang.org/x/text - BSD-3-Clause",
+		"Go standard library and runtime": "Go standard library and runtime " + runtime.Version() + " - BSD-3-Clause",
+		"Lucide icons":                    "Lucide icons - ISC",
+	} {
+		c, ok := componentNamed(name)
+		if !ok || c.heading() != want {
+			t.Errorf("%s heading %q, want %q", name, c.heading(), want)
+		}
 	}
 }

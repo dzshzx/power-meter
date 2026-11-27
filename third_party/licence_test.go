@@ -9,9 +9,10 @@ import (
 )
 
 // The licence check: the components table must name every module the
-// Windows executable links, at the version it links, with the module's own
-// licence text and a licence this project accepts. Upgrading a dependency
-// without updating the notice fails here.
+// Windows executable links, with the module's own licence text and a licence
+// this project accepts. Versions come from the executable's build
+// information, so a version upgrade needs no notice edit; adding or
+// dropping a dependency without updating the notice fails here.
 
 // allowedLicences may appear in any component's SPDX expression.
 var allowedLicences = map[string]bool{
@@ -93,8 +94,6 @@ func TestLinkedModulesHaveNotices(t *testing.T) {
 		switch {
 		case !ok || !c.module:
 			t.Errorf("%s %s is linked but has no section in the notice", path, m.version)
-		case c.version != m.version:
-			t.Errorf("%s is linked at %s but the notice says %s", path, m.version, c.version)
 		case !sameText(t, filepath.Join(m.dir, "LICENSE"), c.file):
 			t.Errorf("%s's LICENSE differs from %s", path, c.file)
 		}
@@ -112,7 +111,7 @@ func TestGoToolchainNotice(t *testing.T) {
 		t.Fatalf("go env: %q", env)
 	}
 	c, ok := componentNamed("Go standard library and runtime")
-	if !ok || c.version != env[0] {
+	if !ok || c.version() != env[0] {
 		t.Errorf("the notice names the Go release %s that builds the executable: %+v", env[0], c)
 	}
 	if ok && !sameText(t, filepath.Join(env[1], "LICENSE"), c.file) {
@@ -157,12 +156,12 @@ func TestNoticeListsComponents(t *testing.T) {
 	for _, c := range components {
 		var want string
 		switch {
-		case c.version == "":
-			want = "\n## " + c.name + "\n"
 		case c.module:
-			want = "| `" + c.name + "` | `" + c.version + "` | " + c.spdx + " |"
+			want = "| `" + c.name + "` | " + c.spdx + " |"
+		case c.toolchain:
+			want = "| " + c.name + " | " + c.spdx + " |"
 		default:
-			want = "| " + c.name + " | `" + c.version + "` | " + c.spdx + " |"
+			want = "\n## " + c.name + "\n"
 		}
 		if !strings.Contains(notice, want) {
 			t.Errorf("NOTICE.md lacks %q", want)
