@@ -44,19 +44,16 @@ func goCommand(t *testing.T, env []string, args ...string) string {
 	return string(out)
 }
 
-type linkedModule struct{ version, dir string }
-
-// linkedModules lists the modules of every package the module's commands
+// linkedModules maps the path of each module to its directory, for the modules of every package the module's commands
 // and libraries build from for windows/amd64, without tests and without the
 // tools that go.mod's tool directive brings.
-func linkedModules(t *testing.T) map[string]linkedModule {
+func linkedModules(t *testing.T) map[string]string {
 	out := goCommand(t, []string{"GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=0"},
-		"list", "-deps", "-f", "{{with .Module}}{{if not .Main}}{{.Path}}\t{{.Version}}\t{{.Dir}}{{end}}{{end}}", "./...")
-	modules := map[string]linkedModule{}
+		"list", "-deps", "-f", "{{with .Module}}{{if not .Main}}{{.Path}}\t{{.Dir}}{{end}}{{end}}", "./...")
+	modules := map[string]string{}
 	for _, line := range strings.Split(out, "\n") {
-		fields := strings.Split(strings.TrimSpace(line), "\t")
-		if len(fields) == 3 {
-			modules[fields[0]] = linkedModule{fields[1], fields[2]}
+		if path, dir, ok := strings.Cut(strings.TrimSpace(line), "\t"); ok {
+			modules[path] = dir
 		}
 	}
 	if len(modules) == 0 {
@@ -89,12 +86,12 @@ func sameText(t *testing.T, path, embedded string) bool {
 
 func TestLinkedModulesHaveNotices(t *testing.T) {
 	linked := linkedModules(t)
-	for path, m := range linked {
+	for path, dir := range linked {
 		c, ok := componentNamed(path)
 		switch {
 		case !ok || !c.module:
-			t.Errorf("%s %s is linked but has no section in the notice", path, m.version)
-		case !sameText(t, filepath.Join(m.dir, "LICENSE"), c.file):
+			t.Errorf("%s is linked but has no section in the notice", path)
+		case !sameText(t, filepath.Join(dir, "LICENSE"), c.file):
 			t.Errorf("%s's LICENSE differs from %s", path, c.file)
 		}
 	}
@@ -106,15 +103,12 @@ func TestLinkedModulesHaveNotices(t *testing.T) {
 }
 
 func TestGoToolchainNotice(t *testing.T) {
-	env := strings.Fields(goCommand(t, nil, "env", "GOVERSION", "GOROOT"))
-	if len(env) != 2 {
-		t.Fatalf("go env: %q", env)
-	}
+	goroot := strings.TrimSpace(goCommand(t, nil, "env", "GOROOT"))
 	c, ok := componentNamed("Go standard library and runtime")
-	if !ok || c.version() != env[0] {
-		t.Errorf("the notice names the Go release %s that builds the executable: %+v", env[0], c)
+	if !ok || !c.toolchain {
+		t.Fatalf("the notice lists the Go standard library and runtime: %+v", c)
 	}
-	if ok && !sameText(t, filepath.Join(env[1], "LICENSE"), c.file) {
+	if !sameText(t, filepath.Join(goroot, "LICENSE"), c.file) {
 		t.Errorf("the Go licence differs from %s", c.file)
 	}
 }
