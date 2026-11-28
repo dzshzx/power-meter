@@ -35,6 +35,11 @@ func TrayIcon(glyph string, accent power.Accent) []byte {
 // registers the app's fonts natively and never releases them (about 23 MB
 // with MiSans), and the tray is drawn again whenever its figures change,
 // which with Psys is every second.
+//
+// Workaround for upstream egoist/mygo#1902 (ui.Render fixed in #1948 and #2087;
+// per-Tester leak tracked in #1903). When upgrading mygo to a release carrying
+// #1948 and #2087, verify with internal/gui/tray_windows_test.go and either
+// switch back to ui.Render or keep the single Tester and update this comment.
 var trayPainter struct {
 	sync.Mutex
 	tester *ui.Tester

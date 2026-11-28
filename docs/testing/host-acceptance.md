@@ -73,6 +73,17 @@ Use a separately copied development EXE; keep the installed release intact.
    logon start into the tray, with the window open, and after hiding it into
    the tray again: each under 30 MB. The window's corners and shadow show the
    desktop behind them, and clicks on the shadow reach the window below.
+   - Measuring notes: Task Manager's Memory column is private working set (not
+     Private Bytes). To break it down by region, enumerate with `VirtualQueryEx`
+     and inspect page `Valid`/`Shared` bits via `QueryWorkingSetEx` (Go heaps
+     show as contiguous 4 MB arenas, DirectWrite font copies match font sizes as
+     private regions, and Intel GPU driver write-combined allocations have
+     protection `0x404`). Place a test EXE in a separate folder (single-instance
+     keys on EXE path); `--autostart` enters the tray without UAC and
+     `--no-elevate` opens the window without UAC. To verify corner transparency
+     reliably, capture the desktop before showing the window, crop the same
+     rectangle after, and compare the four corners pixel-by-pixel (visual
+     inspection alone can be fooled by Windows 11's backdrop).
 
 ## Confirmed on the target notebook
 
@@ -104,4 +115,5 @@ Power Meter 1.6.0, the first Go release, replaced 1.5.5 on the same notebook:
   300%, starting at 300% and returning to 175%.
 - Readings continue after resuming from modern standby. In the first minutes
   after one resume the trend broke several times (sample gaps over 5 s);
-  the cause is not known yet.
+  the cause is not known yet (accepted as non-blocking; not tracked for
+  investigation unless gaps persist or distort readings).
