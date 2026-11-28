@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 门禁（wt land 合入前与 ci.yml 都跑它）：只含能在 Linux 上跑的检查。
-# Windows 部分（Windows 上的 go test 与 tools/release 的烟测、安装实测）见 CLAUDE.md。
+# Windows 部分（Windows 上的 go test 与 tools/release 的烟测、安装实测）见 AGENTS.md。
 # 用法：bash scripts/check.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
